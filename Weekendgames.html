@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Money Shots Golf — Wolf</title>
+<style>
+  :root{
+    --dark-green:#0b2e1f;
+    --mid-green:#123c28;
+    --line-green:#1c5238;
+    --gold:#d4af37;
+    --gold-soft:#e8cf7a;
+    --cream:#f4efe3;
+    --rust:#b3392c;
+    --win:#3f9d5d;
+    --text-dim:#9db8a8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',system-ui,sans-serif;
+    background:var(--dark-green);
+    color:var(--cream);
+    min-height:100vh;
+    padding-bottom:70px;
+  }
+  header{
+    background:linear-gradient(180deg,var(--mid-green),var(--dark-green));
+    padding:18px 16px 14px;
+    border-bottom:2px solid var(--gold);
+    text-align:center;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  header h1{
+    margin:0;
+    font-size:1.3rem;
+    letter-spacing:1px;
+    color:var(--gold-soft);
+  }
+  header .sub{
+    font-size:0.75rem;
+    color:var(--text-dim);
+    margin-top:2px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+  .wolf-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-top:10px;
+    padding:6px 16px;
+    border:1px solid var(--gold);
+    border-radius:30px;
+    background:rgba(212,175,55,0.08);
+  }
+  .wolf-badge .paw{font-size:1.1rem;}
+  .wolf-badge b{color:var(--gold-soft);}
+
+  nav{
+    display:flex;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:var(--mid-green);
+    border-top:2px solid var(--gold);
+    z-index:20;
+  }
+  nav button{
+    flex:1;
+    padding:12px 4px;
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:0.72rem;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+  nav button.active{color:var(--gold-soft); font-weight:bold;}
+
+  main{padding:16px; max-width:520px; margin:0 auto;}
+  @media (min-width: 700px){
+    #view-sb-board .panel{
+      max-width: 1000px;
+      width: 90vw;
+      margin-left: calc(-45vw + 50%);
+    }
+    #sbBoardWrap table{ font-size:0.9rem; }
+    #sbBoardWrap th, #sbBoardWrap td{ padding:8px 6px; }
+  }
+  .panel{
+    background:var(--mid-green);
+    border:1px solid var(--line-green);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .panel h2{margin:0 0 12px; font-size:1rem; color:var(--gold-soft); letter-spacing:0.5px;}
+  label{display:block; font-size:0.8rem; color:var(--text-dim); margin:10px 0 4px;}
+  input[type=text],input[type=number],select.roster-select{
+    width:100%;
+    padding:9px 10px;
+    border-radius:6px;
+    border:1px solid var(--line-green);
+    background:var(--dark-green);
+    color:var(--cream);
+    font-size:0.95rem;
+  }
+  .btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-top:12px;
+    border:none;
+    border-radius:8px;
+    background:var(--gold);
+    color:var(--dark-green);
+    font-weight:bold;
+    font-size:0.95rem;
+    letter-spacing:0.5px;
+  }
+  .btn.secondary{
+    background:transparent;
+    border:1px solid var(--gold);
+    color:var(--gold-soft);
+  }
+  .btn.danger{background:var(--rust); color:var(--cream);}
+
+  .hole-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .hole-nav .hole-num{font-size:1.4rem; color:var(--gold-soft); font-weight:bold;}
+  .hole-nav button{background:none; border:1px solid var(--line-green); color:var(--cream); border-radius:6px; padding:6px 12px;}
+
+  .partner-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;}
+  .partner-grid button{
+    padding:10px 6px;
+    border-radius:8px;
+    border:1px solid var(--line-green);
+    background:var(--dark-green);
+    color:var(--cream);
+    font-size:0.85rem;
+  }
+  .partner-grid button.sel{background:var(--gold); color:var(--dark-green); border-color:var(--gold); font-weight:bold;}
+  .lone-btn{margin-top:8px;}
+  .lone-btn.sel{background:var(--rust); color:var(--cream); border-color:var(--rust);}
+
+  .score-grid{margin-top:12px;}
+  .score-row{display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line-green);}
+  .score-row .name{flex:1; font-size:0.9rem;}
+  .score-row input{width:64px; text-align:center;}
+  .score-row.is-wolf .name{color:var(--gold-soft); font-weight:bold;}
+
+  table{width:100%; border-collapse:collapse; font-size:0.82rem;}
+  th,td{padding:6px 4px; border-bottom:1px solid var(--line-green); text-align:center;}
+  th{color:var(--text-dim); font-weight:normal; font-size:0.72rem; text-transform:uppercase;}
+  td.name-col, th.name-col{text-align:left;}
+  .money-pos{color:var(--win); font-weight:bold;}
+  .money-neg{color:var(--rust); font-weight:bold;}
+  .play-money-summary{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 16px;}
+  .play-money-chip{display:flex; align-items:center; gap:5px; background:var(--mid-green); border-radius:20px; padding:5px 10px; font-size:0.78rem;}
+  .play-money-chip .pm-name{color:var(--cream);}
+  .play-money-chip.pm-wolf .pm-name{color:var(--gold-soft); font-weight:bold;}
+
+  .board-card{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:12px;
+    border-bottom:1px solid var(--line-green);
+  }
+  .board-card:last-child{border-bottom:none;}
+  .board-rank{color:var(--text-dim); width:22px;}
+  .board-name{flex:1; font-size:0.95rem;}
+  .empty{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:20px 0;}
+  .hint{font-size:0.72rem; color:var(--text-dim); margin-top:8px; line-height:1.4;}
+
+  .sb-checklist{
+    max-height:260px;
+    overflow-y:auto;
+    border:1px solid var(--line-green);
+    border-radius:8px;
+    padding:4px 10px;
+    margin-top:4px;
+  }
+  .sb-check-row{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line-green);}
+  .sb-check-row:last-child{border-bottom:none;}
+  .sb-check-row input{width:auto;}
+  .sb-check-row label{margin:0; color:var(--cream); font-size:0.9rem;}
+  .sb-hole-table{width:100%; margin-top:10px;}
+  .sb-hole-table th,.sb-hole-table td{padding:5px 3px; font-size:0.78rem;}
+  .sb-hole-table input{width:44px; text-align:center; padding:5px 2px;}
+  .sb-vert-list{display:flex; flex-direction:column; gap:6px; margin-top:8px;}
+  .sb-vert-row{display:flex; align-items:center; justify-content:space-between; background:var(--mid-green); border-radius:8px; padding:8px 12px;}
+  .sb-vert-hole{font-weight:600; color:var(--cream); font-size:0.95rem;}
+  .sb-vert-par{margin-left:8px; font-size:0.75rem; color:var(--text-dim); font-weight:400;}
+  .sb-vert-input{width:64px; text-align:center; padding:8px 4px; font-size:1rem;}
+  .sb-vert-total{margin-top:8px; padding:8px 12px; font-weight:700; color:var(--gold-soft); border-top:1px solid var(--line-green);}
+  .sb-vert-grand{margin-top:4px; color:var(--gold); font-size:1.05rem; display:none;}
+  .win-pill{background:var(--gold); color:var(--dark-green); font-size:0.65rem; font-weight:bold; padding:2px 6px; border-radius:8px; white-space:nowrap;}
+  .sb-tab-row{display:flex; gap:8px; margin-bottom:12px;}
+  .sb-tab{
+    flex:1;
+    padding:9px 0;
+    border-radius:6px;
+    border:1px solid var(--line-green);
+    background:var(--dark-green);
+    color:var(--text-dim);
+    font-size:0.85rem;
+    font-weight:bold;
+  }
+  .sb-tab.sel{background:var(--gold); color:var(--dark-green); border-color:var(--gold);}
+  .f9-start{border-left:2px solid var(--gold);}
+  .f9-end{border-right:2px solid var(--gold);}
+  .b9-start{border-left:2px solid var(--gold-soft);}
+  .b9-end{border-right:2px solid var(--gold-soft);}
+  .grp-head{background:rgba(212,175,55,0.08); font-weight:bold; color:var(--gold-soft)!important;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyASZm6VJsOHeEi1TfXXG4S1HisZ_HuC-fI",
+    authDomain: "wns-scramble.firebaseapp.com",
+    projectId: "wns-scramble",
+    storageBucket: "wns-scramble.firebasestorage.app",
+    messagingSenderId: "1012126405668",
+    appId: "1:1012126405668:web:8bc7a2178c7be0f534b4b1"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const weekendDb = firebase.firestore();
+</script>
+</head>
+<body>
+
+<header>
+  <h1>🐺⛳ MONEY SHOTS GOLF</h1>
+  <div class="sub" id="headerSub">Weekend Games</div>
+  <div class="wolf-badge" id="wolfBadge" style="display:none;">
+    <span class="paw">🐾</span> Wolf on Hole <span id="badgeHole"></span>: <b id="badgeWolf"></b>
+  </div>
+</header>
+
+<main>
+
+<!-- HOME / GAME PICKER -->
+<div id="view-home">
+  <div class="panel">
+    <h2>Choose a Game</h2>
+    <button class="btn" onclick="selectGame('wolf')">🐺 Wolf</button>
+    <button class="btn" onclick="selectGame('stableford')">⛳ Stableford</button>
+    <button class="btn" onclick="selectGame('nascar')">🏁 NASCAR Vegas</button>
+    <div class="hint">Both games can run at the same time — start one, then come back here to start the other.</div>
+  </div>
+</div>
+
+<!-- ============ WOLF APP ============ -->
+<div id="wolf-app" style="display:none;">
+
+  <!-- SETUP VIEW -->
+  <div id="view-setup">
+    <div class="panel">
+      <button class="btn secondary" onclick="showHome()">← Switch Game</button>
+      <h2 style="margin-top:14px;">Wolf — Round Setup</h2>
+      <label>Player 1 (tees off 1st)</label>
+      <select id="p0Select" class="roster-select" onchange="onRosterChange(0)"></select>
+      <input type="text" id="p0Custom" placeholder="Enter name" style="display:none; margin-top:6px;">
+
+      <label>Player 2</label>
+      <select id="p1Select" class="roster-select" onchange="onRosterChange(1)"></select>
+      <input type="text" id="p1Custom" placeholder="Enter name" style="display:none; margin-top:6px;">
+
+      <label>Player 3</label>
+      <select id="p2Select" class="roster-select" onchange="onRosterChange(2)"></select>
+      <input type="text" id="p2Custom" placeholder="Enter name" style="display:none; margin-top:6px;">
+
+      <label>Player 4</label>
+      <select id="p3Select" class="roster-select" onchange="onRosterChange(3)"></select>
+      <input type="text" id="p3Custom" placeholder="Enter name" style="display:none; margin-top:6px;">
+
+      <label>Player 5</label>
+      <select id="p4Select" class="roster-select" onchange="onRosterChange(4)"></select>
+      <input type="text" id="p4Custom" placeholder="Enter name" style="display:none; margin-top:6px;">
+
+      <label>$ Value per Hole</label>
+      <input type="number" id="customValue" placeholder="e.g. 0.25, 0.50, 1.00" step="0.01" value="1.00">
+
+      <button class="btn" onclick="startRound()">Start Round</button>
+      <div class="hint">Wolf rotates automatically in tee order for holes 1-15 — each Wolf can't repeat a partner they've already picked. On holes 16-18, the Wolf is whoever is down the most money, with no partner restriction. Team score = best ball. Losing side pays the hole value into a pot, split evenly among winners. Lone Wolf pays/collects double.</div>
+    </div>
+  </div>
+
+  <!-- PLAY VIEW -->
+  <div id="view-play" style="display:none;">
+    <div class="panel">
+      <div class="hole-nav">
+        <button onclick="prevHole()">← Prev</button>
+        <div class="hole-num">Hole <span id="playHoleNum"></span> / 18</div>
+        <button onclick="nextHoleNav()">Next →</button>
+      </div>
+
+      <div id="playMoneySummary"></div>
+
+      <label>Wolf this hole</label>
+      <div id="wolfDisplay" style="font-size:1.1rem; color:var(--gold-soft); font-weight:bold;"></div>
+      <div id="wolfReason" class="hint" style="margin-top:0;"></div>
+
+      <label>Wolf's choice</label>
+      <div class="partner-grid" id="partnerGrid"></div>
+      <button class="btn secondary lone-btn" id="loneBtn" onclick="toggleLone()">Go Lone Wolf</button>
+
+      <div class="score-grid" id="scoreGrid"></div>
+
+      <button class="btn" onclick="saveHole()">Save Hole</button>
+      <div id="saveMsg" class="hint"></div>
+    </div>
+  </div>
+
+  <!-- SCORECARD VIEW -->
+  <div id="view-card" style="display:none;">
+    <div class="panel">
+      <h2>Scorecard</h2>
+      <div id="cardWrap" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
+  <!-- MONEY VIEW -->
+  <div id="view-money" style="display:none;">
+    <div class="panel">
+      <h2>Money Board</h2>
+      <div id="moneyWrap"></div>
+    </div>
+  </div>
+
+</div> <!-- /wolf-app -->
+
+<!-- ============ STABLEFORD APP ============ -->
+<div id="stableford-app" style="display:none;">
+
+  <!-- SB SETUP VIEW -->
+  <div id="view-sb-setup">
+    <div class="panel">
+      <button class="btn secondary" onclick="showHome()">← Switch Game</button>
+      <h2 style="margin-top:14px;">Stableford — Round Setup</h2>
+
+      <label>Buy-in per player ($)</label>
+      <input type="number" id="sbBuyIn" step="0.01" value="20.00">
+
+      <label>Who's playing today?</label>
+      <div id="sbRosterChecks" class="sb-checklist"></div>
+
+      <label>Add a name not on the roster</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="sbExtraName" placeholder="Name">
+        <input type="number" id="sbExtraHcp" placeholder="HCP" style="width:80px;">
+        <button class="btn secondary" style="width:auto; margin-top:0; padding:9px 14px;" onclick="addExtraSbPlayer()">Add</button>
+      </div>
+      <div id="sbExtraList" class="hint"></div>
+
+      <button class="btn" onclick="startStableford()">Start Round</button>
+      <div class="hint">Points: Eagle+=8, Birdie=4, Par=2, Bogey=1, Double Bogey=0, Triple Bogey or worse=-1. Your target per 9 is (36 - handicap) / 2, based on gross score (no per-hole strokes). Front 9 and back 9 are scored separately — whoever beats their own target by the most wins that 9, split evenly if tied. $20 buy-in splits $10/9 by default, but you can change the amount above.</div>
+    </div>
+  </div>
+
+  <!-- SB SCORE ENTRY VIEW -->
+  <div id="view-sb-entry" style="display:none;">
+    <div class="panel">
+      <h2>Enter Scores</h2>
+      <label>Player</label>
+      <select id="sbPlayerSelect" class="roster-select" onchange="renderSbEntry()"></select>
+
+      <div id="sbEntryGrid"></div>
+
+      <button class="btn" onclick="saveSbPlayerScores()">Save Scores</button>
+      <div id="sbSaveMsg" class="hint"></div>
+    </div>
+  </div>
+
+  <!-- SB LEADERBOARD VIEW -->
+  <div id="view-sb-board" style="display:none;">
+    <div class="panel">
+      <h2>Live Leaderboard</h2>
+      <div class="sb-tab-row">
+        <button id="sbTabFront" class="sb-tab sel" onclick="setSbBoardTab('front')">Front 9</button>
+        <button id="sbTabBack" class="sb-tab" onclick="setSbBoardTab('back')">Back 9</button>
+      </div>
+      <div id="sbBoardWrap" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
+</div> <!-- /sb-app -->
+
+</main>
+
+<nav id="mainNav" style="display:none;">
+  <button id="nav-play" class="active" onclick="showView('play')">Play</button>
+  <button id="nav-card" onclick="showView('card')">Scorecard</button>
+  <button id="nav-money" onclick="showView('money')">Money</button>
+  <button id="nav-setup" onclick="showView('setup')">New Round</button>
+</nav>
+
+<nav id="sbNav" style="display:none;">
+  <button id="nav-sb-entry" class="active" onclick="showSbView('entry')">Enter Scores</button>
+  <button id="nav-sb-board" onclick="showSbView('board')">Leaderboard</button>
+  <button id="nav-sb-setup" onclick="showSbView('setup')">New Round</button>
+  <button onclick="showHome()">Switch Game</button>
+</nav>
+
+<script>
+const ROSTER = ["Alan Sonnefeld","Andy Rodriguez","Brian Patrossi","Cary Howell","Chad Moore","Craig Taylor","Curtis Newstrom","Dale Dugas","Dale Vasek","Dan Vacek","Dave Dawson","Dave Fritz","David Carden","David Meyer","David Sauceda","Don Sawyer","Ed Menville (Bubba)","Floyd Blackwell","Havey Duke","Jake Kelly","Jamie Daspit","Jay Anderson","Jerry Rains","Karey Carter","Larry Schuelke","Mike Beck","Mike Cross","Nevan","Pat McKenna","Ronnie Dartez","Russell Emmott","Todd Lee","Tom Bledsoe","Trey McDaniel"];
+
+const ROSTER_HCP = {"Cary Howell":3,"Trey McDaniel":2,"Dale Dugas":6,"Craig Taylor":8,"Russell Emmott":9,"Dale Vasek":8,"Jake Kelly":8,"David Meyer":10,"Dave Fritz":11,"Mike Beck":11,"Jamie Daspit":12,"Curtis Newstrom":10,"Ronnie Dartez":15,"Tom Bledsoe":15,"Havey Duke":12,"Don Sawyer":15,"Karey Carter":17,"David Carden":17,"Jerry Rains":15,"Dave Dawson":17,"Alan Sonnefeld":19,"Floyd Blackwell":20,"Ed Menville (Bubba)":18,"Brian Patrossi":19,"Mike Cross":19,"Todd Lee":25,"Larry Schuelke":21,"Dan Vacek":25,"David Sauceda":25,"Andy Rodriguez":14,"Jay Anderson":15,"Nevan":20,"Chad Moore":0,"Pat McKenna":16};
+
+const FRONT_PAR = [4,3,4,4,3,4,5,3,5];
+const BACK_PAR = [5,3,4,4,4,3,4,4,5];
+const ALL_PAR = FRONT_PAR.concat(BACK_PAR);
+
+function holePoints(gross, par){
+  if(gross===null || gross===undefined || isNaN(gross)) return null;
+  const diff = gross - par;
+  if(diff <= -2) return 8;
+  if(diff === -1) return 4;
+  if(diff === 0) return 2;
+  if(diff === 1) return 1;
+  if(diff === 2) return 0;
+  return -1;
+}
+
+function sbTarget9(hcp){
+  return (36 - hcp) / 2;
+}
+
+function showHome(){
+  document.getElementById('view-home').style.display = 'block';
+  document.getElementById('wolf-app').style.display = 'none';
+  document.getElementById('stableford-app').style.display = 'none';
+  document.getElementById('nascar-app').style.display = 'none';
+  document.getElementById('mainNav').style.display = 'none';
+  document.getElementById('sbNav').style.display = 'none';
+  document.getElementById('wolfBadge').style.display = 'none';
+  document.getElementById('headerSub').textContent = 'Weekend Games';
+}
+
+function selectGame(game){
+  // Replaced by NASCAR Vegas version below
+}
+
+function populateRosterDropdowns(){
+  for(let i=0;i<5;i++){
+    const sel = document.getElementById('p'+i+'Select');
+    sel.innerHTML = '<option value="">— Select player —</option>' +
+      ROSTER.map(n=>`<option value="${n}">${n}</option>`).join('') +
+      '<option value="__custom__">+ Add a name not on the list</option>';
+  }
+}
+populateRosterDropdowns();
+
+function onRosterChange(i){
+  const sel = document.getElementById('p'+i+'Select');
+  const custom = document.getElementById('p'+i+'Custom');
+  if(sel.value === '__custom__'){
+    custom.style.display = 'block';
+    custom.value = '';
+    custom.focus();
+  } else {
+    custom.style.display = 'none';
+  }
+}
+
+function getPlayerName(i){
+  const sel = document.getElementById('p'+i+'Select');
+  if(sel.value === '__custom__'){
+    return document.getElementById('p'+i+'Custom').value.trim();
+  }
+  return sel.value;
+}
+
+let players = [];
+let holeValue = 1.00;
+let currentHole = 1;
+let holes = {}; // holeNumber -> {wolfIdx, decision:'lone'|partnerIdx, scores:[5]}
+
+/* ---- Firestore sync for Wolf ---- */
+const wolfRoundDocRef = weekendDb.collection('weekendGames').doc('wolf_active');
+let _skipNextWolfSnapshot = false;
+let _wolfSaveTimer = null;
+
+function wolfFirestoreSaveNow(){
+  _skipNextWolfSnapshot = true;
+  wolfRoundDocRef.set({
+    active: true,
+    holeValue: holeValue,
+    playersJSON: JSON.stringify(players),
+    holesJSON: JSON.stringify(holes),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err=>{
+    console.error('Wolf save failed', err);
+    _skipNextWolfSnapshot = false;
+  });
+}
+
+function wolfFirestoreSaveDebounced(){
+  clearTimeout(_wolfSaveTimer);
+  _wolfSaveTimer = setTimeout(wolfFirestoreSaveNow, 500);
+}
+
+function wolfApplyRemoteData(data){
+  if(typeof data.holeValue === 'number') holeValue = data.holeValue;
+  try{ players = JSON.parse(data.playersJSON || '[]'); }catch(e){ players = []; }
+  try{ holes = JSON.parse(data.holesJSON || '{}'); }catch(e){ holes = {}; }
+
+  const wolfApp = document.getElementById('wolf-app');
+  if(wolfApp && wolfApp.style.display !== 'none' && players.length > 0){
+    document.getElementById('mainNav').style.display = 'flex';
+    document.getElementById('wolfBadge').style.display = 'inline-flex';
+    const activeView = ['play','card','money','setup'].find(v=>document.getElementById('view-'+v).style.display !== 'none');
+    if(activeView === 'setup' || !activeView){ showView('play'); }
+    else { showView(activeView); }
+  }
+}
+
+wolfRoundDocRef.onSnapshot(doc=>{
+  if(_skipNextWolfSnapshot){ _skipNextWolfSnapshot = false; return; }
+  if(doc.exists){
+    wolfApplyRemoteData(doc.data());
+  }
+}, err=>console.error('Wolf listener error', err));
+
+document.getElementById('customValue').addEventListener('input', e=>{
+  const v = parseFloat(e.target.value);
+  if(!isNaN(v) && v>0){
+    holeValue = v;
+  }
+});
+
+function startRound(){
+  players = [];
+  for(let i=0;i<5;i++){
+    const v = getPlayerName(i);
+    if(!v){ alert('Choose or enter all 5 player names.'); return; }
+    players.push(v);
+  }
+  currentHole = 1;
+  holes = {};
+  document.getElementById('mainNav').style.display='flex';
+  document.getElementById('wolfBadge').style.display='inline-flex';
+  showView('play');
+  wolfFirestoreSaveNow();
+}
+
+function computeTotalsBeforeHole(h){
+  const totals = [0,0,0,0,0];
+  Object.keys(holes).forEach(k=>{
+    const hh = parseInt(k);
+    if(hh < h && holes[hh].saved && holes[hh].money){
+      holes[hh].money.forEach((m,i)=>totals[i]+=m);
+    }
+  });
+  return totals;
+}
+
+function wolfIndexForHole(h){
+  if(h <= 15){
+    return (h-1) % 5;
+  }
+  // Holes 16-18: Wolf is whoever is down the most money going into this hole
+  const totals = computeTotalsBeforeHole(h);
+  let minIdx = 0;
+  for(let i=1;i<5;i++){
+    if(totals[i] < totals[minIdx]) minIdx = i;
+  }
+  return minIdx;
+}
+
+function getUsedPartners(wolfIdx, excludeHole){
+  const used = new Set();
+  Object.keys(holes).forEach(k=>{
+    const hh = parseInt(k);
+    if(hh<=15 && hh!==excludeHole && holes[hh].saved && holes[hh].wolfIdx===wolfIdx && typeof holes[hh].decision === 'number'){
+      used.add(holes[hh].decision);
+    }
+  });
+  return used;
+}
+
+function showView(name){
+  ['setup','play','card','money'].forEach(v=>{
+    document.getElementById('view-'+v).style.display = (v===name)?'block':'none';
+  });
+  ['play','card','money','setup'].forEach(v=>{
+    const b = document.getElementById('nav-'+v);
+    if(b) b.classList.toggle('active', v===name);
+  });
+  if(name==='play') renderHole();
+  if(name==='card') renderCard();
+  if(name==='money') renderMoney();
+}
+
+function renderHole(){
+  document.getElementById('playHoleNum').textContent = currentHole;
+  renderPlayMoneySummary();
+
+  let rec = holes[currentHole];
+  if(!rec){
+    rec = {wolfIdx:null, decision:null, scores:[null,null,null,null,null], saved:false};
+    holes[currentHole] = rec;
+  }
+  if(!rec.saved){
+    rec.wolfIdx = wolfIndexForHole(currentHole);
+  }
+  const wIdx = rec.wolfIdx;
+
+  document.getElementById('wolfDisplay').textContent = players[wIdx];
+  document.getElementById('badgeHole').textContent = currentHole;
+  document.getElementById('badgeWolf').textContent = players[wIdx];
+
+  const reasonEl = document.getElementById('wolfReason');
+  if(currentHole <= 15){
+    reasonEl.textContent = 'Auto-rotation (holes 1-15). Can\'t repeat a partner already picked in an earlier hole.';
+  } else {
+    const totals = computeTotalsBeforeHole(currentHole);
+    reasonEl.textContent = 'Biggest loser going into this hole (down $' + Math.abs(Math.min(0,totals[wIdx])).toFixed(2) + '). No partner restriction on holes 16-18.';
+  }
+
+  // partner grid: other 4 players
+  const grid = document.getElementById('partnerGrid');
+  grid.innerHTML = '';
+  const restrictPartners = currentHole <= 15;
+  const usedPartners = restrictPartners ? getUsedPartners(wIdx, currentHole) : new Set();
+  players.forEach((name,i)=>{
+    if(i===wIdx) return;
+    const btn = document.createElement('button');
+    btn.textContent = name;
+    const alreadyUsed = usedPartners.has(i) && rec.decision !== i;
+    if(alreadyUsed){
+      btn.disabled = true;
+      btn.style.opacity = '0.35';
+      btn.title = 'Already picked ' + name + ' as partner in an earlier hole (1-15)';
+    }
+    if(rec.decision===i) btn.classList.add('sel');
+    btn.onclick = ()=>{ if(!alreadyUsed){ rec.decision = i; renderHole(); wolfFirestoreSaveDebounced(); } };
+    grid.appendChild(btn);
+  });
+  const loneBtn = document.getElementById('loneBtn');
+  loneBtn.classList.toggle('sel', rec.decision==='lone');
+
+  // score inputs
+  const sg = document.getElementById('scoreGrid');
+  sg.innerHTML = '';
+  players.forEach((name,i)=>{
+    const row = document.createElement('div');
+    row.className = 'score-row' + (i===wIdx?' is-wolf':'');
+    row.innerHTML = `<div class="name">${name}${i===wIdx?' 🐺':''}</div>
+      <input type="number" min="1" data-idx="${i}" value="${rec.scores[i]===null?'':rec.scores[i]}">`;
+    sg.appendChild(row);
+  });
+  sg.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      rec.scores[parseInt(e.target.dataset.idx)] = parseFloat(e.target.value) || null;
+      wolfFirestoreSaveDebounced();
+    });
+  });
+
+  document.getElementById('saveMsg').textContent = rec.saved ? 'Saved for this hole. You can still edit and re-save.' : '';
+}
+
+function toggleLone(){
+  const rec = holes[currentHole];
+  rec.decision = (rec.decision==='lone') ? null : 'lone';
+  renderHole();
+  wolfFirestoreSaveDebounced();
+}
+
+function prevHole(){
+  if(currentHole>1){ currentHole--; renderHole(); }
+}
+function nextHoleNav(){
+  if(currentHole<18){ currentHole++; renderHole(); }
+}
+
+function saveHole(){
+  const rec = holes[currentHole];
+  if(rec.decision===null || rec.decision===undefined){
+    alert('Choose a partner or Go Lone Wolf first.');
+    return;
+  }
+  if(rec.scores.some(s=>s===null)){
+    alert('Enter all 5 scores first.');
+    return;
+  }
+  rec.saved = true;
+  computeHoleMoney(rec);
+  document.getElementById('saveMsg').textContent = 'Hole ' + currentHole + ' saved!';
+  clearTimeout(_wolfSaveTimer);
+  wolfFirestoreSaveNow();
+  if(currentHole<18){
+    setTimeout(()=>{ currentHole++; renderHole(); }, 500);
+  }
+}
+
+function computeHoleMoney(rec){
+  const wIdx = rec.wolfIdx;
+  const money = [0,0,0,0,0];
+  if(rec.decision==='lone'){
+    const others = [0,1,2,3,4].filter(i=>i!==wIdx);
+    const bestOthers = Math.min(...others.map(i=>rec.scores[i]));
+    const wolfScore = rec.scores[wIdx];
+    const val = holeValue * 2;
+    if(wolfScore < bestOthers){
+      money[wIdx] = val*4;
+      others.forEach(i=>money[i] = -val);
+    } else if(bestOthers < wolfScore){
+      money[wIdx] = -val*4;
+      others.forEach(i=>money[i] = val);
+    } // tie = push, all zero
+  } else {
+    const partnerIdx = rec.decision;
+    const teamA = [wIdx, partnerIdx];
+    const teamB = [0,1,2,3,4].filter(i=>!teamA.includes(i));
+    const bestA = Math.min(rec.scores[teamA[0]], rec.scores[teamA[1]]);
+    const bestB = Math.min(...teamB.map(i=>rec.scores[i]));
+    if(bestA < bestB){
+      const pot = holeValue * teamB.length;
+      const share = pot / teamA.length;
+      teamA.forEach(i=>money[i]=share);
+      teamB.forEach(i=>money[i]=-holeValue);
+    } else if(bestB < bestA){
+      const pot = holeValue * teamA.length;
+      const share = pot / teamB.length;
+      teamB.forEach(i=>money[i]=share);
+      teamA.forEach(i=>money[i]=-holeValue);
+    } // tie = push
+  }
+  rec.money = money;
+}
+
+function renderCard(){
+  const wrap = document.getElementById('cardWrap');
+  const savedHoles = Object.keys(holes).map(k=>parseInt(k)).filter(h=>holes[h].saved).sort((a,b)=>a-b);
+  if(savedHoles.length===0){
+    wrap.innerHTML = '<div class="empty">No holes saved yet.</div>';
+    return;
+  }
+  let html = '<table><tr><th>Hole</th><th>Wolf</th><th>Decision</th>';
+  players.forEach(p=>html += `<th>${p}</th>`);
+  html += '</tr>';
+  savedHoles.forEach(h=>{
+    const rec = holes[h];
+    const decisionText = rec.decision==='lone' ? 'Lone Wolf' : ('w/ '+players[rec.decision]);
+    html += `<tr><td>${h}</td><td>${players[rec.wolfIdx]}</td><td>${decisionText}</td>`;
+    rec.scores.forEach((s,i)=>{
+      const m = rec.money[i];
+      const cls = m>0?'money-pos':(m<0?'money-neg':'');
+      const mtxt = m===0?'—':(m>0?'+$'+m.toFixed(2):'-$'+Math.abs(m).toFixed(2));
+      html += `<td>${s}<br><span class="${cls}" style="font-size:0.7rem;">${mtxt}</span></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+
+function computeWolfTotals(){
+  const totals = [0,0,0,0,0];
+  let savedCount = 0;
+  Object.values(holes).forEach(rec=>{
+    if(rec.saved && rec.money){
+      rec.money.forEach((m,i)=>totals[i]+=m);
+      savedCount++;
+    }
+  });
+  return {totals, savedCount};
+}
+
+function renderPlayMoneySummary(){
+  const wrap = document.getElementById('playMoneySummary');
+  if(!wrap) return;
+  if(players.length===0){ wrap.innerHTML=''; return; }
+
+  const {totals, savedCount} = computeWolfTotals();
+  if(savedCount===0){
+    wrap.innerHTML = '<div class="hint" style="margin:0 0 12px;">No holes saved yet — running totals will show up here as you go.</div>';
+    return;
+  }
+
+  const wIdx = holes[currentHole] ? holes[currentHole].wolfIdx : null;
+  const ranked = players.map((name,i)=>({name, total:totals[i], idx:i})).sort((a,b)=>b.total-a.total);
+
+  let chips = '';
+  ranked.forEach(r=>{
+    const cls = r.total>0?'money-pos':(r.total<0?'money-neg':'');
+    const txt = r.total===0?'$0.00':(r.total>0?'+$'+r.total.toFixed(2):'-$'+Math.abs(r.total).toFixed(2));
+    const wolfCls = r.idx===wIdx ? ' pm-wolf' : '';
+    chips += `<span class="play-money-chip${wolfCls}"><span class="pm-name">${r.name}</span><span class="${cls}">${txt}</span></span>`;
+  });
+
+  wrap.innerHTML = `<div class="hint" style="margin:0 0 6px;">Thru ${savedCount} hole${savedCount===1?'':'s'}</div>` +
+    `<div class="play-money-summary">${chips}</div>`;
+}
+
+function renderMoney(){
+  const wrap = document.getElementById('moneyWrap');
+  const {totals} = computeWolfTotals();
+  const ranked = players.map((name,i)=>({name, total:totals[i]})).sort((a,b)=>b.total-a.total);
+  if(ranked.length===0 || players.length===0){
+    wrap.innerHTML = '<div class="empty">Start a round to see the money board.</div>';
+    return;
+  }
+  let html = '';
+  ranked.forEach((r,idx)=>{
+    const cls = r.total>0?'money-pos':(r.total<0?'money-neg':'');
+    const txt = r.total===0?'$0.00':(r.total>0?'+$'+r.total.toFixed(2):'-$'+Math.abs(r.total).toFixed(2));
+    html += `<div class="board-card"><span class="board-rank">${idx+1}</span><span class="board-name">${r.name}</span><span class="${cls}">${txt}</span></div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+/* ============ STABLEFORD ============ */
+let sbPlayers = [];   // [{name, hcp}]
+let sbExtras = [];    // [{name, hcp}] added manually
+let sbScores = {};    // name -> [18 scores, null if not entered]
+let sbBuyIn = 20.00;
+
+/* ---- Firestore sync for Stableford ---- */
+const sbRoundDocRef = weekendDb.collection('weekendGames').doc('stableford_active');
+let _sbSnapshotLoaded = false;
+let _skipNextSbSnapshot = false;
+let _sbSaveTimer = null;
+
+function sbFirestoreSaveNow(){
+  _skipNextSbSnapshot = true;
+  sbRoundDocRef.set({
+    active: true,
+    buyIn: sbBuyIn,
+    playersJSON: JSON.stringify(sbPlayers),
+    scoresJSON: JSON.stringify(sbScores),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err=>{
+    console.error('Stableford save failed', err);
+    _skipNextSbSnapshot = false;
+  });
+}
+
+function sbFirestoreSaveDebounced(){
+  clearTimeout(_sbSaveTimer);
+  _sbSaveTimer = setTimeout(sbFirestoreSaveNow, 500);
+}
+
+function sbApplyRemoteData(data){
+  sbBuyIn = (typeof data.buyIn === 'number') ? data.buyIn : sbBuyIn;
+  try{ sbPlayers = JSON.parse(data.playersJSON || '[]'); }catch(e){ sbPlayers = []; }
+  try{ sbScores = JSON.parse(data.scoresJSON || '{}'); }catch(e){ sbScores = {}; }
+
+  const buyInEl = document.getElementById('sbBuyIn');
+  if(buyInEl) buyInEl.value = sbBuyIn;
+
+  // Only touch the UI if the Stableford screen is actually visible right now
+  const sbApp = document.getElementById('stableford-app');
+  if(sbApp && sbApp.style.display !== 'none'){
+    document.getElementById('sbNav').style.display = sbPlayers.length ? 'flex' : 'none';
+    const sel = document.getElementById('sbPlayerSelect');
+    if(sel){
+      const prevSelected = sel.value;
+      sel.innerHTML = sbPlayers.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+      if(sbPlayers.some(p=>p.name===prevSelected)) sel.value = prevSelected;
+    }
+    const entryVisible = document.getElementById('view-sb-entry').style.display !== 'none';
+    const boardVisible = document.getElementById('view-sb-board').style.display !== 'none';
+    if(entryVisible) renderSbEntry();
+    if(boardVisible) renderSbBoard();
+  }
+}
+
+sbRoundDocRef.onSnapshot(doc=>{
+  if(_skipNextSbSnapshot){ _skipNextSbSnapshot = false; return; }
+  if(doc.exists){
+    sbApplyRemoteData(doc.data());
+  }
+  _sbSnapshotLoaded = true;
+}, err=>console.error('Stableford listener error', err));
+
+function populateSbRosterChecklist(){
+  const wrap = document.getElementById('sbRosterChecks');
+  wrap.innerHTML = ROSTER.map(name => `
+    <div class="sb-check-row">
+      <input type="checkbox" id="sbchk_${name.replace(/[^a-zA-Z0-9]/g,'')}" value="${name}">
+      <label for="sbchk_${name.replace(/[^a-zA-Z0-9]/g,'')}">${name} (hcp ${ROSTER_HCP[name]})</label>
+    </div>
+  `).join('');
+}
+
+function addExtraSbPlayer(){
+  const nameEl = document.getElementById('sbExtraName');
+  const hcpEl = document.getElementById('sbExtraHcp');
+  const name = nameEl.value.trim();
+  const hcp = parseFloat(hcpEl.value);
+  if(!name || isNaN(hcp)){ alert('Enter a name and handicap.'); return; }
+  sbExtras.push({name, hcp});
+  nameEl.value=''; hcpEl.value='';
+  renderSbExtraList();
+}
+
+function renderSbExtraList(){
+  const el = document.getElementById('sbExtraList');
+  if(sbExtras.length===0){ el.textContent=''; return; }
+  el.textContent = 'Added: ' + sbExtras.map(p=>p.name+' (hcp '+p.hcp+')').join(', ');
+}
+
+function startStableford(){
+  const buyInVal = parseFloat(document.getElementById('sbBuyIn').value);
+  sbBuyIn = isNaN(buyInVal) ? 20 : buyInVal;
+
+  sbPlayers = [];
+  ROSTER.forEach(name=>{
+    const id = 'sbchk_'+name.replace(/[^a-zA-Z0-9]/g,'');
+    const chk = document.getElementById(id);
+    if(chk && chk.checked){
+      sbPlayers.push({name, hcp: ROSTER_HCP[name]});
+    }
+  });
+  sbExtras.forEach(p=>sbPlayers.push(p));
+
+  if(sbPlayers.length < 2){
+    alert('Select at least 2 players.');
+    return;
+  }
+
+  sbScores = {};
+  sbPlayers.forEach(p=>{
+    sbScores[p.name] = new Array(18).fill(null);
+  });
+
+  document.getElementById('sbNav').style.display = 'flex';
+  const sel = document.getElementById('sbPlayerSelect');
+  sel.innerHTML = sbPlayers.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+  showSbView('entry');
+  sbFirestoreSaveNow();
+}
+
+function showSbView(name){
+  ['setup','entry','board'].forEach(v=>{
+    document.getElementById('view-sb-'+v).style.display = (v===name)?'block':'none';
+  });
+  ['sb-entry','sb-board','sb-setup'].forEach(v=>{
+    const b = document.getElementById('nav-'+v);
+    if(b) b.classList.toggle('active', v===('sb-'+name));
+  });
+  if(name==='entry') renderSbEntry();
+  if(name==='board') renderSbBoard();
+}
+
+function sbNineGross(scores, startHole, count){
+  let total = 0, thru = 0;
+  for(let i=0;i<count;i++){
+    const v = scores[startHole-1+i];
+    if(v!==null && v!==undefined && !isNaN(v)){ total += v; thru++; }
+  }
+  return {total, thru};
+}
+
+function updateSbTotalsDisplay(scores){
+  const front = sbNineGross(scores, 1, 9);
+  const back = sbNineGross(scores, 10, 9);
+  const frontEl = document.getElementById('sbFrontTotal');
+  const backEl = document.getElementById('sbBackTotal');
+  const grandEl = document.getElementById('sbGrandTotal');
+  if(frontEl) frontEl.textContent = 'Front 9 Gross: ' + (front.thru ? front.total : '—') + (front.thru>0 && front.thru<9 ? ' (thru '+front.thru+')' : '');
+  if(backEl) backEl.textContent = 'Back 9 Gross: ' + (back.thru ? back.total : '—') + (back.thru>0 && back.thru<9 ? ' (thru '+back.thru+')' : '');
+  if(grandEl){
+    if(front.thru===9 && back.thru===9){
+      grandEl.style.display = 'block';
+      grandEl.textContent = '18-Hole Gross Total: ' + (front.total + back.total);
+    } else {
+      grandEl.style.display = 'none';
+    }
+  }
+}
+
+function renderSbEntry(){
+  const sel = document.getElementById('sbPlayerSelect');
+  const name = sel.value;
+  if(!name) return;
+  const scores = sbScores[name];
+
+  const nineListHtml = (startHole, pars) => {
+    return '<div class="sb-vert-list">' + pars.map((par,i)=>{
+      const idx = startHole-1+i;
+      const val = scores[idx];
+      return `<div class="sb-vert-row">
+        <div class="sb-vert-hole">Hole ${startHole+i}<span class="sb-vert-par">Par ${par}</span></div>
+        <input type="number" min="1" class="sb-vert-input" data-holeidx="${idx}" value="${val===null?'':val}">
+      </div>`;
+    }).join('') + '</div>';
+  };
+
+  document.getElementById('sbEntryGrid').innerHTML =
+    '<div class="hint" style="margin-top:12px;">Front 9</div>' +
+    nineListHtml(1, FRONT_PAR) +
+    '<div id="sbFrontTotal" class="sb-vert-total"></div>' +
+    '<div class="hint" style="margin-top:16px;">Back 9</div>' +
+    nineListHtml(10, BACK_PAR) +
+    '<div id="sbBackTotal" class="sb-vert-total"></div>' +
+    '<div id="sbGrandTotal" class="sb-vert-total sb-vert-grand"></div>';
+
+  updateSbTotalsDisplay(scores);
+
+  document.getElementById('sbEntryGrid').querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const idx = parseInt(e.target.dataset.holeidx);
+      const v = parseFloat(e.target.value);
+      scores[idx] = isNaN(v) ? null : v;
+      updateSbTotalsDisplay(scores);
+      sbFirestoreSaveDebounced();
+    });
+  });
+}
+
+function saveSbPlayerScores(){
+  const sel = document.getElementById('sbPlayerSelect');
+  clearTimeout(_sbSaveTimer);
+  sbFirestoreSaveNow();
+  document.getElementById('sbSaveMsg').textContent = 'Saved scores for ' + sel.value + '.';
+}
+
+function computeSbNineStats(scores, pars, hcp){
+  let pts = 0, thru = 0;
+  for(let i=0;i<9;i++){
+    const p = holePoints(scores[i], pars[i]);
+    if(p!==null){ pts += p; thru++; }
+  }
+  const target = sbTarget9(hcp);
+  return {pts, thru, target, margin: pts - target, complete: thru===9};
+}
+
+function fmtNum(n){
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function fmtMargin(margin){
+  const n = fmtNum(Math.abs(margin));
+  if(margin > 0) return n + ' above';
+  if(margin < 0) return n + ' below';
+  return 'even';
+}
+
+let sbBoardTab = 'front';
+
+function setSbBoardTab(tab){
+  sbBoardTab = tab;
+  document.getElementById('sbTabFront').classList.toggle('sel', tab==='front');
+  document.getElementById('sbTabBack').classList.toggle('sel', tab==='back');
+  renderSbBoard();
+}
+
+function renderSbBoard(){
+  const wrap = document.getElementById('sbBoardWrap');
+  if(sbPlayers.length===0){
+    wrap.innerHTML = '<div class="empty">Start a round to see the leaderboard.</div>';
+    return;
+  }
+
+  const rows = sbPlayers.map(p=>{
+    const scores = sbScores[p.name];
+    const front = computeSbNineStats(scores.slice(0,9), FRONT_PAR, p.hcp);
+    const back = computeSbNineStats(scores.slice(9,18), BACK_PAR, p.hcp);
+    return {name:p.name, hcp:p.hcp, front, back};
+  });
+
+  const frontComplete = rows.filter(r=>r.front.complete);
+  const backComplete = rows.filter(r=>r.back.complete);
+  const bestFrontMargin = frontComplete.length ? Math.max(...frontComplete.map(r=>r.front.margin)) : null;
+  const bestBackMargin = backComplete.length ? Math.max(...backComplete.map(r=>r.back.margin)) : null;
+  const frontWinners = bestFrontMargin===null ? [] : frontComplete.filter(r=>r.front.margin===bestFrontMargin).map(r=>r.name);
+  const backWinners = bestBackMargin===null ? [] : backComplete.filter(r=>r.back.margin===bestBackMargin).map(r=>r.name);
+
+  const pot = sbBuyIn * sbPlayers.length;
+  const frontPot = pot/2, backPot = pot/2;
+  const frontShare = frontWinners.length ? frontPot/frontWinners.length : 0;
+  const backShare = backWinners.length ? backPot/backWinners.length : 0;
+
+  const isFront = sbBoardTab === 'front';
+  const key = isFront ? 'front' : 'back';
+  const winners = isFront ? frontWinners : backWinners;
+  const share = isFront ? frontShare : backShare;
+  const potForNine = isFront ? frontPot : backPot;
+  const label = isFront ? 'F9' : 'B9';
+
+  rows.sort((a,b)=>b[key].margin - a[key].margin);
+
+  let html = `<div class="hint">${label} Pot: $${potForNine.toFixed(2)}</div>`;
+  html += '<table>';
+  html += '<tr><th class="name-col">Player</th><th>HCP</th><th>Pts</th><th>Needed</th><th>PTS Earned</th><th>Diff</th><th>Payout</th></tr>';
+  rows.forEach(r=>{
+    const nine = r[key];
+    const earned = nine.margin;
+    const diff = earned - nine.target;
+    const isWinner = winners.includes(r.name);
+    const payoutCell = isWinner ? `<span class="win-pill">+$${share.toFixed(2)}</span>` : '—';
+    html += `<tr>
+      <td class="name-col">${r.name}</td>
+      <td>${r.hcp}</td>
+      <td>${nine.thru? nine.pts : '—'}</td>
+      <td>${fmtNum(nine.target)}</td>
+      <td>${nine.thru? (earned>=0?'+':'')+fmtNum(earned) : '—'}${nine.thru && !nine.complete? ' (thru '+nine.thru+')':''}</td>
+      <td>${nine.thru? (diff>=0?'+':'')+fmtNum(diff) : '—'}</td>
+      <td>${payoutCell}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+</script>
+
+
+<!-- ============ NASCAR VEGAS APP ============ -->
+<div id="nascar-app" style="display:none;">
+
+  <!-- SETUP VIEW -->
+  <div id="nv-setup">
+    <div class="panel">
+      <button class="btn secondary" onclick="showHome()">← Switch Game</button>
+      <h2 style="margin-top:14px;">🏁 NASCAR Vegas — Setup</h2>
+      <div class="hint" style="margin-bottom:14px">Enter 4 player names, then pick your dollar value per point. On each hole, tee shots that land LEFT are partners vs tee shots that land RIGHT.</div>
+
+      <label style="font-size:12px;color:var(--text-dim);letter-spacing:1px">PLAYER NAMES</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin:10px 0 18px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--text-dim);min-width:18px">1</span>
+          <select id="nv-p1" class="roster-select" style="flex:1" onchange="nvCheckCustom(0)"></select>
+          <input id="nv-custom-0" class="score-inp" placeholder="Enter name" style="flex:1;display:none">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--text-dim);min-width:18px">2</span>
+          <select id="nv-p2" class="roster-select" style="flex:1" onchange="nvCheckCustom(1)"></select>
+          <input id="nv-custom-1" class="score-inp" placeholder="Enter name" style="flex:1;display:none">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--text-dim);min-width:18px">3</span>
+          <select id="nv-p3" class="roster-select" style="flex:1" onchange="nvCheckCustom(2)"></select>
+          <input id="nv-custom-2" class="score-inp" placeholder="Enter name" style="flex:1;display:none">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--text-dim);min-width:18px">4</span>
+          <select id="nv-p4" class="roster-select" style="flex:1" onchange="nvCheckCustom(3)"></select>
+          <input id="nv-custom-3" class="score-inp" placeholder="Enter name" style="flex:1;display:none">
+        </div>
+      </div>
+
+      <label style="font-size:12px;color:var(--text-dim);letter-spacing:1px">DOLLAR VALUE PER POINT</label>
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0 20px">
+        <span style="color:var(--gold-soft);font-size:1.1rem;font-weight:700">$</span>
+        <input id="nv-dollar-inp" class="score-inp" type="number" min="0.01" step="0.25" value="0.25"
+          placeholder="0.25" style="width:100px" oninput="nvDollarVal=parseFloat(this.value)||0.25">
+        <span style="font-size:12px;color:var(--text-dim)">per point</span>
+      </div>
+
+      <button class="btn" onclick="nvStartRound()">Start Round →</button>
+    </div>
+  </div>
+
+  <!-- PLAY VIEW -->
+  <div id="nv-play" style="display:none;">
+    <div class="panel">
+      <!-- Hole nav -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <button class="btn secondary" onclick="nvPrevHole()" id="nv-prev-btn">◀ Prev</button>
+        <div style="text-align:center">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--gold-soft)">Hole <span id="nv-hole-num">1</span></div>
+          <div style="font-size:0.75rem;color:var(--text-dim)">Par <span id="nv-par-display">4</span> &nbsp;·&nbsp; $<span id="nv-val-display">0.25</span>/pt</div>
+        </div>
+        <button class="btn secondary" onclick="nvNextHole()" id="nv-next-btn">Next ▶</button>
+      </div>
+
+      <!-- Par selector -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:12px;color:var(--text-dim);letter-spacing:1px">PAR:</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn secondary nv-par-btn" id="nvpar-3" onclick="nvSetPar(3)">3</button>
+          <button class="btn secondary nv-par-btn active" id="nvpar-4" onclick="nvSetPar(4)">4</button>
+          <button class="btn secondary nv-par-btn" id="nvpar-5" onclick="nvSetPar(5)">5</button>
+        </div>
+      </div>
+
+      <!-- Captain banner for holes 16-18 -->
+      <div id="nv-captain-banner" style="display:none;background:rgba(179,57,44,0.15);border:1px solid var(--rust);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--rust);letter-spacing:1px;font-weight:700">⚑ HOLES 16–18 — CAPTAIN'S PICK</div>
+        <div id="nv-captain-label" style="font-size:0.95rem;color:var(--cream);margin-top:4px"></div>
+        <div id="nv-captain-pick-ui" style="display:none;margin-top:10px">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">Pick your partner:</div>
+          <div id="nv-partner-btns" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+      </div>
+
+      <!-- Tee shot positions + scores -->
+      <div id="nv-tee-label" style="font-size:12px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">TEE SHOT POSITION &amp; SCORE</div>
+      <div id="nv-players-grid" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px"></div>
+
+      <!-- Current hole result -->
+      <div id="nv-hole-result" style="display:none;background:rgba(212,175,55,0.08);border:1px solid var(--gold);border-radius:10px;padding:12px;margin-bottom:14px"></div>
+
+      <!-- Save hole button -->
+      <button class="btn" onclick="nvSaveHole()">💾 Save Hole</button>
+
+      <!-- Running totals -->
+      <div style="margin-top:18px;border-top:1px solid var(--line-green);padding-top:14px">
+        <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">RUNNING TOTALS (thru <span id="nv-thru">0</span> holes)</div>
+        <div id="nv-totals" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:10px">
+      <button class="btn secondary" style="width:100%" onclick="nvShowCard()">📋 View Full Scorecard</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px;color:var(--rust);border-color:var(--rust)" onclick="nvNewRound()">↺ New Round</button>
+    </div>
+  </div>
+
+  <!-- SPIN WHEEL MODAL -->
+  <div id="nv-wheel-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:1.1rem;font-weight:700;color:var(--gold-soft)">TIE for Biggest Loser!</div>
+      <div id="nv-wheel-names" style="font-size:0.85rem;color:var(--text-dim);margin-top:4px"></div>
+    </div>
+    <canvas id="nv-wheel-canvas" width="280" height="280" style="border-radius:50%;border:4px solid var(--gold)"></canvas>
+    <div id="nv-wheel-pointer" style="font-size:2rem;margin-top:-8px">▲</div>
+    <button class="btn" id="nv-spin-btn" style="margin-top:16px;min-width:160px" onclick="nvSpinWheel()">🎡 SPIN!</button>
+    <div id="nv-wheel-result" style="margin-top:14px;font-size:1.1rem;font-weight:700;color:var(--gold-soft);min-height:28px;text-align:center"></div>
+    <button class="btn secondary" id="nv-wheel-confirm" style="margin-top:10px;display:none" onclick="nvConfirmWheelResult()">✓ Confirm Captain</button>
+  </div>
+
+  <!-- SCORECARD VIEW -->
+  <div id="nv-card" style="display:none;">
+    <div class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <button class="btn secondary" onclick="nvShowPlay()">← Back to Game</button>
+        <span style="font-weight:700;color:var(--gold-soft)">Full Scorecard</span>
+        <span style="width:70px"></span>
+      </div>
+      <div id="nv-scorecard"></div>
+    </div>
+  </div>
+
+</div>
+<!-- end nascar-app -->
+
+<script>
+
+// ============ NASCAR VEGAS ============
+let nvPlayers = [];      // names in original setup order
+let nvTeeOrder = [];     // shuffled tee order for hole 1 (indices into nvPlayers)
+let nvDollarVal = 0.25;
+let nvHole = 1; // 1-based
+let nvPar = [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4]; // default all 4s, updated per hole
+let nvHoles = []; // array of 18 hole results
+// nvHoles[i] = {par, positions:{p0:'L',p1:'R',...}, scores:{p0:4,...}, leftTeam:[0,1], rightTeam:[2,3], leftVegas, rightVegas, pointsLeft, birdie:{left,right}, result:'left'|'right'|'tie', diff}
+
+/* ---- Firestore sync for NASCAR Vegas ---- */
+const nvRoundDocRef = weekendDb.collection('weekendGames').doc('nascar_active');
+let _skipNextNvSnapshot = false;
+
+function nvFirestoreSaveNow(){
+  _skipNextNvSnapshot = true;
+  nvRoundDocRef.set({
+    active: true,
+    dollarVal: nvDollarVal,
+    hole: nvHole,
+    playersJSON: JSON.stringify(nvPlayers),
+    teeOrderJSON: JSON.stringify(nvTeeOrder),
+    parJSON: JSON.stringify(nvPar),
+    holesJSON: JSON.stringify(nvHoles),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err=>{
+    console.error('NASCAR Vegas save failed', err);
+    _skipNextNvSnapshot = false;
+  });
+}
+
+function nvApplyRemoteData(data){
+  if(typeof data.dollarVal === 'number') nvDollarVal = data.dollarVal;
+  try{ nvPlayers = JSON.parse(data.playersJSON || '[]'); }catch(e){ nvPlayers = []; }
+  try{ nvTeeOrder = JSON.parse(data.teeOrderJSON || '[]'); }catch(e){ nvTeeOrder = []; }
+  try{ nvPar = JSON.parse(data.parJSON || '[4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4]'); }catch(e){ /* keep existing */ }
+  try{ nvHoles = JSON.parse(data.holesJSON || '[]'); }catch(e){ nvHoles = []; }
+
+  const nvApp = document.getElementById('nascar-app');
+  if(nvApp && nvApp.style.display !== 'none' && nvPlayers.length > 0){
+    document.getElementById('nv-setup').style.display = 'none';
+    const cardVisible = document.getElementById('nv-card').style.display !== 'none';
+    document.getElementById('nv-play').style.display = cardVisible ? 'none' : '';
+    if(cardVisible){ nvRenderScorecard(); } else { nvRenderHole(); }
+  }
+}
+
+nvRoundDocRef.onSnapshot(doc=>{
+  if(_skipNextNvSnapshot){ _skipNextNvSnapshot = false; return; }
+  if(doc.exists){
+    nvApplyRemoteData(doc.data());
+  }
+}, err=>console.error('NASCAR Vegas listener error', err));
+
+function nvPopulateSetup() {
+  const opts = '<option value="">— Select —</option>' +
+    ROSTER.map(n => `<option value="${n}">${n}</option>`).join('') +
+    '<option value="__custom__">+ Add Player</option>';
+  ['nv-p1','nv-p2','nv-p3','nv-p4'].forEach(id => {
+    document.getElementById(id).innerHTML = opts;
+  });
+}
+
+function nvCheckCustom(idx) {
+  const sel = document.getElementById(['nv-p1','nv-p2','nv-p3','nv-p4'][idx]);
+  const inp = document.getElementById('nv-custom-' + idx);
+  if (sel.value === '__custom__') {
+    inp.style.display = '';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = '';
+  }
+}
+
+function nvGetPlayerName(idx) {
+  const selIds = ['nv-p1','nv-p2','nv-p3','nv-p4'];
+  const sel = document.getElementById(selIds[idx]);
+  if (sel.value === '__custom__') {
+    return document.getElementById('nv-custom-' + idx).value.trim();
+  }
+  return sel.value;
+}
+
+function nvShuffleTeeOrder(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Returns tee order (array of player indices) for a given hole (1-based)
+function nvGetTeeOrderForHole(hole) {
+  const offset = (hole - 1) % 4;
+  return [
+    nvTeeOrder[offset % 4],
+    nvTeeOrder[(offset + 1) % 4],
+    nvTeeOrder[(offset + 2) % 4],
+    nvTeeOrder[(offset + 3) % 4]
+  ];
+}
+
+function nvStartRound() {
+  const names = [0,1,2,3].map(i => nvGetPlayerName(i));
+  if (names.some(n => !n)) { alert('Please select or enter all 4 player names.'); return; }
+  const unique = new Set(names);
+  if (unique.size < 4) { alert('Each player must be different.'); return; }
+  nvPlayers = names;
+  nvTeeOrder = nvShuffleTeeOrder([0,1,2,3]); // random starting order
+  nvHoles = Array(18).fill(null);
+  nvPar = Array(18).fill(4);
+  nvHole = 1;
+  document.getElementById('nv-setup').style.display = 'none';
+  document.getElementById('nv-play').style.display = '';
+  nvRenderHole();
+  nvFirestoreSaveNow();
+}
+
+function nvRenderHole() {
+  const h = nvHole - 1;
+  document.getElementById('nv-hole-num').textContent = nvHole;
+  document.getElementById('nv-par-display').textContent = nvPar[h];
+  document.getElementById('nv-val-display').textContent = nvDollarVal.toFixed(2);
+  document.getElementById('nv-prev-btn').disabled = nvHole === 1;
+  document.getElementById('nv-next-btn').disabled = nvHole === 18;
+
+  // Update par buttons
+  document.querySelectorAll('.nv-par-btn').forEach(b => b.classList.remove('active'));
+  const parBtn = document.getElementById('nvpar-' + nvPar[h]);
+  if (parBtn) parBtn.classList.add('active');
+
+  // Get tee order for this hole
+  const teeOrder = nvGetTeeOrderForHole(nvHole);
+
+  // Build player rows in tee order
+  const saved = nvHoles[h];
+  const grid = document.getElementById('nv-players-grid');
+
+  // Header showing tee order
+  const teeHeader = `<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;padding:0 4px">
+    TEE ORDER &nbsp;·&nbsp; ${teeOrder.map((pi,t) => `<span style="color:var(--gold-soft)">${t+1}.</span> ${nvPlayers[pi]}`).join(' &nbsp; ')}
+  </div>`;
+
+  grid.innerHTML = teeHeader + teeOrder.map((playerIdx, teePos) => {
+    const name = nvPlayers[playerIdx];
+    const pos = saved ? saved.positions[playerIdx] : null;
+    const score = saved ? saved.scores[playerIdx] : '';
+    const lActive = pos === 'L' ? 'active' : '';
+    const rActive = pos === 'R' ? 'active' : '';
+    return `<div style="display:flex;align-items:center;gap:8px;background:var(--mid-green);border-radius:10px;padding:10px 12px">
+      <span style="font-size:11px;color:var(--gold-soft);font-weight:700;min-width:16px">${teePos+1}</span>
+      <span style="flex:1;font-weight:600">${name}</span>
+      <div style="display:flex;gap:5px">
+        <button class="btn secondary nv-pos-btn ${lActive}" onclick="nvTogglePos(${playerIdx},'L')" id="nv-pos-${playerIdx}-L" style="padding:5px 10px;font-size:12px">⬅ L</button>
+        <button class="btn secondary nv-pos-btn ${rActive}" onclick="nvTogglePos(${playerIdx},'R')" id="nv-pos-${playerIdx}-R" style="padding:5px 10px;font-size:12px">R ➡</button>
+      </div>
+      <input class="score-inp" id="nv-score-${playerIdx}" type="number" min="1" max="15" placeholder="Score"
+        value="${score}" style="width:60px;text-align:center" oninput="nvPreviewResult()">
+    </div>`;
+  }).join('');
+
+  // Holes 16-18: Captain mode
+  const banner = document.getElementById('nv-captain-banner');
+  const teeLbl = document.getElementById('nv-tee-label');
+  if (nvHole >= 16) {
+    banner.style.display = '';
+    teeLbl.textContent = 'SCORES';
+    if (!saved) {
+      // Fresh hole — set up captain
+      nvCaptainIdx = null;
+      nvCaptainPartner = null;
+      nvSetupCaptainHole();
+    } else {
+      // Already saved — show captain info read-only
+      nvCaptainIdx = saved.captainIdx;
+      nvCaptainPartner = saved.captainPartner;
+      document.getElementById('nv-captain-label').textContent =
+        `🎖 ${nvPlayers[nvCaptainIdx]} was Captain, partnered with ${nvPlayers[nvCaptainPartner]}`;
+      document.getElementById('nv-captain-pick-ui').style.display = 'none';
+      nvRenderCaptainScoreGrid();
+      nvShowHoleResultCaptain(saved);
+    }
+  } else {
+    banner.style.display = 'none';
+    teeLbl.textContent = 'TEE SHOT POSITION & SCORE';
+    nvCaptainIdx = null;
+    nvCaptainPartner = null;
+    // Show saved result if exists
+    if (saved) {
+      nvShowHoleResult(saved);
+    } else {
+      document.getElementById('nv-hole-result').style.display = 'none';
+    }
+  }
+
+  nvRenderTotals();
+}
+
+function nvTogglePos(playerIdx, side) {
+  const other = side === 'L' ? 'R' : 'L';
+  const btn = document.getElementById(`nv-pos-${playerIdx}-${side}`);
+  const otherBtn = document.getElementById(`nv-pos-${playerIdx}-${other}`);
+  const wasActive = btn.classList.contains('active');
+  btn.classList.toggle('active', !wasActive);
+  if (!wasActive) otherBtn.classList.remove('active');
+  nvPreviewResult();
+}
+
+function nvGetCurrentInputs() {
+  const positions = {};
+  const scores = {};
+  nvPlayers.forEach((_, i) => {
+    const lBtn = document.getElementById(`nv-pos-${i}-L`);
+    const rBtn = document.getElementById(`nv-pos-${i}-R`);
+    if (lBtn && lBtn.classList.contains('active')) positions[i] = 'L';
+    else if (rBtn && rBtn.classList.contains('active')) positions[i] = 'R';
+    const scoreEl = document.getElementById(`nv-score-${i}`);
+    const val = scoreEl ? parseInt(scoreEl.value) : NaN;
+    if (!isNaN(val)) scores[i] = val;
+  });
+  return { positions, scores };
+}
+
+function nvPreviewResult() {
+  const { positions, scores } = nvGetCurrentInputs();
+  const leftTeam = Object.keys(positions).filter(i => positions[i] === 'L').map(Number);
+  const rightTeam = Object.keys(positions).filter(i => positions[i] === 'R').map(Number);
+  if (leftTeam.length !== 2 || rightTeam.length !== 2) return;
+  if (leftTeam.some(i => scores[i] === undefined) || rightTeam.some(i => scores[i] === undefined)) return;
+
+  const result = nvCalcHole(leftTeam, rightTeam, scores, nvPar[nvHole - 1]);
+  nvShowHoleResult(result);
+}
+
+function nvCalcHole(leftTeam, rightTeam, scores, par) {
+  // Get sorted scores for each team (lower first)
+  const lScores = leftTeam.map(i => scores[i]).sort((a,b) => a-b);
+  const rScores = rightTeam.map(i => scores[i]).sort((a,b) => a-b);
+
+  // Check birdies
+  const lBirdie = lScores.some(s => s < par);
+  const rBirdie = rScores.some(s => s < par);
+
+  // Form Vegas numbers
+  let lVegas = nvFormVegas(lScores[0], lScores[1]);
+  let rVegas = nvFormVegas(rScores[0], rScores[1]);
+
+  // Apply birdie flip: if one team birdied and not the other, flip opponent's number
+  let lFlipped = false, rFlipped = false;
+  if (lBirdie && !rBirdie) {
+    rVegas = nvFlip(rVegas);
+    rFlipped = true;
+  } else if (rBirdie && !lBirdie) {
+    lVegas = nvFlip(lVegas);
+    lFlipped = true;
+  }
+
+  const rawDiff = Math.abs(lVegas - rVegas);
+  const diff = Math.min(rawDiff, 30); // 30-point cap per hole
+  const capped = rawDiff > 30;
+  let winner = lVegas < rVegas ? 'left' : rVegas < lVegas ? 'right' : 'tie';
+
+  return {
+    par, positions: Object.fromEntries([...leftTeam.map(i=>[i,'L']),...rightTeam.map(i=>[i,'R'])]),
+    scores, leftTeam, rightTeam,
+    lScores, rScores, lVegas, rVegas, lFlipped, rFlipped,
+    lBirdie, rBirdie, rawDiff, diff, capped, winner
+  };
+}
+
+function nvFormVegas(lo, hi) {
+  // Handle double digits: e.g. 4 and 10 → 104 not 410
+  if (hi >= 10) return parseInt(`${hi}${lo}`); // higher goes first when one is 10+... wait no
+  // Standard: lower first. Exception: if one score is 10+, keep 10+ first
+  // Actually: if hi >= 10, lower digit can't go "before" a 2-digit number meaningfully
+  // Most common rule: if one player hits 10+, that number goes FIRST (worse position)
+  if (hi >= 10) return parseInt(`${hi}${lo}`);
+  return parseInt(`${lo}${hi}`);
+}
+
+function nvFlip(vegas) {
+  const s = vegas.toString().padStart(2, '0');
+  return parseInt(s.split('').reverse().join(''));
+}
+
+function nvShowHoleResult(data) {
+  const el = document.getElementById('nv-hole-result');
+  const lNames = data.leftTeam.map(i => nvPlayers[i]).join(' & ');
+  const rNames = data.rightTeam.map(i => nvPlayers[i]).join(' & ');
+  const dollars = (data.diff * nvDollarVal).toFixed(2);
+
+  let winnerLine = '';
+  if (data.winner === 'tie') {
+    winnerLine = `<div style="text-align:center;color:var(--text-dim);font-weight:600">TIE — No points</div>`;
+  } else {
+    const winTeam = data.winner === 'left' ? lNames : rNames;
+    const capNote = data.capped ? `<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:2px">⚑ Capped at 30 pts (raw: ${data.rawDiff})</div>` : '';
+    winnerLine = `<div style="text-align:center;color:var(--gold-soft);font-weight:700;font-size:1rem">🏆 ${winTeam} win ${data.diff} pts ($${dollars})</div>${capNote}`;
+  }
+
+  const flipNote = data.lFlipped
+    ? `<div style="font-size:11px;color:var(--rust);text-align:center">🐦 Birdie flip! Left team's score flipped to ${data.lVegas}</div>`
+    : data.rFlipped
+    ? `<div style="font-size:11px;color:var(--rust);text-align:center">🐦 Birdie flip! Right team's score flipped to ${data.rVegas}</div>`
+    : (data.lBirdie && data.rBirdie)
+    ? `<div style="font-size:11px;color:var(--text-dim);text-align:center">Both teams birdied — flip cancelled</div>`
+    : '';
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px">⬅ LEFT (${lNames})</div>
+        <div style="font-size:1.5rem;font-weight:700;color:${data.winner==='left'?'var(--gold-soft)':'var(--cream)'}">${data.lVegas}</div>
+        <div style="font-size:11px;color:var(--text-dim)">${data.lScores.join(' + ')}</div>
+      </div>
+      <div style="font-size:1rem;color:var(--text-dim)">vs</div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px">RIGHT (${rNames}) ➡</div>
+        <div style="font-size:1.5rem;font-weight:700;color:${data.winner==='right'?'var(--gold-soft)':'var(--cream)'}">${data.rVegas}</div>
+        <div style="font-size:11px;color:var(--text-dim)">${data.rScores.join(' + ')}</div>
+      </div>
+    </div>
+    ${flipNote}
+    ${winnerLine}
+  `;
+  el.style.display = '';
+}
+
+function nvSaveHole() {
+  const h = nvHole - 1;
+
+  if (nvHole >= 16) {
+    // Captain mode save
+    if (nvCaptainIdx === null || nvCaptainPartner === null) {
+      alert('Captain must pick a partner before saving.'); return;
+    }
+    const scores = {};
+    let allScored = true;
+    nvPlayers.forEach((_,i) => {
+      const el = document.getElementById('nv-score-' + i);
+      const v = parseInt(el ? el.value : '');
+      if (isNaN(v)) { allScored = false; } else { scores[i] = v; }
+    });
+    if (!allScored) { alert('Please enter all 4 scores before saving.'); return; }
+
+    const captainTeam = [nvCaptainIdx, nvCaptainPartner];
+    const otherTeam = nvPlayers.map((_,i) => i).filter(i => !captainTeam.includes(i));
+    const result = nvCalcHole(captainTeam, otherTeam, scores, nvPar[h]);
+    result.captainMode = true;
+    result.captainIdx = nvCaptainIdx;
+    result.captainPartner = nvCaptainPartner;
+    result.captainTeam = captainTeam;
+    result.otherTeam = otherTeam;
+    nvHoles[h] = result;
+  } else {
+    // Normal L/R mode save
+    const { positions, scores } = nvGetCurrentInputs();
+    const leftTeam = Object.keys(positions).filter(i => positions[i] === 'L').map(Number);
+    const rightTeam = Object.keys(positions).filter(i => positions[i] === 'R').map(Number);
+    if (leftTeam.length !== 2 || rightTeam.length !== 2) {
+      alert('Each player must be assigned Left or Right before saving.'); return;
+    }
+    if (nvPlayers.some((_, i) => scores[i] === undefined)) {
+      alert('Please enter all 4 scores before saving.'); return;
+    }
+    nvHoles[h] = nvCalcHole(leftTeam, rightTeam, scores, nvPar[h]);
+  }
+
+  nvRenderTotals();
+  nvFirestoreSaveNow();
+
+  // Auto-advance
+  if (nvHole < 18) {
+    nvHole++;
+    nvCaptainIdx = null;
+    nvCaptainPartner = null;
+    nvRenderHole();
+  } else {
+    alert('Round complete! Check the scorecard for final results.');
+    nvShowCard();
+  }
+}
+
+function nvSetPar(p) {
+  nvPar[nvHole - 1] = p;
+  document.querySelectorAll('.nv-par-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('nvpar-' + p);
+  if (btn) btn.classList.add('active');
+  document.getElementById('nv-par-display').textContent = p;
+  nvPreviewResult();
+}
+
+function nvPrevHole() { if (nvHole > 1) { nvHole--; nvRenderHole(); } }
+function nvNextHole() { if (nvHole < 18) { nvHole++; nvRenderHole(); } }
+
+function nvRenderTotals() {
+  const played = nvHoles.filter(Boolean);
+  document.getElementById('nv-thru').textContent = played.length;
+
+  // Tally points per player
+  const pts = Object.fromEntries(nvPlayers.map((n,i) => [i, 0]));
+  nvHoles.forEach(h => {
+    if (!h || h.winner === 'tie') return;
+    const winners = h.winner === 'left' ? h.leftTeam : h.rightTeam;
+    const losers  = h.winner === 'left' ? h.rightTeam : h.leftTeam;
+    winners.forEach(i => pts[i] += h.diff); // diff is already capped
+    losers.forEach(i => pts[i] -= h.diff);
+  });
+
+  const grid = document.getElementById('nv-totals');
+  grid.innerHTML = nvPlayers.map((name, i) => {
+    const p = pts[i];
+    const dollars = (Math.abs(p) * nvDollarVal).toFixed(2);
+    const color = p > 0 ? 'var(--win)' : p < 0 ? 'var(--rust)' : 'var(--cream)';
+    const sign = p > 0 ? '+' : '';
+    return `<div style="background:var(--mid-green);border-radius:8px;padding:8px 10px">
+      <div style="font-size:11px;color:var(--text-dim)">${name}</div>
+      <div style="font-weight:700;color:${color}">${sign}${p} pts</div>
+      <div style="font-size:11px;color:${color}">${p >= 0 ? '+' : '-'}$${dollars}</div>
+    </div>`;
+  }).join('');
+}
+
+function nvShowCard() {
+  document.getElementById('nv-play').style.display = 'none';
+  document.getElementById('nv-card').style.display = '';
+  nvRenderScorecard();
+}
+
+function nvShowPlay() {
+  document.getElementById('nv-card').style.display = 'none';
+  document.getElementById('nv-play').style.display = 'block';
+}
+
+function nvRenderScorecard() {
+  const pts = Object.fromEntries(nvPlayers.map((n,i) => [i, 0]));
+
+  let rows = '';
+  nvHoles.forEach((h, idx) => {
+    if (!h) {
+      rows += `<tr><td>${idx+1}</td><td colspan="7" style="color:var(--text-dim);font-style:italic">—</td></tr>`;
+      return;
+    }
+    const isCapt = h.captainMode;
+    const lNames = isCapt
+      ? h.captainTeam.map(i => nvPlayers[i]).join(' & ')
+      : h.leftTeam.map(i => nvPlayers[i]).join(' & ');
+    const rNames = isCapt
+      ? h.otherTeam.map(i => nvPlayers[i]).join(' & ')
+      : h.rightTeam.map(i => nvPlayers[i]).join(' & ');
+    const dollars = (h.diff * nvDollarVal).toFixed(2);
+    const capBadge = isCapt ? ` <span style="font-size:9px;color:var(--rust)">(Captain)</span>` : '';
+    const capNote = h.capped ? ` <span style="font-size:9px;color:var(--text-dim)">⚑cap</span>` : '';
+    let resultCell = h.winner === 'tie'
+      ? `<span style="color:var(--text-dim)">Tie</span>`
+      : `<span style="color:var(--gold-soft)">${h.winner === 'left' ? lNames : rNames} win<br><span style="font-size:10px">+${h.diff}pts ($${dollars})${capNote}</span></span>`;
+
+    if (h.winner !== 'tie') {
+      const winners = h.winner === 'left' ? (isCapt ? h.captainTeam : h.leftTeam) : (isCapt ? h.otherTeam : h.rightTeam);
+      const losers  = h.winner === 'left' ? (isCapt ? h.otherTeam : h.rightTeam) : (isCapt ? h.captainTeam : h.leftTeam);
+      winners.forEach(i => pts[i] += h.diff);
+      losers.forEach(i => pts[i] -= h.diff);
+    }
+
+    const col1Label = isCapt ? `🎖 ${lNames}${capBadge}` : `⬅ ${lNames}`;
+    const col2Label = isCapt ? rNames : `➡ ${rNames}`;
+
+    rows += `<tr>
+      <td>${idx+1}</td>
+      <td>${h.par}</td>
+      <td>${col1Label}<br><small style="color:var(--text-dim)">${h.lScores.join('+')} = ${h.lVegas}${h.lFlipped?' 🐦':''}</small></td>
+      <td>${col2Label}<br><small style="color:var(--text-dim)">${h.rScores.join('+')} = ${h.rVegas}${h.rFlipped?' 🐦':''}</small></td>
+      <td>${resultCell}</td>
+    </tr>`;
+  });
+
+  // Final totals
+  const totalsRow = nvPlayers.map((name, i) => {
+    const p = pts[i];
+    const dollars = (Math.abs(p) * nvDollarVal).toFixed(2);
+    const color = p > 0 ? 'var(--win)' : p < 0 ? 'var(--rust)' : 'var(--cream)';
+    return `<div style="text-align:center;padding:8px;background:var(--mid-green);border-radius:8px">
+      <div style="font-size:11px;color:var(--text-dim)">${name}</div>
+      <div style="font-weight:700;color:${color}">${p>0?'+':''}${p} pts</div>
+      <div style="font-size:11px;color:${color}">${p>=0?'+':'-'}$${dollars}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('nv-scorecard').innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="font-size:12px;min-width:400px">
+        <thead>
+          <tr style="color:var(--text-dim)">
+            <th>Hole</th><th>Par</th><th>Left Team</th><th>Right Team</th><th>Result</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">FINAL TOTALS ($${nvDollarVal.toFixed(2)}/pt)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${totalsRow}</div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--text-dim);text-align:center">🐦 = Birdie flip applied</div>
+    <button class="btn secondary" style="width:100%;margin-top:16px" onclick="nvShowPlay()">← Back to Game</button>
+  `;
+}
+
+function nvNewRound() {
+  if (!confirm('Start a new NASCAR Vegas round? Current round will be lost.')) return;
+  document.getElementById('nv-play').style.display = 'none';
+  document.getElementById('nv-card').style.display = 'none';
+  document.getElementById('nv-setup').style.display = '';
+  document.getElementById('nascar-app').style.display = '';
+  nvCaptainIdx = null;
+  nvCaptainPartner = null;
+}
+
+// ── Captain's Pick (holes 16-18) ──
+let nvCaptainIdx = null;    // player index who is captain this hole
+let nvCaptainPartner = null; // player index they picked
+let nvWheelCandidates = [];
+let nvWheelResult = null;
+let nvWheelSpinning = false;
+let nvWheelAngle = 0;
+let nvWheelAnimFrame = null;
+
+function nvGetPlayerPoints() {
+  const pts = Object.fromEntries(nvPlayers.map((_,i) => [i, 0]));
+  nvHoles.forEach(h => {
+    if (!h || h.winner === 'tie') return;
+    const winners = h.winner === 'left' ? h.leftTeam : h.rightTeam;
+    const losers  = h.winner === 'left' ? h.rightTeam : h.leftTeam;
+    winners.forEach(i => pts[i] += h.diff);
+    losers.forEach(i => pts[i] -= h.diff);
+  });
+  return pts;
+}
+
+function nvSetupCaptainHole() {
+  // Find biggest loser(s) using points saved so far (holes 1 through nvHole-1)
+  const pts = nvGetPlayerPoints();
+  const minPts = Math.min(...Object.values(pts));
+  const losers = nvPlayers.map((_,i) => i).filter(i => pts[i] === minPts);
+
+  if (losers.length === 1) {
+    nvCaptainIdx = losers[0];
+    nvCaptainPartner = null;
+    nvShowCaptainUI();
+  } else {
+    // Tie — spin the wheel
+    nvWheelCandidates = losers;
+    nvWheelResult = null;
+    nvShowWheelModal();
+  }
+}
+
+function nvShowCaptainUI() {
+  const banner = document.getElementById('nv-captain-banner');
+  const label = document.getElementById('nv-captain-label');
+  const pickUI = document.getElementById('nv-captain-pick-ui');
+  const teeLbl = document.getElementById('nv-tee-label');
+
+  banner.style.display = '';
+  label.textContent = `🎖 ${nvPlayers[nvCaptainIdx]} is the biggest loser — pick your partner!`;
+  pickUI.style.display = '';
+  teeLbl.textContent = 'SCORES';
+
+  // Build partner pick buttons (everyone except captain)
+  const btnContainer = document.getElementById('nv-partner-btns');
+  btnContainer.innerHTML = nvPlayers.map((name, i) => {
+    if (i === nvCaptainIdx) return '';
+    const active = nvCaptainPartner === i ? 'active' : '';
+    return `<button class="btn secondary nv-pos-btn ${active}" onclick="nvPickPartner(${i})" id="nv-pick-${i}">${name}</button>`;
+  }).join('');
+
+  // Rebuild player grid without L/R buttons (scores only)
+  nvRenderCaptainScoreGrid();
+}
+
+function nvPickPartner(partnerIdx) {
+  nvCaptainPartner = partnerIdx;
+  // Update button highlights
+  nvPlayers.forEach((_,i) => {
+    const btn = document.getElementById('nv-pick-' + i);
+    if (btn) btn.classList.toggle('active', i === partnerIdx);
+  });
+  nvPreviewCaptainResult();
+}
+
+function nvRenderCaptainScoreGrid() {
+  const h = nvHole - 1;
+  const saved = nvHoles[h];
+  const grid = document.getElementById('nv-players-grid');
+  const teeOrder = nvGetTeeOrderForHole(nvHole);
+
+  const teeHeader = `<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;padding:0 4px">
+    TEE ORDER &nbsp;·&nbsp; ${teeOrder.map((pi,t) => `<span style="color:var(--gold-soft)">${t+1}.</span> ${nvPlayers[pi]}`).join(' &nbsp; ')}
+  </div>`;
+
+  grid.innerHTML = teeHeader + teeOrder.map((playerIdx, teePos) => {
+    const name = nvPlayers[playerIdx];
+    const score = saved ? saved.scores[playerIdx] : '';
+    const isCaptain = playerIdx === nvCaptainIdx;
+    const isPartner = playerIdx === nvCaptainPartner;
+    const otherTeam = nvCaptainPartner !== null && !isCaptain && !isPartner;
+    let badge = '';
+    if (isCaptain) badge = `<span style="font-size:10px;background:var(--rust);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">Captain</span>`;
+    if (isPartner) badge = `<span style="font-size:10px;background:var(--win);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">Partner</span>`;
+    if (otherTeam) badge = `<span style="font-size:10px;background:var(--mid-green);color:var(--text-dim);border-radius:8px;padding:1px 6px;margin-left:4px">vs</span>`;
+
+    return `<div style="display:flex;align-items:center;gap:8px;background:var(--mid-green);border-radius:10px;padding:10px 12px;${isCaptain?'border:1px solid var(--rust)':''}">
+      <span style="font-size:11px;color:var(--gold-soft);font-weight:700;min-width:16px">${teePos+1}</span>
+      <span style="flex:1;font-weight:600">${name}${badge}</span>
+      <input class="score-inp" id="nv-score-${playerIdx}" type="number" min="1" max="15" placeholder="Score"
+        value="${score}" style="width:60px;text-align:center" oninput="nvPreviewCaptainResult()">
+    </div>`;
+  }).join('');
+}
+
+function nvPreviewCaptainResult() {
+  if (nvCaptainPartner === null) return;
+  const scores = {};
+  nvPlayers.forEach((_,i) => {
+    const el = document.getElementById('nv-score-' + i);
+    const v = parseInt(el ? el.value : '');
+    if (!isNaN(v)) scores[i] = v;
+  });
+  if (Object.keys(scores).length < 4) return;
+
+  const captainTeam = [nvCaptainIdx, nvCaptainPartner];
+  const otherTeam = nvPlayers.map((_,i) => i).filter(i => !captainTeam.includes(i));
+  // Captain team = "left", other = "right" for display
+  const result = nvCalcHole(captainTeam, otherTeam, scores, nvPar[nvHole - 1]);
+  result.captainMode = true;
+  result.captainTeam = captainTeam;
+  result.otherTeam = otherTeam;
+  nvShowHoleResultCaptain(result);
+}
+
+function nvShowHoleResultCaptain(data) {
+  const el = document.getElementById('nv-hole-result');
+  const capNames = data.captainTeam.map(i => nvPlayers[i]).join(' & ');
+  const otherNames = data.otherTeam.map(i => nvPlayers[i]).join(' & ');
+  const dollars = (data.diff * nvDollarVal).toFixed(2);
+
+  let winnerLine = '';
+  if (data.winner === 'tie') {
+    winnerLine = `<div style="text-align:center;color:var(--text-dim);font-weight:600">TIE — No points</div>`;
+  } else {
+    const winTeam = data.winner === 'left' ? capNames : otherNames;
+    const capNote = data.capped ? `<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:2px">⚑ Capped at 30 pts (raw: ${data.rawDiff})</div>` : '';
+    winnerLine = `<div style="text-align:center;color:var(--gold-soft);font-weight:700;font-size:1rem">🏆 ${winTeam} win ${data.diff} pts ($${dollars})</div>${capNote}`;
+  }
+
+  const flipNote = data.lFlipped
+    ? `<div style="font-size:11px;color:var(--rust);text-align:center">🐦 Birdie flip! Captain team score flipped to ${data.lVegas}</div>`
+    : data.rFlipped
+    ? `<div style="font-size:11px;color:var(--rust);text-align:center">🐦 Birdie flip! Other team score flipped to ${data.rVegas}</div>`
+    : (data.lBirdie && data.rBirdie)
+    ? `<div style="font-size:11px;color:var(--text-dim);text-align:center">Both teams birdied — flip cancelled</div>` : '';
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--rust);margin-bottom:2px">🎖 Captain (${capNames})</div>
+        <div style="font-size:1.5rem;font-weight:700;color:${data.winner==='left'?'var(--gold-soft)':'var(--cream)'}">${data.lVegas}</div>
+        <div style="font-size:11px;color:var(--text-dim)">${data.lScores.join(' + ')}</div>
+      </div>
+      <div style="font-size:1rem;color:var(--text-dim)">vs</div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px">${otherNames}</div>
+        <div style="font-size:1.5rem;font-weight:700;color:${data.winner==='right'?'var(--gold-soft)':'var(--cream)'}">${data.rVegas}</div>
+        <div style="font-size:11px;color:var(--text-dim)">${data.rScores.join(' + ')}</div>
+      </div>
+    </div>
+    ${flipNote}
+    ${winnerLine}
+  `;
+  el.style.display = '';
+  el._captainData = data;
+}
+
+// ── Spin Wheel ──
+function nvShowWheelModal() {
+  const modal = document.getElementById('nv-wheel-modal');
+  modal.style.display = 'flex';
+  document.getElementById('nv-wheel-names').textContent =
+    'Tied: ' + nvWheelCandidates.map(i => nvPlayers[i]).join(' & ');
+  document.getElementById('nv-wheel-result').textContent = '';
+  document.getElementById('nv-wheel-confirm').style.display = 'none';
+  document.getElementById('nv-spin-btn').disabled = false;
+  nvWheelResult = null;
+  nvDrawWheel(0);
+}
+
+function nvDrawWheel(angle) {
+  const canvas = document.getElementById('nv-wheel-canvas');
+  const ctx = canvas.getContext('2d');
+  const cx = 140, cy = 140, r = 130;
+  const n = nvWheelCandidates.length;
+  const sliceAngle = (2 * Math.PI) / n;
+  const colors = ['#d4af37','#1c5238','#b3392c','#2d7a4f','#8a6d00'];
+
+  ctx.clearRect(0, 0, 280, 280);
+  nvWheelCandidates.forEach((playerIdx, s) => {
+    const start = angle + s * sliceAngle - Math.PI / 2;
+    const end = start + sliceAngle;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = colors[s % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = '#0b2e1f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Label
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + sliceAngle / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    const name = nvPlayers[playerIdx].split(' ')[0]; // first name only
+    ctx.fillText(name, r - 10, 5);
+    ctx.restore();
+  });
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0b2e1f';
+  ctx.fill();
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function nvSpinWheel() {
+  if (nvWheelSpinning) return;
+  nvWheelSpinning = true;
+  document.getElementById('nv-spin-btn').disabled = true;
+  document.getElementById('nv-wheel-result').textContent = '';
+  document.getElementById('nv-wheel-confirm').style.display = 'none';
+
+  const totalRotation = (5 + Math.random() * 5) * 2 * Math.PI; // 5-10 full spins
+  const duration = 3000 + Math.random() * 1000;
+  const start = performance.now();
+  const startAngle = nvWheelAngle;
+
+  function animate(now) {
+    const elapsed = now - start;
+    const t = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const ease = 1 - Math.pow(1 - t, 3);
+    nvWheelAngle = startAngle + totalRotation * ease;
+    nvDrawWheel(nvWheelAngle);
+
+    if (t < 1) {
+      nvWheelAnimFrame = requestAnimationFrame(animate);
+    } else {
+      nvWheelSpinning = false;
+      // Determine winner: pointer is at top (angle = -PI/2 from 0)
+      // The slice at top is determined by the final angle
+      const n = nvWheelCandidates.length;
+      const sliceAngle = (2 * Math.PI) / n;
+      // Normalize angle so 0 = top
+      const norm = ((nvWheelAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const winSlice = Math.floor(((2 * Math.PI - norm) % (2 * Math.PI)) / sliceAngle) % n;
+      nvWheelResult = nvWheelCandidates[winSlice];
+      document.getElementById('nv-wheel-result').textContent = '🎖 ' + nvPlayers[nvWheelResult] + ' is Captain!';
+      document.getElementById('nv-wheel-confirm').style.display = '';
+      document.getElementById('nv-spin-btn').disabled = false;
+      document.getElementById('nv-spin-btn').textContent = '🔄 Re-spin';
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function nvConfirmWheelResult() {
+  nvCaptainIdx = nvWheelResult;
+  nvCaptainPartner = null;
+  document.getElementById('nv-wheel-modal').style.display = 'none';
+  document.getElementById('nv-spin-btn').textContent = '🎡 SPIN!';
+  nvShowCaptainUI();
+}
+
+function selectGame(game) {
+  document.getElementById('view-home').style.display = 'none';
+
+  // Reset chrome shared across games so nothing from the previous game bleeds through
+  document.getElementById('mainNav').style.display = 'none';
+  document.getElementById('sbNav').style.display = 'none';
+  document.getElementById('wolfBadge').style.display = 'none';
+
+  if (game === 'wolf') {
+    document.getElementById('wolf-app').style.display = '';
+    document.getElementById('stableford-app').style.display = 'none';
+    document.getElementById('nascar-app').style.display = 'none';
+    document.getElementById('headerSub').textContent = 'Weekend Wolf';
+    if(players.length > 0){
+      document.getElementById('mainNav').style.display = 'flex';
+      document.getElementById('wolfBadge').style.display = 'inline-flex';
+      showView('play');
+    }
+  } else if (game === 'stableford') {
+    document.getElementById('stableford-app').style.display = 'block';
+    document.getElementById('wolf-app').style.display = 'none';
+    document.getElementById('nascar-app').style.display = 'none';
+    document.getElementById('headerSub').textContent = 'Weekend Stableford';
+    if(sbPlayers.length > 0){
+      // A round is already active (started on this phone or synced from another) - jump back in
+      const sel = document.getElementById('sbPlayerSelect');
+      sel.innerHTML = sbPlayers.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+      document.getElementById('sbNav').style.display = 'flex';
+      showSbView('entry');
+    } else {
+      populateSbRosterChecklist();
+      showSbView('setup');
+    }
+  } else if (game === 'nascar') {
+    document.getElementById('nascar-app').style.display = '';
+    document.getElementById('wolf-app').style.display = 'none';
+    document.getElementById('stableford-app').style.display = 'none';
+    document.getElementById('headerSub').textContent = 'NASCAR Vegas';
+    if(nvPlayers.length > 0){
+      document.getElementById('nv-setup').style.display = 'none';
+      document.getElementById('nv-play').style.display = '';
+      nvRenderHole();
+    } else {
+      nvPopulateSetup();
+    }
+  }
+}
+// ============ END NASCAR VEGAS ============
+
+</script>
+</body>
+</html>
