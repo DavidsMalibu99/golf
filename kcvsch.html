@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>KC vs CH — Money Shots Golf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b2e1f;
+    --panel:#123c28;
+    --line:#1c5238;
+    --gold:#d4af37;
+    --gold-soft:#e8cf7a;
+    --cream:#f4efe3;
+    --dim:#9db8a8;
+    --kc:#e0553f;
+    --ch:#4f8fe6;
+    --kc-wash:rgba(224,85,63,.14);
+    --ch-wash:rgba(79,143,230,.14);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--cream);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif; font-size:15px; line-height:1.4;
+    min-height:100vh; padding-bottom:calc(74px + env(safe-area-inset-bottom));
+  }
+  button{font:inherit; color:inherit;}
+  :focus-visible{outline:2px solid var(--gold-soft); outline-offset:2px;}
+  .cond{font-family:'Barlow Condensed','Arial Narrow',sans-serif;}
+
+  /* ---------- header scoreboard ---------- */
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,var(--panel),var(--bg));
+    border-bottom:2px solid var(--gold);
+    padding:8px 14px 10px;
+  }
+  .brand{text-align:center; font-size:.72rem; color:var(--gold-soft); letter-spacing:.06em;}
+  .tally{display:grid; grid-template-columns:1fr 1.7fr 1fr; align-items:center; gap:8px; max-width:560px; margin:2px auto 0;}
+  .side{text-align:center;}
+  .side .num{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-weight:700; font-size:2.9rem; line-height:.95;}
+  .side.kc .num{color:var(--kc);} .side.ch .num{color:var(--ch);}
+  .side .who{font-size:.76rem; color:var(--dim);}
+  .mid .title{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-weight:600; font-size:1.3rem; text-align:center; letter-spacing:.03em;}
+  .bar{position:relative; height:12px; background:#071f15; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin:5px 0 4px;}
+  .bar .f{position:absolute; top:0; bottom:0; transition:width .6s ease;}
+  .bar .f.kc{left:0; background:var(--kc);}
+  .bar .f.ch{right:0; background:var(--ch);}
+  .bar .center{position:absolute; left:50%; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--gold);}
+  .need{font-size:.72rem; color:var(--dim); text-align:center; line-height:1.3;}
+  .need b{color:var(--gold-soft); font-weight:600;}
+
+  /* ---------- layout ---------- */
+  main{padding:14px 14px 20px; max-width:560px; margin:0 auto;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px;}
+  h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-weight:600; font-size:1.35rem; margin:0 0 4px; color:var(--gold-soft);}
+  h3{font-size:1rem; margin:0 0 6px;}
+  .sub{color:var(--dim); font-size:.85rem; margin:0 0 10px;}
+  .hint{color:var(--dim); font-size:.82rem; margin-top:8px;}
+  .empty{text-align:center; color:var(--dim); padding:24px 10px;}
+
+  .btn{display:block; width:100%; background:var(--gold); color:#1a1405; border:none; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; margin-top:8px;}
+  .btn:disabled{opacity:.4; cursor:default;}
+  .btn.ghost{background:transparent; color:var(--gold-soft); border:1px solid var(--line);}
+  .btn.danger{background:transparent; color:#f0a497; border:1px solid #6a3028;}
+  .btn.small{display:inline-block; width:auto; padding:7px 12px; font-size:.85rem; margin:0;}
+  .row-btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .row-btns .btn{flex:1; min-width:130px; margin:0;}
+
+  /* ---------- people ---------- */
+  .prow{display:flex; align-items:center; gap:8px; padding:8px 2px; border-bottom:1px solid var(--line);}
+  .prow:last-child{border-bottom:none;}
+  .prow .nm{flex:1;}
+  .prow em{font-style:normal; font-size:.72rem; color:var(--gold-soft); margin-left:6px;}
+  .hc{min-width:28px; text-align:right; font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-weight:600; font-size:1.1rem; color:var(--gold-soft);}
+  .tee{font-size:.7rem; padding:1px 7px; border-radius:10px; background:#c9ccd1; color:#1e2226; font-weight:600;}
+  .teams{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .team{border-radius:8px; padding:10px; border-top:4px solid;}
+  .team.kc{background:var(--kc-wash); border-color:var(--kc);}
+  .team.ch{background:var(--ch-wash); border-color:var(--ch);}
+  .team h3{display:flex; justify-content:space-between; align-items:baseline;}
+  .team h3 small{color:var(--dim); font-weight:400; font-size:.75rem;}
+  .team .prow{padding:5px 0; font-size:.88rem;}
+
+  /* ---------- identity ---------- */
+  .who-bar{display:flex; align-items:center; gap:6px; margin-bottom:14px; font-size:.82rem; color:var(--dim);}
+  .who-bar button{flex:1; background:transparent; border:1px solid var(--line); border-radius:20px; padding:7px 4px; cursor:pointer; color:var(--cream);}
+  .who-bar button.on{border-color:var(--gold); color:var(--gold-soft); font-weight:600;}
+  .who-bar button.on.kc{background:var(--kc-wash); border-color:var(--kc); color:#fff;}
+  .who-bar button.on.ch{background:var(--ch-wash); border-color:var(--ch); color:#fff;}
+
+  /* ---------- captain photos ---------- */
+  .cap-photo{border-radius:50%; object-fit:cover; flex:none; vertical-align:middle; border:2px solid var(--gold);}
+  .cap-photo.kc{border-color:var(--kc);} .cap-photo.ch{border-color:var(--ch);}
+  .clock .cap-photo{border-width:3px; display:block; margin:8px auto;}
+  .faceoff{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin:12px 0 4px;}
+  .faceoff .cap{display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .faceoff .cap .btn{margin:0;}
+  .faceoff .v{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-weight:600; font-size:1.3rem; color:var(--gold-soft);}
+  .team h3 .tn{display:flex; align-items:center; gap:7px;}
+  .who-bar button{display:flex; align-items:center; justify-content:center; gap:5px;}
+
+  /* ---------- draft ---------- */
+  .clock{border-radius:10px; padding:14px; margin-bottom:14px; text-align:center;}
+  .clock.kc{background:var(--kc-wash); border:1px solid var(--kc);}
+  .clock.ch{background:var(--ch-wash); border:1px solid var(--ch);}
+  .clock.done{background:var(--panel); border:1px solid var(--gold);}
+  .clock .big{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-weight:700; font-size:1.9rem; line-height:1.1;}
+  .clock .small{font-size:.85rem; color:var(--dim);}
+  .clock .you{display:inline-block; margin-top:6px; background:var(--gold); color:#1a1405; font-weight:700; border-radius:14px; padding:3px 12px; font-size:.82rem;}
+  .pick-row{display:flex; width:100%; align-items:center; gap:8px; background:transparent; border:none; border-bottom:1px solid var(--line); padding:11px 4px; text-align:left; cursor:pointer;}
+  .pick-row:disabled{cursor:default;}
+  .pick-row .nm{flex:1;}
+  .pick-row .go{font-size:.78rem; color:var(--gold-soft); border:1px solid var(--gold); border-radius:14px; padding:2px 10px;}
+  .pick-row:disabled .go{display:none;}
+  ol.log{margin:0; padding-left:26px; font-size:.88rem;}
+  ol.log li{padding:2px 0;}
+  ol.log .kc{color:#f09a8b;} ol.log .ch{color:#9cc2f5;}
+
+  /* ---------- lineups ---------- */
+  .fmt-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .status{font-size:.8rem; color:var(--dim); margin:6px 0 10px;}
+  .status span{display:inline-block; margin-right:12px;}
+  .status .ok{color:var(--gold-soft);}
+  .slot{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
+  .slot .lbl{width:60px; font-size:.8rem; color:var(--dim);}
+  .slot select{flex:1; min-width:0; background:#0a2619; color:var(--cream); border:1px solid var(--line); border-radius:6px; padding:9px 6px; font-size:.9rem;}
+  .slot .gets{width:52px; text-align:right; font-size:.78rem; color:var(--gold-soft);}
+  .vs{display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:.86rem;}
+  .vs:last-child{border-bottom:none;}
+  .vs .k{color:#f5b3a8;} .vs .c{color:#b3d0f7; text-align:right;}
+  .vs .n{color:var(--dim); font-size:.75rem; text-align:center;}
+  .vs small{display:block; color:var(--dim); font-size:.74rem;}
+
+  .grp{border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:4px;}
+  .grp:last-of-type{border-bottom:none;}
+  .grp .vs{border-bottom:none;}
+  .sg{font-size:.82rem; background:#0a2619; border-radius:6px; padding:6px 8px;}
+  .sg span{display:block; color:var(--dim); font-size:.72rem; margin-bottom:2px;}
+  .slot .gets{width:58px;}
+
+  /* ---------- matches ---------- */
+  .mcard{display:grid; grid-template-columns:1fr 92px 1fr; gap:6px; width:100%; align-items:center; background:#0e3322; border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer; text-align:left;}
+  .mcard .ms{font-size:.84rem; line-height:1.25;}
+  .mcard .ms.ch{text-align:right;}
+  .mcard .ms small{display:block; color:var(--dim); font-size:.72rem; margin-top:2px;}
+  .mcard .st{text-align:center; font-size:.76rem; color:var(--dim); line-height:1.25;}
+  .mcard .st b{display:block; font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-size:1.05rem; color:var(--cream); font-weight:600;}
+  .mcard.won-kc{border-left:4px solid var(--kc);} .mcard.won-ch{border-right:4px solid var(--ch);}
+  .mcard.won-h{border-left:4px solid var(--gold); border-right:4px solid var(--gold);}
+  .st .kc{color:#f5b3a8 !important;} .st .ch{color:#b3d0f7 !important;}
+
+  .back{background:none; border:none; color:var(--gold-soft); padding:4px 0 10px; cursor:pointer; font-size:.9rem;}
+  .card-wrap{overflow-x:auto; margin:0 -4px;}
+  table.card{border-collapse:collapse; width:100%; min-width:340px; font-size:.82rem;}
+  table.card th, table.card td{text-align:center; padding:0;}
+  table.card th{color:var(--dim); font-weight:600; padding:4px 0;}
+  table.card tr.par td{color:var(--dim); padding:2px 0 6px;}
+  table.card td.lbl{text-align:left; padding-left:4px; font-weight:600; white-space:nowrap;}
+  table.card tr.kc td.lbl{color:#f5b3a8;} table.card tr.ch td.lbl{color:#b3d0f7;}
+  table.card td.tot{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-size:1.1rem; font-weight:700; padding-left:4px;}
+  .cell{width:100%; min-width:28px; height:40px; margin:2px 0; border-radius:6px; border:1px solid var(--line); background:#0a2619; font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-size:1.2rem; font-weight:600; cursor:pointer; padding:0;}
+  tr.kc .cell{border-color:rgba(224,85,63,.45);} tr.ch .cell{border-color:rgba(79,143,230,.45);}
+  .cell.under{box-shadow:inset 0 0 0 2px var(--gold); color:var(--gold-soft);}
+  .cell.cap{color:#f0a497;}
+  .sum{display:grid; grid-template-columns:auto 1fr 1fr; gap:4px 12px; font-size:.9rem; margin-top:12px;}
+  .sum .h{color:var(--dim); font-size:.78rem;}
+  .sum .v{text-align:center; font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-size:1.2rem; font-weight:600;}
+  .sum .v.kc{color:#f5b3a8;} .sum .v.ch{color:#b3d0f7;}
+  .result{margin-top:12px; text-align:center; padding:10px; border-radius:8px; font-weight:600;}
+  .result.kc{background:var(--kc-wash); border:1px solid var(--kc);}
+  .result.ch{background:var(--ch-wash); border:1px solid var(--ch);}
+  .result.h{background:rgba(212,175,55,.12); border:1px solid var(--gold);}
+  .result.live{background:#0a2619; border:1px solid var(--line); color:var(--dim); font-weight:400;}
+  .mulls{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .mull{background:#0a2619; border:1px solid var(--line); border-radius:8px; padding:8px; font-size:.8rem; text-align:left; cursor:pointer;}
+  .mull b{display:block; font-size:.86rem;}
+  .mull.used{border-color:var(--gold); color:var(--gold-soft);}
+
+  /* ---------- manage ---------- */
+  .mrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:.9rem;}
+  .mrow input[type=checkbox]{width:20px; height:20px; accent-color:var(--gold);}
+  .mrow .nm{flex:1;}
+  .mrow.out .nm{color:var(--dim);}
+  .mrow input[type=number]{width:56px; background:#0a2619; color:var(--cream); border:1px solid var(--line); border-radius:6px; padding:6px; font-size:.95rem; text-align:center;}
+  .tee-btn{background:transparent; border:1px solid var(--line); border-radius:12px; padding:3px 9px; font-size:.75rem; cursor:pointer; color:var(--gold-soft);}
+  .tee-btn.silver{background:#c9ccd1; color:#1e2226; border-color:#c9ccd1;}
+  .guest{display:flex; gap:6px; margin-top:8px;}
+  .guest input{background:#0a2619; color:var(--cream); border:1px solid var(--line); border-radius:6px; padding:9px; font-size:.95rem;}
+  .guest input[type=text]{flex:1; min-width:0;} .guest input[type=number]{width:64px;}
+  .guest .btn{width:auto; margin:0; padding:9px 14px;}
+  select.plain{background:#0a2619; color:var(--cream); border:1px solid var(--line); border-radius:6px; padding:8px;}
+
+  details.rules summary{cursor:pointer; color:var(--gold-soft); font-weight:600;}
+  details.rules ul{margin:10px 0 0; padding-left:18px; font-size:.88rem;}
+  details.rules li{margin-bottom:6px;}
+
+  /* ---------- nav ---------- */
+  nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:20; display:flex; background:var(--panel); border-top:2px solid var(--gold); padding-bottom:env(safe-area-inset-bottom);}
+  nav.tabs button{flex:1; background:none; border:none; color:var(--dim); padding:12px 0 13px; font-size:.86rem; cursor:pointer;}
+  nav.tabs button.on{color:var(--gold-soft); font-weight:700; box-shadow:inset 0 3px 0 var(--gold);}
+
+  /* ---------- pad + toast ---------- */
+  .pad-wrap{position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.6); display:flex; align-items:flex-end; justify-content:center;}
+  .pad-wrap[hidden]{display:none;}
+  .pad{background:var(--panel); border-top:2px solid var(--gold); border-radius:14px 14px 0 0; width:100%; max-width:560px; padding:16px 16px calc(16px + env(safe-area-inset-bottom));}
+  .pad .pt{font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-size:1.4rem; font-weight:600;}
+  .pad .ps{color:var(--dim); font-size:.85rem; margin-bottom:12px;}
+  .pad .keys{display:grid; grid-template-columns:repeat(5,1fr); gap:8px;}
+  .pad .keys button{height:52px; border-radius:8px; border:1px solid var(--line); background:#0a2619; font-family:'Barlow Condensed','Arial Narrow',sans-serif; font-size:1.5rem; font-weight:600; cursor:pointer;}
+  .pad .keys button.par{border-color:var(--gold); color:var(--gold-soft);}
+  #toast{position:fixed; left:50%; bottom:calc(86px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:50; background:#f4efe3; color:#16261d; padding:10px 16px; border-radius:8px; font-size:.88rem; max-width:90vw; box-shadow:0 4px 18px rgba(0,0,0,.4); display:none;}
+
+  @media (prefers-reduced-motion: reduce){
+    .bar .f{transition:none;}
+  }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyASZm6VJsOHeEi1TfXXG4S1HisZ_HuC-fI",
+    authDomain: "wns-scramble.firebaseapp.com",
+    projectId: "wns-scramble",
+    storageBucket: "wns-scramble.firebasestorage.app",
+    messagingSenderId: "1012126405668",
+    appId: "1:1012126405668:web:8bc7a2178c7be0f534b4b1"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+</head>
+<body>
+
+<header id="hdr"></header>
+<main id="main"><div class="empty">Loading the tournament…</div></main>
+
+<nav class="tabs" id="tabs">
+  <button data-act="tab" data-v="roster">Roster</button>
+  <button data-act="tab" data-v="draft">Draft</button>
+  <button data-act="tab" data-v="lineups">Partners</button>
+  <button data-act="tab" data-v="matches">Matches</button>
+</nav>
+
+<div class="pad-wrap" id="padWrap" hidden><div class="pad" id="pad" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   KC vs CH — Karey Carter vs Cary Howell, Ryder Cup format
+   Front nine: 2-man scramble   (25% of combined hcp ÷ 2, rounded up)
+   Back nine:  2-man alt shot   (50% of combined hcp ÷ 2, rounded up)
+   Front nine: singles stroke   (100% of hcp ÷ 2, rounded up, triple bogey max)
+   Lowest net 9-hole total wins the match: 1 point, ½ each for a tie.
+
+   Firestore:
+     wns2/kcvch                 field, draft, lineups (lineupsJson string)
+     wns2/kcvch/scores/{match}  one doc per match: kc1..kc9, ch1..ch9, mulligan flags
+   Kept out of wns2/state so nothing here can touch the live Wednesday round.
+   ===================================================================== */
+
+const ADMIN_PIN = '1990';
+const CAPTAINS = {KC:'Karey Carter', CH:'Cary Howell'};
+const SIDES = ['KC','CH'];
+// Captain head shots (160px JPEG, embedded so the file stays self-contained)
+const CAPTAIN_PHOTOS = {
+  KC:'data:image/jpeg;base64,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',
+  CH:'data:image/jpeg;base64,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'
+};
+const SILVER_DEFAULT = ['Mike Cross','Dave Dawson'];
+
+const PAR_FRONT = [4,3,4,4,3,4,5,3,5];
+const PAR_BACK  = [5,3,4,4,4,3,4,4,5];
+const FORMATS = {
+  scr:{name:'Scramble',       nine:'Front nine',       start:1,  par:PAR_FRONT, pairs:true,  pct:0.25,
+       rule:'2-man teams. 25% of combined handicap, halved, rounded up.'},
+  alt:{name:'Alternate shot', nine:'Back nine',        start:10, par:PAR_BACK,  pairs:true,  pct:0.50,
+       rule:'2-man teams. 50% of combined handicap, halved, rounded up.'},
+  sgl:{name:'Stroke play',    nine:'Front nine again', start:1,  par:PAR_FRONT, pairs:false, pct:1.00,
+       rule:'One on one. Full handicap, halved, rounded up. Triple bogey is the max on any hole.'}
+};
+const FMT_ORDER = ['scr','alt','sgl'];
+
+/* ---------- WNS roster + live handicaps (same source as Weekendgames.html) ---------- */
+const ROSTER = ["Alan Sonnefeld","Andy Rodriguez","Brian Patrossi","Cary Howell","Chad Moore","Craig Taylor","Curtis Newstrom","Dale Dugas","Dale Vasek","Dan Vacek","Dave Dawson","Dave Fritz","David Carden","David Meyer","David Sauceda","Don Sawyer","Ed Menville (Bubba)","Floyd Blackwell","Havey Duke","Jake Kelly","Jamie Daspit","Jay Anderson","Jerry Rains","Karey Carter","Larry Schuelke","Mike Beck","Mike Cross","Nevan","Pat McKenna","Ronnie Dartez","Russell Emmott","Todd Lee","Tom Bledsoe","Trey McDaniel"];
+const ROSTER_HCP = {"Cary Howell":3,"Trey McDaniel":2,"Dale Dugas":6,"Craig Taylor":8,"Russell Emmott":9,"Dale Vasek":8,"Jake Kelly":8,"David Meyer":10,"Dave Fritz":11,"Mike Beck":11,"Jamie Daspit":12,"Curtis Newstrom":10,"Ronnie Dartez":15,"Tom Bledsoe":15,"Havey Duke":12,"Don Sawyer":15,"Karey Carter":17,"David Carden":17,"Jerry Rains":15,"Dave Dawson":17,"Alan Sonnefeld":19,"Floyd Blackwell":20,"Ed Menville (Bubba)":18,"Brian Patrossi":19,"Mike Cross":19,"Todd Lee":25,"Larry Schuelke":21,"Dan Vacek":25,"David Sauceda":25,"Andy Rodriguez":14,"Jay Anderson":15,"Nevan":20,"Chad Moore":0,"Pat McKenna":16};
+let hcpOverrides = {};
+function getHcp(name){
+  if(hcpOverrides[name] !== undefined) return Number(hcpOverrides[name]);
+  return ROSTER_HCP[name] !== undefined ? ROSTER_HCP[name] : 0;
+}
+
+/* ---------- pure helpers (unit-tested) ---------- */
+function strokesFor(fmt, hcps){
+  const sum = hcps.reduce((a,h)=>a+(Number(h)||0),0);
+  return Math.ceil(sum * FORMATS[fmt].pct / 2 - 1e-9);
+}
+function turnFor(draft, n){
+  if(!draft.first) return null;
+  const second = draft.first === 'KC' ? 'CH' : 'KC';
+  if(draft.order === 'alt') return n % 2 === 0 ? draft.first : second;
+  const round = Math.floor(n / 2);                       // snake: A B B A A B B A …
+  const order = round % 2 === 0 ? [draft.first, second] : [second, draft.first];
+  return order[n % 2];
+}
+function fmtPts(x){
+  const w = Math.floor(x + 1e-9), half = x - w >= 0.5 - 1e-9;
+  if(w === 0 && half) return '½';
+  return w + (half ? '½' : '');
+}
+function blankLineups(){
+  const o = {};
+  FMT_ORDER.forEach(f=>{ o[f] = {KC:{sub:false, slots:[]}, CH:{sub:false, slots:[]}}; });
+  return o;
+}
+function parseLineups(json){
+  const base = blankLineups();
+  if(!json) return base;
+  try{
+    const p = JSON.parse(json);
+    FMT_ORDER.forEach(f=>SIDES.forEach(s=>{
+      if(p[f] && p[f][s]) base[f][s] = {sub:!!p[f][s].sub, slots:Array.isArray(p[f][s].slots) ? p[f][s].slots : []};
+    }));
+  }catch(e){ console.error('lineups parse', e); }
+  return base;
+}
+function newPlayer(name, hcp, team, guest){
+  return {name, hcp:Number(hcp)||0, tee:SILVER_DEFAULT.includes(name) ? 'Silver' : 'Gold', team:team||null, guest:!!guest};
+}
+function normalize(d){
+  d = d || {};
+  const T = {
+    field: Array.isArray(d.field) ? d.field.map(p=>({name:p.name, hcp:Number(p.hcp)||0, tee:p.tee||'Gold', team:p.team||null, guest:!!p.guest})) : [],
+    draft: Object.assign({first:null, picks:[], order:'alt'}, d.draft || {}),
+    lineups: parseLineups(d.lineupsJson)
+  };
+  if(!Array.isArray(T.draft.picks)) T.draft.picks = [];
+  SIDES.forEach(side=>{                                  // captains are always in, always on their own team
+    const nm = CAPTAINS[side];
+    const p = T.field.find(x=>x.name === nm);
+    if(p) p.team = side; else T.field.push(newPlayer(nm, getHcp(nm), side, false));
+  });
+  return T;
+}
+function toDoc(T){
+  return {field:T.field, draft:T.draft, lineupsJson:JSON.stringify(T.lineups), updated:Date.now()};
+}
+function isCaptain(name){ return name === CAPTAINS.KC || name === CAPTAINS.CH; }
+function first(name){ return String(name).split(' ')[0]; }
+function capFirst(side){ return first(CAPTAINS[side]); }
+function capPhoto(side, size){
+  return `<img class="cap-photo ${side.toLowerCase()}" src="${CAPTAIN_PHOTOS[side]}" alt="${CAPTAINS[side]}" width="${size}" height="${size}" style="width:${size}px;height:${size}px">`;
+}
+function other(side){ return side === 'KC' ? 'CH' : 'KC'; }
+function teamOf(T, side){
+  // draft order, captain first
+  const byPick = n => { const i = T.draft.picks.indexOf(n); return isCaptain(n) ? -1 : (i < 0 ? 999 : i); };
+  return T.field.filter(p=>p.team === side).sort((a,b)=>byPick(a.name)-byPick(b.name));
+}
+function slotCount(T, f, side){
+  const n = teamOf(T, side).length;
+  return FORMATS[f].pairs ? Math.floor(n/2) : n;
+}
+function validateLineup(T, f, side){
+  const team = teamOf(T, side).map(p=>p.name);
+  const n = slotCount(T, f, side);
+  if(n === 0) return 'Your team needs players before you can set a lineup.';
+  const slots = T.lineups[f][side].slots.slice(0, n);
+  if(slots.length < n) return 'Fill every match first.';
+  const flat = FORMATS[f].pairs ? slots.flat() : slots;
+  if(flat.some(x=>!x)) return 'Fill every match first.';
+  if(new Set(flat).size !== flat.length) return 'Each player can only be in one match per nine.';
+  if(flat.some(x=>!team.includes(x))) return 'Someone in this lineup is no longer on your team.';
+  return null;
+}
+// One partners lineup (stored under scr) drives all three nines. Each group of four stays
+// together: pair vs pair for scramble and alt shot, then player 1 vs player 1 and
+// player 2 vs player 2 for stroke play.
+function matchesFor(T, f){
+  const k = T.lineups.scr.KC, c = T.lineups.scr.CH;
+  if(!k.sub || !c.sub) return [];
+  const n = Math.min(k.slots.length, c.slots.length);
+  const out = [];
+  for(let i=0;i<n;i++){
+    if(f === 'sgl'){
+      for(let j=0;j<2;j++) out.push({id:'sgl'+(2*i+j+1), fmt:'sgl', slot:2*i+j, group:i, KC:[k.slots[i][j]], CH:[c.slots[i][j]]});
+    } else {
+      out.push({id:f+(i+1), fmt:f, slot:i, group:i, KC:k.slots[i], CH:c.slots[i]});
+    }
+  }
+  return out;
+}
+function hcpIn(T, name){
+  const p = T.field.find(x=>x.name === name);
+  return p ? p.hcp : getHcp(name);
+}
+function matchStats(T, m, s){
+  s = s || {};
+  const f = FORMATS[m.fmt];
+  const out = {};
+  SIDES.forEach(side=>{
+    const key = side.toLowerCase();
+    const holes = [];
+    for(let i=0;i<9;i++){
+      let v = s[key+(i+1)];
+      if(typeof v !== 'number') v = null;
+      else if(m.fmt === 'sgl') v = Math.min(v, f.par[i] + 3);   // triple bogey max
+      holes.push(v);
+    }
+    const strokes = strokesFor(m.fmt, m[side].map(n=>hcpIn(T, n)));
+    const gross = holes.reduce((a,v)=>a+(v||0),0);
+    const thru = holes.filter(v=>v!==null).length;
+    out[side] = {holes, strokes, gross, thru, net:gross-strokes};
+  });
+  const done = out.KC.thru === 9 && out.CH.thru === 9;
+  let result = null, lean = null, common = 0;
+  if(done){
+    result = out.KC.net < out.CH.net ? 'KC' : out.CH.net < out.KC.net ? 'CH' : 'H';
+  } else {
+    const idx = [...Array(9).keys()].filter(i=>out.KC.holes[i]!==null && out.CH.holes[i]!==null);
+    common = idx.length;
+    if(common){
+      const pace = side => idx.reduce((a,i)=>a+out[side].holes[i],0) - out[side].strokes * common / 9;
+      const d = pace('KC') - pace('CH');
+      lean = Math.abs(d) < 0.5 ? 'even' : (d < 0 ? 'KC' : 'CH');
+    }
+  }
+  return {KC:out.KC, CH:out.CH, done, result, lean, common};
+}
+function tally(T, scoresMap){
+  let kc=0, ch=0, total=0, done=0;
+  FMT_ORDER.forEach(f=>matchesFor(T, f).forEach(m=>{
+    total++;
+    const st = matchStats(T, m, scoresMap[m.id]);
+    if(st.result){
+      done++;
+      if(st.result === 'KC') kc++;
+      else if(st.result === 'CH') ch++;
+      else { kc += 0.5; ch += 0.5; }
+    }
+  }));
+  return {kc, ch, total, done};
+}
+
+/* ---------- app state ---------- */
+const docRef = db.collection('wns2').doc('kcvch');
+const scoresCol = docRef.collection('scores');
+let T = normalize(null);
+let scores = {};
+let loaded = false;
+function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : v; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+let tab = lsGet('kcvch_tab', 'roster');
+let me = lsGet('kcvch_me', '');
+let isAdmin = (()=>{ try{ return sessionStorage.getItem('kcvch_admin') === '1'; }catch(e){ return false; } })();
+let manage = false;
+let openMatch = null;
+let padCtx = null;
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(()=>{ t.style.display = 'none'; }, 3200);
+}
+function requireAdmin(){
+  if(isAdmin) return true;
+  const p = prompt('Enter admin PIN');
+  if(p === null) return false;
+  if(p.trim() !== ADMIN_PIN){ toast("That PIN didn't match."); return false; }
+  isAdmin = true;
+  try{ sessionStorage.setItem('kcvch_admin', '1'); }catch(e){}
+  return true;
+}
+
+/* Read-modify-write through a transaction so two phones can't clobber each other
+   (e.g. both captains tapping at once during the draft). Return a string from fn to abort with a message. */
+async function mutate(fn){
+  try{
+    await db.runTransaction(async tx=>{
+      const snap = await tx.get(docRef);
+      const cur = normalize(snap.exists ? snap.data() : null);
+      const res = fn(cur);
+      if(typeof res === 'string'){ const e = new Error(res); e.user = true; throw e; }
+      tx.set(docRef, toDoc(cur));
+    });
+    return true;
+  }catch(e){
+    if(e.user) toast(e.message);
+    else { console.error(e); toast("Couldn't save. Check your signal and try again."); }
+    return false;
+  }
+}
+
+/* ---------- render ---------- */
+let pendingRender = false;
+function render(){
+  const a = document.activeElement;
+  if(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.closest('main')){ pendingRender = true; renderHeader(); return; }
+  pendingRender = false;
+  renderHeader();
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.v === tab));
+  const main = document.getElementById('main');
+  if(!loaded){ main.innerHTML = '<div class="empty">Loading the tournament…</div>'; return; }
+  let html = '';
+  if(tab === 'roster') html = (isAdmin && manage) ? viewManage() : viewRoster();
+  else if(tab === 'draft') html = viewDraft();
+  else if(tab === 'lineups') html = viewLineups();
+  else html = openMatch ? viewMatch(openMatch) : viewMatches();
+  main.innerHTML = html;
+}
+document.addEventListener('focusout', ()=>setTimeout(()=>{ if(pendingRender) render(); }, 0));
+
+function renderHeader(){
+  const t = tally(T, scores);
+  const kcW = t.total ? (t.kc / t.total * 100) : 0;
+  const chW = t.total ? (t.ch / t.total * 100) : 0;
+  const need = t.total / 2 + 0.5;
+  let line;
+  if(!t.total) line = 'Points show up once partners are set';
+  else if(t.kc >= need) line = `<b>Team ${esc(capFirst('KC'))} wins the cup</b>`;
+  else if(t.ch >= need) line = `<b>Team ${esc(capFirst('CH'))} wins the cup</b>`;
+  else if(t.done === t.total) line = '<b>All square. The cup is tied.</b>';
+  else line = `<b>${fmtPts(need)}</b> points wins it<br>${t.done} of ${t.total} matches final`;
+  document.getElementById('hdr').innerHTML = `
+    <div class="brand">Money Shots Golf</div>
+    <div class="tally">
+      <div class="side kc"><div class="num">${fmtPts(t.kc) || '0'}</div><div class="who">Team ${esc(capFirst('KC'))}</div></div>
+      <div class="mid">
+        <div class="title">KC vs CH</div>
+        <div class="bar" aria-hidden="true"><span class="f kc" style="width:${kcW}%"></span><span class="f ch" style="width:${chW}%"></span><span class="center"></span></div>
+        <div class="need">${line}</div>
+      </div>
+      <div class="side ch"><div class="num">${fmtPts(t.ch) || '0'}</div><div class="who">Team ${esc(capFirst('CH'))}</div></div>
+    </div>`;
+}
+
+function teeTag(p){ return p.tee === 'Silver' ? '<span class="tee">Silver</span>' : ''; }
+function pRow(p, extra){
+  return `<div class="prow"><span class="nm">${esc(p.name)}${isCaptain(p.name)?'<em>Captain</em>':''}</span>${teeTag(p)}${extra||''}<span class="hc">${p.hcp}</span></div>`;
+}
+function byHcp(a,b){ return a.hcp - b.hcp || a.name.localeCompare(b.name); }
+function whoBar(){
+  return `<div class="who-bar"><span>This phone:</span>
+    <button data-act="me" data-v="KC" class="${me==='KC'?'on kc':''}">${capPhoto('KC',22)}${esc(capFirst('KC'))}</button>
+    <button data-act="me" data-v="CH" class="${me==='CH'?'on ch':''}">${capPhoto('CH',22)}${esc(capFirst('CH'))}</button>
+    <button data-act="me" data-v="" class="${me===''?'on':''}">Watching</button></div>`;
+}
+function teamsPanel(){
+  return `<div class="teams">${SIDES.map(side=>{
+    const list = teamOf(T, side);
+    return `<div class="team ${side.toLowerCase()}"><h3><span class="tn">${capPhoto(side,34)}Team ${esc(capFirst(side))}</span> <small>${list.length} players</small></h3>
+      ${list.map(p=>pRow(p)).join('')}</div>`;
+  }).join('')}</div>`;
+}
+function rulesPanel(){
+  const silver = T.field.filter(p=>p.tee === 'Silver').map(p=>p.name);
+  const teeLine = silver.length
+    ? `${silver.map(esc).join(' and ')} play${silver.length===1?'s':''} the Silver tees. Everyone else plays Gold.`
+    : 'Everyone plays the Gold tees.';
+  return `<div class="panel"><details class="rules"><summary>How it's scored</summary><ul>
+    ${FMT_ORDER.map(f=>`<li><b>${FORMATS[f].nine}: ${FORMATS[f].name}.</b> ${FORMATS[f].rule}</li>`).join('')}
+    <li>Partners stay together for the scramble and alternate shot. Each group of four plays all 27 holes together and splits into two singles matches for stroke play.</li>
+    <li>Every match is head to head. Lowest net 9-hole score wins 1 point. A tie is ½ point each.</li>
+    <li>One mulligan per player in each format.</li>
+    <li>${teeLine}</li>
+  </ul></details></div>`;
+}
+
+function viewRoster(){
+  const pool = T.field.filter(p=>!p.team).sort(byHcp);
+  const drafted = T.field.some(p=>p.team && !isCaptain(p.name));
+  let h = '';
+  if(T.field.length <= 2 && !drafted){
+    h += `<div class="panel empty">The field hasn't been set yet.<br>The commissioner adds players from the Wednesday roster.</div>`;
+  } else if(!drafted){
+    const all = T.field.slice().sort(byHcp);
+    h += `<div class="panel"><h2>The field</h2><p class="sub">${all.length} players, lowest handicap first. Captains pick teams in the Draft tab.</p>
+      ${all.map(p=>pRow(p)).join('')}</div>`;
+  } else {
+    h += `<div class="panel"><h2>The teams</h2>${teamsPanel()}</div>`;
+    if(pool.length) h += `<div class="panel"><h2>Still available</h2>${pool.map(p=>pRow(p)).join('')}</div>`;
+  }
+  h += rulesPanel();
+  h += `<button class="btn ghost" data-act="manage">${isAdmin ? 'Manage the field' : 'Commissioner sign-in'}</button>`;
+  return h;
+}
+
+function viewManage(){
+  const inField = new Map(T.field.map(p=>[p.name, p]));
+  const names = [...new Set([...ROSTER, ...T.field.map(p=>p.name)])].sort((a,b)=>a.localeCompare(b));
+  const started = T.draft.picks.length > 0;
+  let h = `<div class="panel"><h2>Manage the field</h2>
+    <p class="sub">${T.field.length} in. Tap players in or out, set tees, and adjust handicaps. Changes show on every phone right away.</p>
+    <div class="row-btns">
+      <button class="btn" data-act="doneManage">Done</button>
+      <button class="btn ghost" data-act="addAll">Add everyone</button>
+    </div>
+    <div class="row-btns"><button class="btn ghost" data-act="pullHcps">Pull latest handicaps from Wednesday app</button></div>
+    ${started ? '' : `<div class="hint">Draft order:
+      <select class="plain" data-chg="order">
+        <option value="alt"${T.draft.order==='alt'?' selected':''}>Straight alternating</option>
+        <option value="snake"${T.draft.order==='snake'?' selected':''}>Snake (1-2-2-2…)</option>
+      </select></div>`}
+  </div><div class="panel">`;
+  names.forEach(n=>{
+    const p = inField.get(n);
+    const cap = isCaptain(n);
+    h += `<div class="mrow ${p?'':'out'}">
+      <input type="checkbox" aria-label="${esc(n)} is playing" data-chg="inout" data-name="${esc(n)}" ${p?'checked':''} ${cap?'disabled':''}>
+      <span class="nm">${esc(n)}${cap?' <em style="font-style:normal;font-size:.72rem;color:var(--gold-soft)">Captain</em>':''}${p&&p.guest?' <small style="color:var(--dim)">guest</small>':''}${p&&p.team&&!cap?` <small style="color:var(--dim)">Team ${esc(capFirst(p.team))}</small>`:''}</span>
+      ${p ? `<button class="tee-btn ${p.tee==='Silver'?'silver':''}" data-act="tee" data-name="${esc(n)}">${p.tee}</button>
+             <input type="number" inputmode="decimal" aria-label="${esc(n)} handicap" data-chg="hcp" data-name="${esc(n)}" value="${p.hcp}">` : `<span class="hc" style="color:var(--dim)">${getHcp(n)}</span>`}
+    </div>`;
+  });
+  h += `<h3 style="margin-top:14px">Add a guest</h3>
+    <div class="guest"><input type="text" id="gName" placeholder="Name" autocomplete="off"><input type="number" id="gHcp" inputmode="decimal" placeholder="Hcp"><button class="btn" data-act="addGuest">Add</button></div>
+  </div>
+  <div class="panel"><h2>Start over</h2>
+    <button class="btn danger" data-act="redoDraft">Redo the draft</button>
+    <button class="btn danger" data-act="clearLineups">Clear all lineups</button>
+    <button class="btn danger" data-act="clearScores">Clear all scores</button>
+    <p class="hint">Redoing the draft also clears lineups and scores. Each one asks before it does anything.</p>
+    <button class="btn ghost" data-act="signOut">Sign out of commissioner mode</button>
+  </div>`;
+  return h;
+}
+
+function viewDraft(){
+  let h = whoBar();
+  if(T.field.length <= 2){
+    return h + `<div class="panel empty">The draft opens once the commissioner sets the field.</div>`;
+  }
+  const pool = T.field.filter(p=>!p.team).sort(byHcp);
+  const n = T.draft.picks.length;
+  const turn = pool.length ? turnFor(T.draft, n) : null;
+  const canPick = !!T.draft.first && pool.length > 0 && (isAdmin || me === turn);
+
+  if(!T.draft.first){
+    const can = isAdmin || me;
+    h += `<div class="clock done">
+      <div class="big">Who picks first?</div>
+      <div class="small">${T.draft.order === 'snake' ? 'Snake order: 1st pick, then the other captain picks 2nd and 3rd.' : 'Captains alternate one pick at a time.'}</div>
+      <div class="faceoff">
+        <div class="cap">${capPhoto('KC',84)}<button class="btn" data-act="setFirst" data-v="KC" ${can?'':'disabled'}>${esc(capFirst('KC'))} picks first</button></div>
+        <div class="v">vs</div>
+        <div class="cap">${capPhoto('CH',84)}<button class="btn" data-act="setFirst" data-v="CH" ${can?'':'disabled'}>${esc(capFirst('CH'))} picks first</button></div>
+      </div>
+      ${can ? '' : '<div class="hint">Captains: tap your name above first.</div>'}</div>`;
+  } else if(pool.length){
+    h += `<div class="clock ${turn.toLowerCase()}">
+      <div class="small">${esc(capFirst(T.draft.first))} picked first${n === 0 && (isAdmin || me) ? ` <button class="btn ghost small" data-act="clearFirst" style="margin-left:6px">Change</button>` : ''}</div>
+      ${capPhoto(turn,76)}
+      <div class="big">${esc(capFirst(turn))} is on the clock</div>
+      <div class="small">Pick ${n+1} of ${n + pool.length}</div>
+      ${me === turn ? '<span class="you">Your pick</span>' : ''}</div>`;
+  } else {
+    h += `<div class="clock done"><div class="big">Draft complete</div>
+      <div class="small">Captains set their partners next.</div>
+      <button class="btn" data-act="tab" data-v="lineups">Set partners</button></div>`;
+  }
+
+  if(pool.length){
+    h += `<div class="panel"><h2>Available</h2>
+      <p class="sub">${canPick ? 'Tap a player to pick him.' : (T.draft.first ? (me ? `Waiting on ${esc(capFirst(turn))}.` : 'Captains: tap your name at the top to pick from this phone.') : 'Choose who picks first to start.')}</p>
+      ${pool.map(p=>`<button class="pick-row" data-act="pick" data-name="${esc(p.name)}" ${canPick?'':'disabled'}>
+        <span class="nm">${esc(p.name)}</span>${teeTag(p)}<span class="hc">${p.hcp}</span><span class="go">Pick</span></button>`).join('')}
+    </div>`;
+  }
+
+  h += `<div class="panel"><h2>Teams</h2>${teamsPanel()}</div>`;
+
+  if(n){
+    const lastSide = turnFor(T.draft, n-1);
+    h += `<div class="panel"><h2>Pick log</h2><ol class="log">
+      ${T.draft.picks.map((nm,i)=>{ const s = turnFor(T.draft, i); return `<li><span class="${s.toLowerCase()}">${esc(capFirst(s))}</span>: ${esc(nm)}</li>`; }).join('')}
+    </ol>
+    ${(isAdmin || me === lastSide) ? `<button class="btn ghost" data-act="undo">Undo the last pick</button>` : ''}</div>`;
+  }
+  return h;
+}
+
+function viewLineups(){
+  let h = whoBar();
+  const pool = T.field.filter(p=>!p.team);
+  if(!T.draft.first || pool.length || T.draft.picks.length === 0){
+    return h + `<div class="panel empty">Partners open once the draft is done.</div>`;
+  }
+  const sizes = SIDES.map(s=>teamOf(T, s).length);
+  if(sizes[0] !== sizes[1]){
+    h += `<div class="panel"><p class="sub" style="margin:0">Teams are uneven (${sizes[0]} vs ${sizes[1]}). The bigger team's extra players won't have an opponent.</p></div>`;
+  }
+  const L = T.lineups.scr;
+  const revealed = L.KC.sub && L.CH.sub;
+  h += `<div class="panel"><h2>Partners and groups</h2>
+    <p class="sub" style="margin-bottom:0">Partners play the front nine scramble and the back nine alternate shot together. Each group of four stays together all 27 holes. On the stroke play nine, each captain's first player plays the other's first player, and second plays second.</p>
+    <div class="status">${SIDES.map(s=>`<span class="${L[s].sub?'ok':''}">Team ${esc(capFirst(s))}: ${L[s].sub?'submitted':'building'}</span>`).join('')}</div>`;
+  if(revealed){
+    const sgl = matchesFor(T, 'sgl');
+    h += matchesFor(T, 'scr').map((m,i)=>{
+      const st = side => `Scramble ${strokesFor('scr', m[side].map(n=>hcpIn(T,n)))}, alt shot ${strokesFor('alt', m[side].map(n=>hcpIn(T,n)))}`;
+      const singles = sgl.filter(x=>x.group === i).map(x=>{
+        const a = x.KC[0], b = x.CH[0];
+        return `<div>${esc(a)} (${strokesFor('sgl',[hcpIn(T,a)])}) vs ${esc(b)} (${strokesFor('sgl',[hcpIn(T,b)])})</div>`;
+      }).join('');
+      return `<div class="grp"><div class="vs"><div class="k">${m.KC.map(esc).join('<br>')}<small>${st('KC')}</small></div>
+          <div class="n">Group ${i+1}</div>
+          <div class="c">${m.CH.map(esc).join('<br>')}<small>${st('CH')}</small></div></div>
+        <div class="sg"><span>Stroke play, strokes in brackets</span>${singles}</div></div>`;
+    }).join('');
+    if(isAdmin) h += `<div class="row-btns">${SIDES.map(s=>`<button class="btn ghost small" data-act="unsub" data-f="scr" data-side="${s}">Reopen ${esc(capFirst(s))}'s partners</button>`).join('')}</div>`;
+  } else if(me && !L[me].sub){
+    h += lineupEditor('scr', me);
+  } else if(me && L[me].sub){
+    h += `<p class="sub">Submitted. Waiting on ${esc(capFirst(other(me)))}. Both sides show once he submits.</p>
+      <button class="btn ghost" data-act="unsub" data-f="scr" data-side="${me}">Edit my partners</button>`;
+  } else {
+    h += `<p class="sub">Partners stay hidden until both captains submit, Ryder Cup style.</p>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+function lineupEditor(f, side){
+  const F = FORMATS[f];
+  const team = teamOf(T, side);
+  const n = slotCount(T, f, side);
+  const slots = T.lineups[f][side].slots;
+  const used = new Set((F.pairs ? slots.slice(0,n).flat() : slots.slice(0,n)).filter(Boolean));
+  const opts = (cur) => `<option value="">Choose…</option>` + team.map(p=>{
+    const taken = used.has(p.name) && p.name !== cur;
+    return `<option value="${esc(p.name)}"${p.name===cur?' selected':''}${taken?' disabled':''}>${esc(p.name)} (${p.hcp})${taken?' — in another match':''}</option>`;
+  }).join('');
+  let h = '';
+  for(let i=0;i<n;i++){
+    const s = slots[i] || (F.pairs ? ['',''] : '');
+    const names = F.pairs ? s : [s];
+    const full = names.every(Boolean);
+    const gets = full ? (F.pairs ? `${strokesFor('scr', names.map(x=>hcpIn(T,x)))} / ${strokesFor('alt', names.map(x=>hcpIn(T,x)))}` : strokesFor(f, names.map(x=>hcpIn(T,x)))) : null;
+    if(F.pairs){
+      h += `<div class="slot"><span class="lbl">Group ${i+1}</span>
+        <select data-chg="slot" data-f="${f}" data-i="${i}" data-j="0" aria-label="Group ${i+1} first player">${opts(s[0])}</select>
+        <select data-chg="slot" data-f="${f}" data-i="${i}" data-j="1" aria-label="Group ${i+1} second player">${opts(s[1])}</select>
+        <span class="gets">${gets===null?'':gets}</span></div>`;
+    } else {
+      h += `<div class="slot"><span class="lbl">Match ${i+1}</span>
+        <select data-chg="slot" data-f="${f}" data-i="${i}" data-j="-1" aria-label="Match ${i+1} player">${opts(s)}</select>
+        <span class="gets">${gets===null?'':`gets ${gets}`}</span></div>`;
+    }
+  }
+  h = `<p class="hint">Group 1 plays the other team's Group 1, and so on. Strokes show as scramble / alt shot. The first player in each group plays the other side's first player in stroke play.</p>` + h;
+  if(F.pairs && team.length % 2 === 1) h += `<p class="hint">Odd number of players: one sits out.</p>`;
+  h += `<div class="row-btns"><button class="btn" data-act="submit" data-f="${f}" data-side="${side}">Submit partners</button></div>`;
+  return h;
+}
+
+function viewMatches(){
+  let h = '', any = false;
+  FMT_ORDER.forEach(f=>{
+    const F = FORMATS[f];
+    const ms = matchesFor(T, f);
+    h += `<div class="panel"><h2>${F.nine}: ${F.name}</h2>`;
+    if(!ms.length){ h += `<p class="sub" style="margin:0">Matches show here once both captains submit their partners.</p></div>`; return; }
+    any = true;
+    ms.forEach((m,i)=>{
+      const st = matchStats(T, m, scores[m.id]);
+      let stat, cls = '';
+      if(st.done){
+        if(st.result === 'H'){ stat = `<b>Halved</b>${st.KC.net} – ${st.CH.net} net`; cls = 'won-h'; }
+        else { stat = `<b class="${st.result.toLowerCase()}">${esc(capFirst(st.result))} wins</b>${st.KC.net} – ${st.CH.net} net`; cls = 'won-' + st.result.toLowerCase(); }
+      } else if(st.KC.thru || st.CH.thru){
+        const thru = Math.min(st.KC.thru, st.CH.thru) || Math.max(st.KC.thru, st.CH.thru);
+        const lean = st.lean === 'even' ? 'Even' : st.lean ? `<span class="${st.lean.toLowerCase()}">${esc(capFirst(st.lean))} ahead</span>` : '';
+        stat = `<b>Thru ${thru}</b>${lean}`;
+      } else {
+        stat = `<b>Group ${m.group+1}</b>Not started`;
+      }
+      h += `<button class="mcard ${cls}" data-act="open" data-id="${m.id}">
+        <div class="ms kc">${m.KC.map(esc).join('<br>')}<small>${st.KC.strokes} stroke${st.KC.strokes===1?'':'s'}</small></div>
+        <div class="st">${stat}</div>
+        <div class="ms ch">${m.CH.map(esc).join('<br>')}<small>${st.CH.strokes} stroke${st.CH.strokes===1?'':'s'}</small></div></button>`;
+    });
+    h += `</div>`;
+  });
+  if(any) h += `<p class="hint" style="text-align:center">Tap a match to enter scores. "Ahead" is on pace, with strokes spread evenly over the holes played.</p>`;
+  return h;
+}
+
+function findMatch(id){
+  const f = id.replace(/\d+$/, '');
+  if(!FORMATS[f]) return null;
+  return matchesFor(T, f).find(m=>m.id === id) || null;
+}
+
+function viewMatch(id){
+  const m = findMatch(id);
+  if(!m){ openMatch = null; return viewMatches(); }
+  const F = FORMATS[m.fmt];
+  const s = scores[m.id] || {};
+  const st = matchStats(T, m, s);
+  const holes = [...Array(9).keys()];
+  const parTot = F.par.reduce((a,b)=>a+b,0);
+  const row = side => {
+    const key = side.toLowerCase();
+    return `<tr class="${key}"><td class="lbl">${esc(capFirst(side))}</td>${holes.map(i=>{
+      const v = st[side].holes[i];
+      const par = F.par[i];
+      let c = '';
+      if(v !== null && v < par) c = 'under';
+      if(m.fmt === 'sgl' && v !== null && v === par + 3) c = 'cap';
+      return `<td><button class="cell ${c}" data-act="cell" data-id="${m.id}" data-side="${side}" data-h="${i+1}" aria-label="${esc(capFirst(side))} hole ${F.start+i}">${v===null?'':v}</button></td>`;
+    }).join('')}<td class="tot">${st[side].thru ? st[side].gross : '–'}</td></tr>`;
+  };
+  let res;
+  if(st.done){
+    if(st.result === 'H') res = `<div class="result h">Match halved at ${st.KC.net} net. ½ point each.</div>`;
+    else res = `<div class="result ${st.result.toLowerCase()}">Team ${esc(capFirst(st.result))} wins the point, ${Math.min(st.KC.net, st.CH.net)} to ${Math.max(st.KC.net, st.CH.net)} net.</div>`;
+  } else {
+    const lean = st.lean === 'even' ? 'Even on pace.' : st.lean ? `Team ${esc(capFirst(st.lean))} ahead on pace.` : '';
+    res = `<div class="result live">${st.KC.thru || st.CH.thru ? `Thru ${Math.min(st.KC.thru, st.CH.thru)} for both sides. ${lean}` : 'Tap a box to enter a score.'}</div>`;
+  }
+  const mullBtns = SIDES.map(side=>m[side].map((nm,j)=>{
+    const key = 'm' + side.toLowerCase() + j;
+    const used = !!s[key];
+    return `<button class="mull ${used?'used':''}" data-act="mull" data-id="${m.id}" data-key="${key}" aria-pressed="${used}"><b>${esc(nm)}</b>${used?'Mulligan used':'Mulligan available'}</button>`;
+  }).join('')).join('');
+  return `<button class="back" data-act="closeMatch">‹ All matches</button>
+    <div class="panel">
+      <h2>${F.name}: group ${m.group+1}</h2>
+      <p class="sub">${F.nine}, holes ${F.start}–${F.start+8}.${m.fmt==='sgl' ? ' Triple bogey max.' : ''}</p>
+      <div class="vs"><div class="k">${m.KC.map(n=>`${esc(n)} (${hcpIn(T,n)})`).join('<br>')}<small>${st.KC.strokes} stroke${st.KC.strokes===1?'':'s'}</small></div>
+        <div class="n">vs</div>
+        <div class="c">${m.CH.map(n=>`${esc(n)} (${hcpIn(T,n)})`).join('<br>')}<small>${st.CH.strokes} stroke${st.CH.strokes===1?'':'s'}</small></div></div>
+      <div class="card-wrap"><table class="card">
+        <thead><tr><th></th>${holes.map(i=>`<th>${F.start+i}</th>`).join('')}<th>Tot</th></tr>
+        <tr class="par"><td class="lbl">Par</td>${F.par.map(p=>`<td>${p}</td>`).join('')}<td>${parTot}</td></tr></thead>
+        <tbody>${row('KC')}${row('CH')}</tbody></table></div>
+      <div class="sum">
+        <span></span><span class="h" style="text-align:center">${esc(capFirst('KC'))}</span><span class="h" style="text-align:center">${esc(capFirst('CH'))}</span>
+        <span class="h">Gross</span><span class="v kc">${st.KC.thru?st.KC.gross:'–'}</span><span class="v ch">${st.CH.thru?st.CH.gross:'–'}</span>
+        <span class="h">Strokes</span><span class="v kc">−${st.KC.strokes}</span><span class="v ch">−${st.CH.strokes}</span>
+        <span class="h">Net</span><span class="v kc">${st.KC.thru===9?st.KC.net:'–'}</span><span class="v ch">${st.CH.thru===9?st.CH.net:'–'}</span>
+      </div>
+      ${res}
+    </div>
+    <div class="panel"><h3>Mulligans</h3><p class="sub">One per player this nine. Tap when it's used.</p><div class="mulls">${mullBtns}</div></div>`;
+}
+
+/* ---------- score pad ---------- */
+function openPad(id, side, h){
+  const m = findMatch(id);
+  if(!m) return;
+  const F = FORMATS[m.fmt];
+  const par = F.par[h-1];
+  const max = m.fmt === 'sgl' ? par + 3 : 10;
+  const cur = (scores[id] || {})[side.toLowerCase() + h];
+  padCtx = {id, side, h};
+  let keys = '';
+  for(let v=1; v<=max; v++) keys += `<button data-act="padSet" data-v="${v}" class="${v===par?'par':''}"${v===cur?' style="background:var(--gold);color:#1a1405"':''}>${v}</button>`;
+  document.getElementById('pad').innerHTML = `
+    <div class="pt">Hole ${F.start + h - 1}, par ${par}</div>
+    <div class="ps">Team ${esc(capFirst(side))}: ${m[side].map(esc).join(' & ')}${m.fmt==='sgl' ? `. Max score here is ${par+3}.` : ''}</div>
+    <div class="keys">${keys}</div>
+    <div class="row-btns"><button class="btn ghost" data-act="padSet" data-v="">Clear</button><button class="btn ghost" data-act="padClose">Cancel</button></div>`;
+  document.getElementById('padWrap').hidden = false;
+  const firstKey = document.querySelector('#pad .keys button.par') || document.querySelector('#pad .keys button');
+  if(firstKey) firstKey.focus();
+}
+function closePad(){ document.getElementById('padWrap').hidden = true; padCtx = null; }
+function setScore(id, key, val){
+  scores[id] = Object.assign({}, scores[id]);
+  if(val === null) delete scores[id][key]; else scores[id][key] = val;
+  render();
+  const upd = {}; upd[key] = val === null ? firebase.firestore.FieldValue.delete() : val;
+  scoresCol.doc(id).set(upd, {merge:true}).catch(e=>{ console.error(e); toast("Couldn't save that score. Check your signal and try again."); });
+}
+async function clearAllScores(){
+  const ids = Object.keys(scores);
+  if(!ids.length) return;
+  const b = db.batch();
+  ids.forEach(id=>b.delete(scoresCol.doc(id)));
+  try{ await b.commit(); }catch(e){ console.error(e); toast("Couldn't clear scores."); }
+}
+
+/* ---------- actions ---------- */
+const ACTIONS = {
+  tab(d){ tab = d.v; openMatch = null; lsSet('kcvch_tab', tab); render(); window.scrollTo(0,0); },
+  me(d){ me = d.v; lsSet('kcvch_me', me); render(); },
+  manage(){ if(!requireAdmin()) return; manage = true; render(); },
+  doneManage(){ manage = false; render(); },
+  signOut(){ isAdmin = false; manage = false; try{ sessionStorage.removeItem('kcvch_admin'); }catch(e){} render(); },
+  addAll(){
+    mutate(T=>{
+      const have = new Set(T.field.map(p=>p.name));
+      ROSTER.forEach(n=>{ if(!have.has(n)) T.field.push(newPlayer(n, getHcp(n), null, false)); });
+    });
+  },
+  pullHcps(){
+    mutate(T=>{ T.field.forEach(p=>{ if(!p.guest) p.hcp = getHcp(p.name); }); }).then(ok=>{ if(ok) toast('Handicaps updated from the Wednesday app.'); });
+  },
+  tee(d){
+    mutate(T=>{ const p = T.field.find(x=>x.name === d.name); if(p) p.tee = p.tee === 'Silver' ? 'Gold' : 'Silver'; });
+  },
+  addGuest(){
+    const name = document.getElementById('gName').value.trim();
+    const hcp = document.getElementById('gHcp').value;
+    if(!name){ toast('Enter a name for the guest.'); return; }
+    if(hcp === ''){ toast('Enter a handicap for the guest.'); return; }
+    document.activeElement && document.activeElement.blur();
+    mutate(T=>{
+      if(T.field.some(p=>p.name.toLowerCase() === name.toLowerCase())) return `${name} is already in the field.`;
+      T.field.push(newPlayer(name, hcp, null, true));
+    });
+  },
+  setFirst(d){
+    if(!isAdmin && !me){ toast('Captains: tap your name at the top first.'); return; }
+    if(!confirm(`${capFirst(d.v)} picks first?`)) return;
+    mutate(T=>{
+      if(T.draft.picks.length) return 'The draft has already started.';
+      T.draft.first = d.v;
+    });
+  },
+  clearFirst(){
+    mutate(T=>{
+      if(T.draft.picks.length) return 'The draft has already started.';
+      T.draft.first = null;
+    });
+  },
+  pick(d){
+    const turn = turnFor(T.draft, T.draft.picks.length);
+    if(!turn) return;
+    if(!isAdmin && me !== turn){ toast(`It's ${capFirst(turn)}'s pick.`); return; }
+    if(!confirm(`${capFirst(turn)} picks ${d.name}?`)) return;
+    mutate(T=>{
+      const t = turnFor(T.draft, T.draft.picks.length);
+      if(!t) return 'Choose who picks first.';
+      if(t !== turn) return `The pick just changed hands. It's ${capFirst(t)}'s turn now.`;
+      const p = T.field.find(x=>x.name === d.name);
+      if(!p) return `${d.name} was taken out of the field.`;
+      if(p.team) return `${d.name} is already on Team ${capFirst(p.team)}.`;
+      p.team = t;
+      T.draft.picks.push(d.name);
+    });
+  },
+  undo(){
+    const last = T.draft.picks[T.draft.picks.length - 1];
+    if(!last || !confirm(`Undo the pick of ${last}?`)) return;
+    mutate(T=>{
+      const n = T.draft.picks.length;
+      if(!n) return 'There are no picks to undo.';
+      if(T.draft.picks[n-1] !== last) return 'Another pick came in. Check the log and try again.';
+      const side = turnFor(T.draft, n-1);
+      if(!isAdmin && me !== side) return 'Only the captain who made that pick can undo it.';
+      T.draft.picks.pop();
+      const p = T.field.find(x=>x.name === last);
+      if(p) p.team = null;
+    });
+  },
+  submit(d){
+    const err = validateLineup(T, d.f, d.side);
+    if(err){ toast(err); return; }
+    mutate(T=>{
+      const e = validateLineup(T, d.f, d.side);
+      if(e) return e;
+      const L = T.lineups[d.f][d.side];
+      L.slots = L.slots.slice(0, slotCount(T, d.f, d.side));
+      L.sub = true;
+    }).then(ok=>{ if(ok) toast('Partners submitted.'); });
+  },
+  unsub(d){
+    const L = T.lineups[d.f];
+    const revealed = L.KC.sub && L.CH.sub;
+    if(revealed){
+      if(!isAdmin){ toast('Both lineups are out. Ask the commissioner to reopen.'); return; }
+      const hasScores = Object.keys(scores).some(id=>Object.keys(scores[id]||{}).length);
+      if(!confirm(`Reopen ${capFirst(d.side)}'s partners?${hasScores ? ' Scores already entered stay with the group numbers, so check them after.' : ''}`)) return;
+    }
+    mutate(T=>{
+      const both = T.lineups[d.f].KC.sub && T.lineups[d.f].CH.sub;
+      if(both && !isAdmin) return 'Both lineups are out. Ask the commissioner to reopen.';
+      T.lineups[d.f][d.side].sub = false;
+    });
+  },
+  open(d){ openMatch = d.id; render(); window.scrollTo(0,0); },
+  closeMatch(){ openMatch = null; render(); },
+  cell(d){ openPad(d.id, d.side, Number(d.h)); },
+  padSet(d){
+    if(!padCtx) return;
+    const {id, side, h} = padCtx;
+    closePad();
+    setScore(id, side.toLowerCase() + h, d.v === '' ? null : Number(d.v));
+  },
+  padClose(){ closePad(); },
+  mull(d){
+    const used = !!(scores[d.id] || {})[d.key];
+    setScore(d.id, d.key, used ? null : true);
+  },
+  redoDraft(){
+    if(!confirm('Redo the draft? Every pick, lineup, and score is cleared. The field stays.')) return;
+    mutate(T=>{
+      T.field.forEach(p=>{ if(!isCaptain(p.name)) p.team = null; });
+      T.draft = {first:null, picks:[], order:T.draft.order};
+      T.lineups = blankLineups();
+    }).then(ok=>{ if(ok) clearAllScores(); });
+  },
+  clearLineups(){
+    if(!confirm('Clear all lineups? Scores are cleared too, since they belong to the matches.')) return;
+    mutate(T=>{ T.lineups = blankLineups(); }).then(ok=>{ if(ok) clearAllScores(); });
+  },
+  clearScores(){
+    if(!confirm('Clear every score in every match?')) return;
+    clearAllScores();
+  }
+};
+const CHANGES = {
+  inout(d, v, el){
+    const on = el.checked;
+    if(!on){
+      const p = T.field.find(x=>x.name === d.name);
+      if(p && p.team && !confirm(`${d.name} is already on Team ${capFirst(p.team)}. Take him out anyway?`)){ el.checked = true; return; }
+    }
+    el.blur();
+    mutate(T=>{
+      const i = T.field.findIndex(x=>x.name === d.name);
+      if(on && i < 0) T.field.push(newPlayer(d.name, getHcp(d.name), null, false));
+      if(!on && i >= 0 && !isCaptain(d.name)){
+        T.field.splice(i, 1);
+        T.draft.picks = T.draft.picks.filter(n=>n !== d.name);
+      }
+    });
+  },
+  hcp(d, v){
+    if(v === '' || isNaN(Number(v))) return;
+    mutate(T=>{ const p = T.field.find(x=>x.name === d.name); if(p) p.hcp = Number(v); });
+  },
+  order(d, v){
+    mutate(T=>{ if(T.draft.picks.length) return 'The draft has started, so the order is locked.'; T.draft.order = v === 'alt' ? 'alt' : 'snake'; });
+  },
+  slot(d, v){
+    const f = d.f, i = Number(d.i), j = Number(d.j), side = me;
+    if(!side) return;
+    mutate(T=>{
+      const L = T.lineups[f][side];
+      if(L.sub) return 'That lineup is already submitted.';
+      const n = slotCount(T, f, side);
+      while(L.slots.length < n) L.slots.push(FORMATS[f].pairs ? ['',''] : '');
+      if(FORMATS[f].pairs){
+        if(!Array.isArray(L.slots[i])) L.slots[i] = ['',''];
+        L.slots[i][j] = v;
+      } else {
+        L.slots[i] = v;
+      }
+    });
+  }
+};
+
+document.addEventListener('click', e=>{
+  if(e.target.id === 'padWrap'){ closePad(); return; }
+  const el = e.target.closest('[data-act]');
+  if(!el || el.disabled) return;
+  const fn = ACTIONS[el.dataset.act];
+  if(fn) fn(el.dataset, el);
+});
+document.addEventListener('change', e=>{
+  const el = e.target.closest('[data-chg]');
+  if(!el) return;
+  const fn = CHANGES[el.dataset.chg];
+  if(fn) fn(el.dataset, el.value, el);
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && padCtx) closePad(); });
+
+/* ---------- live sync ---------- */
+docRef.onSnapshot(snap=>{
+  T = normalize(snap.exists ? snap.data() : null);
+  loaded = true;
+  render();
+}, err=>{
+  console.error(err);
+  document.getElementById('main').innerHTML = `<div class="panel empty">Couldn't reach the scoreboard. Check your signal, then refresh the page.</div>`;
+});
+scoresCol.onSnapshot(snap=>{
+  const next = {};
+  snap.forEach(d=>{ next[d.id] = d.data(); });
+  scores = next;
+  render();
+}, err=>console.error('scores sync', err));
+
+// Live handicaps and new players from the Wednesday app (wns2/state.hcps, wns2/players.extra)
+db.collection('wns2').doc('state').onSnapshot(doc=>{
+  if(doc.exists && doc.data().hcps){ hcpOverrides = doc.data().hcps; if(tab === 'roster' && manage) render(); }
+}, err=>console.error('hcp sync', err));
+db.collection('wns2').doc('players').onSnapshot(doc=>{
+  if(!doc.exists || !doc.data().extra) return;
+  let added = false;
+  doc.data().extra.forEach(p=>{
+    if(!ROSTER.includes(p.name)){ ROSTER.push(p.name); added = true; }
+    ROSTER_HCP[p.name] = p.hcp;
+  });
+  if(added){ ROSTER.sort((a,b)=>a.localeCompare(b)); if(manage) render(); }
+}, err=>console.error('roster sync', err));
+
+render();
+</script>
+</body>
+</html>
