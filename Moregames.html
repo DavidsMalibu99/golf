@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Money Shots Golf — More Games</title>
+<style>
+  :root{
+    --dark-green:#0b2e1f;
+    --mid-green:#123c28;
+    --line-green:#1c5238;
+    --gold:#d4af37;
+    --gold-soft:#e8cf7a;
+    --cream:#f4efe3;
+    --rust:#b3392c;
+    --win:#3f9d5d;
+    --text-dim:#9db8a8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',system-ui,sans-serif;
+    background:var(--dark-green);
+    color:var(--cream);
+    min-height:100vh;
+    padding-bottom:70px;
+  }
+  header{
+    background:linear-gradient(180deg,var(--mid-green),var(--dark-green));
+    padding:18px 16px 14px;
+    border-bottom:2px solid var(--gold);
+    text-align:center;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  header h1{
+    margin:0;
+    font-size:1.3rem;
+    letter-spacing:1px;
+    color:var(--gold-soft);
+  }
+  header .sub{
+    font-size:0.75rem;
+    color:var(--text-dim);
+    margin-top:2px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+  .wolf-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-top:10px;
+    padding:6px 16px;
+    border:1px solid var(--gold);
+    border-radius:30px;
+    background:rgba(212,175,55,0.08);
+  }
+  .wolf-badge .paw{font-size:1.1rem;}
+  .wolf-badge b{color:var(--gold-soft);}
+
+  nav{
+    display:flex;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:var(--mid-green);
+    border-top:2px solid var(--gold);
+    z-index:20;
+  }
+  nav button{
+    flex:1;
+    padding:12px 4px;
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:0.72rem;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+  nav button.active{color:var(--gold-soft); font-weight:bold;}
+
+  main{padding:16px; max-width:520px; margin:0 auto;}
+  @media (min-width: 700px){
+    #view-sb-board .panel{
+      max-width: 1000px;
+      width: 90vw;
+      margin-left: calc(-45vw + 50%);
+    }
+    #sbBoardWrap table{ font-size:0.9rem; }
+    #sbBoardWrap th, #sbBoardWrap td{ padding:8px 6px; }
+  }
+  .panel{
+    background:var(--mid-green);
+    border:1px solid var(--line-green);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .panel h2{margin:0 0 12px; font-size:1rem; color:var(--gold-soft); letter-spacing:0.5px;}
+  label{display:block; font-size:0.8rem; color:var(--text-dim); margin:10px 0 4px;}
+  input[type=text],input[type=number],select.roster-select{
+    width:100%;
+    padding:9px 10px;
+    border-radius:6px;
+    border:1px solid var(--line-green);
+    background:var(--dark-green);
+    color:var(--cream);
+    font-size:0.95rem;
+  }
+  .btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-top:12px;
+    border:none;
+    border-radius:8px;
+    background:var(--gold);
+    color:var(--dark-green);
+    font-weight:bold;
+    font-size:0.95rem;
+    letter-spacing:0.5px;
+  }
+  .btn.secondary{
+    background:transparent;
+    border:1px solid var(--gold);
+    color:var(--gold-soft);
+  }
+  .btn.danger{background:var(--rust); color:var(--cream);}
+  .nv-pos-btn.active, .nv-par-btn.active, .fm-format-btn.active{
+    background:var(--gold);
+    border-color:var(--gold);
+    color:var(--dark-green);
+    font-weight:bold;
+  }
+
+  .hole-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .hole-nav .hole-num{font-size:1.4rem; color:var(--gold-soft); font-weight:bold;}
+  .hole-nav button{background:none; border:1px solid var(--line-green); color:var(--cream); border-radius:6px; padding:6px 12px;}
+
+  .partner-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;}
+  .partner-grid button{
+    padding:10px 6px;
+    border-radius:8px;
+    border:1px solid var(--line-green);
+    background:var(--dark-green);
+    color:var(--cream);
+    font-size:0.85rem;
+  }
+  .partner-grid button.sel{background:var(--gold); color:var(--dark-green); border-color:var(--gold); font-weight:bold;}
+  .lone-btn{margin-top:8px;}
+  .lone-btn.sel{background:var(--rust); color:var(--cream); border-color:var(--rust);}
+
+  .score-grid{margin-top:12px;}
+  .score-row{display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line-green);}
+  .score-row .name{flex:1; font-size:0.9rem;}
+  .score-row input{width:64px; text-align:center;}
+  .score-row.is-wolf .name{color:var(--gold-soft); font-weight:bold;}
+
+  table{width:100%; border-collapse:collapse; font-size:0.82rem;}
+  th,td{padding:6px 4px; border-bottom:1px solid var(--line-green); text-align:center;}
+  th{color:var(--text-dim); font-weight:normal; font-size:0.72rem; text-transform:uppercase;}
+  td.name-col, th.name-col{text-align:left;}
+  .money-pos{color:var(--win); font-weight:bold;}
+  .money-neg{color:var(--rust); font-weight:bold;}
+  .play-money-summary{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 16px;}
+  .play-money-chip{display:flex; align-items:center; gap:5px; background:var(--mid-green); border-radius:20px; padding:5px 10px; font-size:0.78rem;}
+  .play-money-chip .pm-name{color:var(--cream);}
+  .play-money-chip.pm-wolf .pm-name{color:var(--gold-soft); font-weight:bold;}
+
+  .board-card{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:12px;
+    border-bottom:1px solid var(--line-green);
+  }
+  .board-card:last-child{border-bottom:none;}
+  .hist-item{display:flex; flex-direction:column; gap:2px; padding:12px 4px; border-bottom:1px solid var(--line-green); cursor:pointer;}
+  .hist-item:last-child{border-bottom:none;}
+  .hist-item-date{font-weight:700; color:var(--gold-soft); font-size:0.95rem;}
+  .hist-item-sub{font-size:0.8rem; color:var(--text-dim);}
+  .board-rank{color:var(--text-dim); width:22px;}
+  .board-name{flex:1; font-size:0.95rem;}
+  .empty{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:20px 0;}
+  .hint{font-size:0.72rem; color:var(--text-dim); margin-top:8px; line-height:1.4;}
+
+  .sb-checklist{
+    max-height:260px;
+    overflow-y:auto;
+    border:1px solid var(--line-green);
+    border-radius:8px;
+    padding:4px 10px;
+    margin-top:4px;
+  }
+  .sb-check-row{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line-green);}
+  .sb-check-row:last-child{border-bottom:none;}
+  .sb-check-row input{width:auto;}
+  .sb-check-row label{margin:0; color:var(--cream); font-size:0.9rem;}
+  .sb-hole-table{width:100%; margin-top:10px;}
+  .sb-hole-table th,.sb-hole-table td{padding:5px 3px; font-size:0.78rem;}
+  .sb-hole-table input{width:44px; text-align:center; padding:5px 2px;}
+  .sb-vert-list{display:flex; flex-direction:column; gap:6px; margin-top:8px;}
+  .sb-vert-row{display:flex; align-items:center; justify-content:space-between; background:var(--mid-green); border-radius:8px; padding:8px 12px;}
+  .sb-vert-hole{font-weight:600; color:var(--cream); font-size:0.95rem;}
+  .sb-vert-par{margin-left:8px; font-size:0.75rem; color:var(--text-dim); font-weight:400;}
+  .sb-vert-input{width:64px; text-align:center; padding:8px 4px; font-size:1rem;}
+  .sb-vert-total{margin-top:8px; padding:8px 12px; font-weight:700; color:var(--gold-soft); border-top:1px solid var(--line-green);}
+  .sb-vert-grand{margin-top:4px; color:var(--gold); font-size:1.05rem; display:none;}
+
+  /* ---- Stableford groups (setup) ---- */
+  .sbg-count{display:flex; align-items:center; gap:10px; margin:4px 0 8px; font-size:0.85rem; color:var(--cream);}
+  .sbg-count button{width:36px; height:36px; border-radius:8px; border:1px solid var(--gold); background:transparent; color:var(--gold-soft); font-size:1.1rem; font-weight:bold;}
+  .sbg-count b{min-width:18px; text-align:center; color:var(--gold-soft); font-size:1.05rem;}
+  .sbg-list{border:1px solid var(--line-green); border-radius:8px; padding:2px 10px;}
+  .sbg-row{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line-green);}
+  .sbg-row:last-child{border-bottom:none;}
+  .sbg-name{flex:1; font-size:0.88rem; color:var(--cream); min-width:0;}
+  .sbg-row.unassigned .sbg-name{color:var(--gold-soft);}
+  .sbg-btns{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;}
+  .sbg-btns button{width:34px; height:34px; border-radius:50%; border:1px solid var(--line-green); background:var(--dark-green); color:var(--text-dim); font-weight:bold; font-size:0.85rem; padding:0;}
+  .sbg-btns button.sel{background:var(--gold); border-color:var(--gold); color:var(--dark-green);}
+  .sbg-summary{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+  .sbg-card{background:var(--mid-green); border-radius:8px; padding:8px 12px; font-size:0.82rem; color:var(--cream); line-height:1.4;}
+  .sbg-card b{color:var(--gold-soft);}
+  .sbg-card.warn{border:1px dashed var(--gold-soft); background:transparent; color:var(--gold-soft);}
+
+  /* ---- Stableford group picker + hole-by-hole entry ---- */
+  .sbp-btn{display:block; width:100%; text-align:left; margin-top:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--line-green); background:var(--mid-green); color:var(--cream);}
+  .sbp-btn .sbp-title{font-weight:bold; color:var(--gold-soft); font-size:1rem; display:flex; justify-content:space-between;}
+  .sbp-btn .sbp-thru{font-weight:normal; color:var(--text-dim); font-size:0.78rem;}
+  .sbp-btn .sbp-names{font-size:0.85rem; margin-top:3px; line-height:1.4;}
+  .sbh-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .sbh-grp{font-weight:bold; color:var(--gold-soft); font-size:0.95rem;}
+  .sbh-change{background:transparent; border:1px solid var(--gold); color:var(--gold-soft); border-radius:6px; padding:6px 10px; font-size:0.8rem;}
+  .sbh-strip{display:grid; grid-template-columns:repeat(9,1fr); gap:4px; margin-bottom:12px;}
+  .sbh-strip button{padding:7px 0; border-radius:6px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--text-dim); font-size:0.8rem; font-weight:bold;}
+  .sbh-strip button.partial{border-color:var(--gold-soft); color:var(--gold-soft);}
+  .sbh-strip button.done{background:var(--line-green); border-color:var(--line-green); color:var(--cream);}
+  .sbh-strip button.cur{background:var(--gold); border-color:var(--gold); color:var(--dark-green);}
+  .sbh-head{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .sbh-nav{width:48px; height:48px; border-radius:10px; border:1px solid var(--gold); background:transparent; color:var(--gold-soft); font-size:1.2rem; flex-shrink:0;}
+  .sbh-title{flex:1; text-align:center;}
+  .sbh-hole{font-size:1.4rem; font-weight:bold; color:var(--cream);}
+  .sbh-par{font-size:0.9rem; color:var(--gold-soft);}
+  .sbh-row{display:flex; align-items:center; gap:10px; background:var(--mid-green); border-radius:8px; padding:8px 12px; margin-top:6px;}
+  .sbh-name{flex:1; min-width:0; font-weight:600; color:var(--cream); font-size:0.95rem;}
+  .sbh-sub{display:block; font-weight:normal; color:var(--text-dim); font-size:0.72rem; margin-top:2px;}
+  input[type=number].sbh-input{width:72px; text-align:center; font-size:1.25rem; font-weight:bold; padding:10px 4px;}
+  .sbh-totals{margin-top:14px;}
+  .sbh-totals td.name-col{font-size:0.82rem;}
+  .sbh-status{min-height:1em;}
+  .sbh-status.warn{color:var(--gold-soft);}
+  .win-pill{background:var(--gold); color:var(--dark-green); font-size:0.65rem; font-weight:bold; padding:2px 6px; border-radius:8px; white-space:nowrap;}
+  .sb-tab-row{display:flex; gap:8px; margin-bottom:12px;}
+  .sb-tab{
+    flex:1;
+    padding:9px 0;
+    border-radius:6px;
+    border:1px solid var(--line-green);
+    background:var(--dark-green);
+    color:var(--text-dim);
+    font-size:0.85rem;
+    font-weight:bold;
+  }
+  .sb-tab.sel{background:var(--gold); color:var(--dark-green); border-color:var(--gold);}
+  .f9-start{border-left:2px solid var(--gold);}
+  .f9-end{border-right:2px solid var(--gold);}
+  .b9-start{border-left:2px solid var(--gold-soft);}
+  .b9-end{border-right:2px solid var(--gold-soft);}
+  .grp-head{background:rgba(212,175,55,0.08); font-weight:bold; color:var(--gold-soft)!important;}
+
+  /* ---- Four-pot money view ---- */
+  .pot-row{display:flex; align-items:center; gap:10px; background:var(--mid-green); border-radius:8px; padding:9px 12px; margin-bottom:8px;}
+  .pot-row input[type=checkbox]{width:18px; height:18px; flex:none; margin:0;}
+  .pot-row .pot-label{flex:1; font-size:0.88rem; color:var(--cream); font-weight:600;}
+  .pot-row .pot-amt{width:74px; margin:0; padding:7px 6px; text-align:center;}
+  .pot-row.off .pot-label{color:var(--text-dim); font-weight:400;}
+  .pot-total{margin-top:2px; padding:8px 12px; font-weight:700; color:var(--gold); border-top:1px solid var(--line-green);}
+
+  .pot-card{background:var(--mid-green); border:1px solid var(--line-green); border-radius:10px; padding:12px 14px; margin-bottom:12px;}
+  .pot-card h3{margin:0 0 2px; font-size:0.92rem; color:var(--gold-soft); letter-spacing:0.4px;}
+  .pot-card .pot-sub{font-size:0.72rem; color:var(--text-dim); margin-bottom:9px;}
+  .pot-card .pot-amount{float:right; color:var(--gold); font-weight:700; font-size:0.95rem;}
+  .pot-line{display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(28,82,56,0.5); font-size:0.85rem;}
+  .pot-line:last-child{border-bottom:none;}
+  .pot-line .pl-name{color:var(--cream);}
+  .pot-line .pl-val{color:var(--text-dim); font-variant-numeric:tabular-nums;}
+  .pot-line.win .pl-name{color:var(--gold-soft); font-weight:700;}
+
+  .draw-btn{background:var(--gold); color:var(--dark-green); font-weight:bold; letter-spacing:0.5px;}
+  .draw-btn:disabled{opacity:0.45;}
+  .draw-basis{display:flex; gap:8px; align-items:center; margin-bottom:10px;}
+  .draw-basis select{margin:0; flex:1;}
+  .team-card{background:var(--dark-green); border:1px solid var(--line-green); border-radius:8px; padding:9px 12px; margin-bottom:8px;}
+  .team-card.win{border-color:var(--gold); background:rgba(212,175,55,0.10);}
+  .team-head{display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--text-dim); margin-bottom:5px;}
+  .team-head .th-total{color:var(--gold-soft); font-weight:700; font-size:0.9rem;}
+  .team-member{display:flex; justify-content:space-between; font-size:0.85rem; color:var(--cream); padding:2px 0;}
+  .team-member.dropped{color:var(--text-dim); text-decoration:line-through;}
+  .draw-shuffling{color:var(--gold-soft); font-weight:700; letter-spacing:1px;}
+
+  /* ---- More Games ---- */
+  .mg-home-sec{font-size:0.72rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim); margin:16px 0 6px;}
+  .mg-home-sec:first-of-type{margin-top:4px;}
+  .mg-game{display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left; margin-top:8px; padding:12px 14px; border-radius:10px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); cursor:pointer;}
+  .mg-game:focus-visible, .mg-chip:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .mg-game-icon{font-size:1.4rem; line-height:1.2; width:1.8rem; text-align:center; flex-shrink:0;}
+  .mg-game-text{display:flex; flex-direction:column; gap:2px; min-width:0;}
+  .mg-game-name{font-weight:bold; color:var(--gold-soft); font-size:1rem;}
+  .mg-game-blurb{font-size:0.82rem; color:var(--text-dim); line-height:1.35;}
+  .mg-live{margin-left:8px; font-size:0.72rem; color:var(--win); font-weight:bold;}
+  .mg-links{display:flex; gap:8px;}
+  .mg-links a{flex:1; text-align:center; text-decoration:none; padding:10px; border-radius:8px; border:1px solid var(--gold); color:var(--gold-soft); font-weight:bold; font-size:0.85rem;}
+  .mg-opt-bool{display:flex !important; align-items:center; gap:10px; color:var(--cream) !important; font-size:0.9rem !important; margin:12px 0 4px !important;}
+  .mg-opt-bool input{width:18px; height:18px; margin:0;}
+  .mg-panel{margin-top:10px; display:flex; flex-direction:column; gap:8px;}
+  .mg-panel:empty{display:none;}
+  .mg-panel-line{font-size:0.88rem; color:var(--cream); background:var(--dark-green); border-radius:8px; padding:8px 12px;}
+  .mg-panel-line b{color:var(--gold-soft);}
+  .mg-junk-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--dark-green); border-radius:8px; padding:8px 12px;}
+  .mg-junk-row.mg-col{flex-direction:column; align-items:flex-start;}
+  .mg-junk-name{font-weight:600; font-size:0.9rem; min-width:90px;}
+  .mg-chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .mg-chip{padding:8px 12px; border-radius:20px; border:1px solid var(--line-green); background:var(--mid-green); color:var(--cream); font-size:0.82rem; cursor:pointer;}
+  .mg-chip.on{background:var(--gold); border-color:var(--gold); color:var(--dark-green); font-weight:bold;}
+  .mg-dot{color:var(--gold); font-weight:bold; letter-spacing:1px;}
+  .mg-money{display:flex; flex-direction:column; border:1px solid var(--line-green); border-radius:8px; overflow:hidden; margin-bottom:6px;}
+  .mg-money-row{display:flex; justify-content:space-between; padding:9px 12px; font-size:0.92rem; font-variant-numeric:tabular-nums;}
+  .mg-money-row + .mg-money-row{border-top:1px solid var(--line-green);}
+  .mg-sec{margin:16px 0 6px; font-size:0.85rem; color:var(--gold-soft); letter-spacing:0.5px;}
+  #mgResultsWrap td, #mgHistDetailBody td{font-variant-numeric:tabular-nums;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyASZm6VJsOHeEi1TfXXG4S1HisZ_HuC-fI",
+    authDomain: "wns-scramble.firebaseapp.com",
+    projectId: "wns-scramble",
+    storageBucket: "wns-scramble.firebasestorage.app",
+    messagingSenderId: "1012126405668",
+    appId: "1:1012126405668:web:8bc7a2178c7be0f534b4b1"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const weekendDb = firebase.firestore();
+</script>
+</head>
+<body>
+<header>
+  <h1>🐺⛳ MONEY SHOTS GOLF</h1>
+  <div class="sub" id="headerSub">More Games</div>
+</header>
+<main>
+
+<div id="mg-home">
+  <div class="panel">
+    <div class="mg-links"><a href="index.html">← Home</a><a href="Weekendgames.html">Weekend Games</a></div>
+    <h2 style="margin-top:16px;">More Games</h2>
+    <div class="hint" style="margin-top:0;">New games to try. Every game has the course picker, your roster and handicaps, and live scoring across phones.</div>
+    <div id="mgHomeList"></div>
+  </div>
+</div>
+
+<div id="mg-setup" style="display:none;">
+  <div class="panel">
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" style="flex:1; margin-top:0;" onclick="mgShow('home')">← All Games</button>
+      <button class="btn secondary" style="flex:1; margin-top:0;" onclick="mgShow('history')">📋 Past Rounds</button>
+    </div>
+    <h2 style="margin-top:14px;" id="mgSetupTitle"></h2>
+    <div class="hint" id="mgSetupRules" style="margin-top:0;"></div>
+    <div id="mgCourseWrap" style="margin-top:14px;"></div>
+    <label style="font-size:12px; letter-spacing:1px; margin-top:16px;">BETS &amp; OPTIONS</label>
+    <div id="mgOptions"></div>
+
+    <div id="mgFieldSetup">
+      <label>Who's playing?</label>
+      <div id="mgRoster" class="sb-checklist"></div>
+      <label>Add a name not on the roster</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="mgExtraName" placeholder="Name">
+        <input type="number" id="mgExtraHcp" placeholder="HCP" style="width:80px;">
+        <button class="btn secondary" style="width:auto; margin-top:0; padding:9px 14px;" onclick="mgAddExtra()">Add</button>
+      </div>
+      <div id="mgExtraList" class="hint"></div>
+      <label id="mgGroupLabel">Groups</label>
+      <div class="sbg-count"><span id="mgGroupCountLabel">Number of groups:</span>
+        <button type="button" onclick="mgChangeCount(-1)">–</button><b id="mgGroupCount">1</b><button type="button" onclick="mgChangeCount(1)">+</button>
+      </div>
+      <div id="mgGroupSetup"></div>
+    </div>
+
+    <div id="mgSlotSetup" style="display:none;">
+      <div id="mgSlots"></div>
+      <div class="hint" id="mgSlotHint"></div>
+    </div>
+
+    <button class="btn" onclick="mgStart()">Start Round</button>
+  </div>
+</div>
+
+<div id="mg-play" style="display:none;">
+  <div class="panel"><h2>Enter Scores</h2><div id="mgPlayWrap"></div></div>
+</div>
+
+<div id="mg-results" style="display:none;">
+  <div class="panel"><h2>Results</h2><div id="mgResultsWrap"></div></div>
+</div>
+
+<div id="mg-history" style="display:none;">
+  <div class="panel">
+    <button class="btn secondary" id="mgHistBack" style="margin-top:0;" onclick="mgShowSetup()">← Back to Setup</button>
+    <h2 style="margin-top:14px;">Past Rounds</h2>
+    <div id="mgHistList"></div>
+    <div id="mgHistDetail" style="display:none;">
+      <button class="btn secondary" style="margin-top:0;" onclick="mgHistBackToList()">← Back</button>
+      <div id="mgHistDetailBody" style="margin-top:12px;"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<nav id="mgNav" style="display:none;">
+  <button id="mgnav-play" onclick="mgShow('play')">Scores</button>
+  <button id="mgnav-results" onclick="mgShow('results')">Results</button>
+  <button id="mgnav-history" onclick="mgShow('history')">History</button>
+  <button onclick="mgEndRound()">End Round</button>
+  <button onclick="mgShow('home')">Games</button>
+</nav>
+
+<script>
+const ROSTER = ["Alan Sonnefeld","Andy Rodriguez","Brian Patrossi","Cary Howell","Chad Moore","Craig Taylor","Curtis Newstrom","Dale Dugas","Dale Vasek","Dan Vacek","Dave Dawson","Dave Fritz","David Carden","David Meyer","David Sauceda","Don Sawyer","Ed Menville (Bubba)","Floyd Blackwell","Havey Duke","Jake Kelly","Jamie Daspit","Jay Anderson","Jerry Rains","Karey Carter","Larry Schuelke","Mike Beck","Mike Cross","Nevan","Pat McKenna","Ronnie Dartez","Russell Emmott","Todd Lee","Tom Bledsoe","Trey McDaniel"];
+
+const ROSTER_HCP = {"Cary Howell":3,"Trey McDaniel":2,"Dale Dugas":6,"Craig Taylor":8,"Russell Emmott":9,"Dale Vasek":8,"Jake Kelly":8,"David Meyer":10,"Dave Fritz":11,"Mike Beck":11,"Jamie Daspit":12,"Curtis Newstrom":10,"Ronnie Dartez":15,"Tom Bledsoe":15,"Havey Duke":12,"Don Sawyer":15,"Karey Carter":17,"David Carden":17,"Jerry Rains":15,"Dave Dawson":17,"Alan Sonnefeld":19,"Floyd Blackwell":20,"Ed Menville (Bubba)":18,"Brian Patrossi":19,"Mike Cross":19,"Todd Lee":25,"Larry Schuelke":21,"Dan Vacek":25,"David Sauceda":25,"Andy Rodriguez":14,"Jay Anderson":15,"Nevan":20,"Chad Moore":0,"Pat McKenna":16};
+
+// ROSTER_HCP above is a frozen snapshot. Live HCP edits made in the Wednesday
+// Scramble app (app.html) are saved as overrides to Firestore at wns2/state.hcps.
+// We mirror that here so a handicap change in one app shows up in the other.
+let hcpOverrides = {};
+function getHcp(name){
+  return (hcpOverrides[name] !== undefined) ? hcpOverrides[name] : ROSTER_HCP[name];
+}
+weekendDb.collection('wns2').doc('state').onSnapshot(doc=>{
+  if(doc.exists){
+    const d = doc.data();
+    if(d.hcps) hcpOverrides = d.hcps;
+  }
+}, err=>console.error('HCP override sync error:', err));
+
+// New players added on the WNS app (app.html) are saved to Firestore at wns2/players.extra.
+// We mirror that here so a player added on one app shows up on the other without a manual edit.
+weekendDb.collection('wns2').doc('players').onSnapshot(doc=>{
+  if(!doc.exists || !doc.data().extra) return;
+  const extras = doc.data().extra;
+  const added = [];
+  extras.forEach(p=>{
+    if(!ROSTER.includes(p.name)){
+      ROSTER.push(p.name);
+      added.push(p.name);
+    }
+    ROSTER_HCP[p.name] = p.hcp;
+  });
+  if(added.length > 0){
+    ROSTER.sort((a,b)=>a.localeCompare(b));
+    if(typeof mgRenderHome==='function' && document.getElementById('mg-home').style.display!=='none'){} // roster pickers rebuild on next setup
+  }
+}, err=>console.error('WNS extra-players sync error:', err));
+
+
+const FRONT_PAR = [4,3,4,4,3,4,5,3,5];
+const BACK_PAR = [5,3,4,4,4,3,4,4,5];
+const ALL_PAR = FRONT_PAR.concat(BACK_PAR);
+const ALL_SI = [3,17,7,5,15,1,9,13,11,10,18,14,2,4,16,8,6,12]; // stroke index, holes 1-18
+// 0-based indices of every par 3 on the card — derived, so it follows ALL_PAR if the course changes
+const PAR3_IDX = ALL_PAR.map((p,i)=>p===3?i:-1).filter(i=>i>=0);
+const PAR4_IDX = ALL_PAR.map((p,i)=>p===4?i:-1).filter(i=>i>=0);
+const PAR5_IDX = ALL_PAR.map((p,i)=>p===5?i:-1).filter(i=>i>=0);
+
+/* ---- Stableford course library ----
+   Each round remembers which course it was played on. Rounds saved before
+   courses existed were all at Margaritaville, so that is the fallback.
+   Wolf, NASCAR and the scrambles still use the Margaritaville card above. */
+const SB_COURSES = {
+  'margaritaville': {
+    name: 'Margaritaville Lake Resort',
+    par: ALL_PAR.slice(),
+    si:  ALL_SI.slice(),
+    tees: 'Blue 6,921 · White 6,550 · Yellow 5,969',
+    area: 'Lake Conroe & Montgomery', check: false
+  },
+  'links-west-fork': {
+    name: 'The Links at West Fork',
+    par: [4,4,3,4,5,4,4,3,5, 4,4,5,4,3,4,4,3,5],
+    si:  [11,7,17,13,5,1,9,15,3, 18,8,6,14,12,2,10,16,4],
+    tees: 'Gold 6,908 · Blue 6,367 · White 5,650',
+    area: 'Conroe, Porter & Magnolia', check: true
+  },
+  // ---- Montgomery County library (Sept 2026). check:true = card not yet
+  //      confirmed against the real scorecard; the picker labels those. ----
+  "walden": { name: "Walden on Lake Conroe", area: "Lake Conroe & Montgomery", check: false,
+    par: [4, 5, 4, 3, 4, 3, 4, 4, 5, 5, 5, 3, 4, 3, 4, 5, 3, 4],
+    si:  [5, 9, 13, 15, 11, 17, 3, 1, 7, 8, 2, 14, 10, 18, 6, 12, 16, 4],
+    tees: "Blue 6,756 \u00b7 White 6,248 \u00b7 Gold 5,665" },
+  "bluejack": { name: "Bluejack National", area: "Lake Conroe & Montgomery", check: false,
+    par: [4, 5, 3, 4, 5, 4, 3, 4, 4, 4, 5, 3, 5, 4, 3, 4, 4, 4],
+    si:  [9, 11, 15, 5, 7, 3, 17, 13, 1, 10, 6, 16, 8, 12, 18, 4, 14, 2],
+    tees: "Tiger 7,552 \u00b7 I 6,959 \u00b7 Acorn 6,688" },
+  "bentwater-miller": { name: "Bentwater \u2014 Miller", area: "Lake Conroe & Montgomery", check: true,
+    par: [5, 4, 4, 3, 4, 5, 4, 3, 4, 5, 3, 5, 3, 4, 4, 5, 3, 4],
+    si:  [3, 7, 11, 17, 1, 9, 15, 13, 5, 6, 14, 8, 18, 4, 12, 2, 16, 10],
+    tees: "Gold 6,809 \u00b7 Blue 6,353 \u00b7 White 5,943" },
+  "bentwater-weiskopf": { name: "Bentwater \u2014 Weiskopf", area: "Lake Conroe & Montgomery", check: true,
+    par: [4, 5, 3, 4, 4, 4, 5, 3, 4, 4, 5, 4, 4, 3, 5, 4, 3, 4],
+    si:  [7, 9, 17, 15, 13, 3, 1, 11, 5, 6, 10, 2, 18, 8, 12, 4, 16, 14],
+    tees: "Gold 6,992 \u00b7 Blue 6,469 \u00b7 White 6,138" },
+  "april-sound": { name: "April Sound \u2014 White/Blue", area: "Lake Conroe & Montgomery", check: true,
+    par: [3, 4, 4, 3, 4, 4, 4, 5, 4, 4, 4, 5, 3, 4, 4, 3, 5, 4],
+    si:  [17, 7, 13, 15, 9, 3, 11, 1, 5, 10, 14, 6, 16, 12, 4, 18, 2, 8],
+    tees: "Blue 6,282 \u00b7 White 5,930" },
+  "grand-lake": { name: "Grand Lake Golf Club", area: "Lake Conroe & Montgomery", check: true,
+    par: [5, 4, 4, 3, 4, 5, 4, 3, 5, 3, 4, 4, 4, 4, 5, 3, 4, 4],
+    si:  [12, 14, 18, 16, 2, 6, 17, 9, 11, 5, 1, 15, 7, 3, 13, 8, 4, 10],
+    tees: "Black 7,165 \u00b7 Gold 6,842 \u00b7 Blue 6,505" },
+  "woodforest-front-back": { name: "Woodforest \u2014 Front/Back", area: "Lake Conroe & Montgomery", check: false,
+    par: [4, 3, 5, 4, 4, 5, 4, 4, 3, 5, 4, 3, 5, 4, 4, 3, 4, 4],
+    si:  [11, 17, 9, 5, 3, 7, 1, 13, 15, 10, 12, 6, 4, 16, 14, 18, 2, 8],
+    tees: "Championship 6,834 \u00b7 Tournament 6,516 \u00b7 Members 6,197" },
+  "woodforest-back-west": { name: "Woodforest \u2014 Back/West", area: "Lake Conroe & Montgomery", check: false,
+    par: [5, 4, 3, 5, 4, 4, 3, 4, 4, 4, 5, 3, 4, 4, 4, 3, 4, 4],
+    si:  [9, 11, 5, 3, 15, 13, 17, 1, 7, 2, 14, 18, 6, 16, 8, 10, 12, 4],
+    tees: "Championship 6,953 \u00b7 Tournament 6,632 \u00b7 Members 6,308" },
+  "woodforest-west-front": { name: "Woodforest \u2014 West/Front", area: "Lake Conroe & Montgomery", check: false,
+    par: [4, 5, 3, 4, 4, 4, 3, 4, 4, 4, 3, 5, 4, 4, 5, 4, 4, 3],
+    si:  [1, 13, 17, 5, 15, 7, 9, 11, 3, 12, 18, 10, 6, 4, 8, 2, 14, 16],
+    tees: "Championship 6,685 \u00b7 Tournament 6,388 \u00b7 Members 6,086" },
+  "wcc-tournament": { name: "Woodlands CC \u2014 Tournament (old TPC)", area: "The Woodlands", check: false,
+    par: [5, 4, 3, 4, 4, 5, 4, 3, 4, 4, 4, 4, 5, 3, 5, 3, 4, 4],
+    si:  [11, 13, 17, 3, 9, 1, 5, 15, 7, 10, 12, 14, 6, 16, 8, 18, 2, 4],
+    tees: "Black 7,025 \u00b7 Blue 6,608 \u00b7 White 6,296" },
+  "wcc-player": { name: "Woodlands CC \u2014 Player", area: "The Woodlands", check: false,
+    par: [4, 5, 4, 4, 3, 4, 5, 3, 4, 4, 3, 5, 4, 3, 4, 5, 4, 4],
+    si:  [13, 3, 11, 9, 15, 7, 1, 17, 5, 2, 18, 4, 12, 16, 10, 8, 14, 6],
+    tees: "Black 7,115 \u00b7 Blue 6,674 \u00b7 White 6,184" },
+  "wcc-north": { name: "Woodlands \u2014 North (old Panther Trail)", area: "The Woodlands", check: true,
+    par: [4, 4, 4, 5, 3, 4, 3, 4, 5, 4, 3, 4, 4, 5, 4, 5, 3, 4],
+    si:  [9, 11, 7, 1, 17, 3, 15, 13, 5, 14, 16, 12, 8, 10, 4, 2, 18, 6],
+    tees: "Black \u00b7 Gold \u00b7 Blue" },
+  "wcc-west": { name: "Woodlands \u2014 West (old Oaks)", area: "The Woodlands", check: false,
+    par: [5, 4, 3, 4, 4, 3, 5, 4, 4, 4, 3, 4, 5, 3, 4, 5, 4, 4],
+    si:  [3, 13, 15, 9, 5, 17, 1, 7, 11, 12, 18, 6, 4, 16, 14, 2, 8, 10],
+    tees: "Black 7,044 \u00b7 Gold 6,628 \u00b7 Blue 6,127" },
+  "wcc-palmer-kg": { name: "Woodlands CC \u2014 Palmer (King/General)", area: "The Woodlands", check: true,
+    par: [4, 3, 5, 4, 4, 3, 5, 4, 4, 4, 3, 4, 5, 4, 3, 4, 5, 4],
+    si:  [11, 17, 3, 1, 9, 15, 5, 13, 7, 14, 16, 8, 2, 6, 18, 12, 4, 10],
+    tees: "Black 7,199 \u00b7 Blue 6,665 \u00b7 White 6,213" },
+  "wcc-palmer-gd": { name: "Woodlands CC \u2014 Palmer (General/Deacon)", area: "The Woodlands", check: true,
+    par: [4, 3, 4, 5, 4, 3, 4, 5, 4, 5, 3, 4, 4, 3, 4, 4, 4, 5],
+    si:  [13, 15, 7, 1, 5, 17, 11, 3, 9, 14, 18, 4, 12, 16, 8, 2, 10, 6],
+    tees: "Black 7,071 \u00b7 Blue 6,612 \u00b7 White 6,201" },
+  "wcc-palmer-dk": { name: "Woodlands CC \u2014 Palmer (Deacon/King)", area: "The Woodlands", check: true,
+    par: [5, 3, 4, 4, 3, 4, 4, 4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4],
+    si:  [13, 17, 3, 11, 15, 7, 1, 9, 5, 12, 18, 4, 2, 10, 16, 6, 14, 8],
+    tees: "Black 7,076 \u00b7 Blue 6,559 \u00b7 White 6,152" },
+  "carlton-nicklaus": { name: "Carlton Woods \u2014 Nicklaus", area: "The Woodlands", check: true,
+    par: [4, 4, 3, 5, 4, 4, 3, 5, 4, 4, 4, 3, 5, 4, 4, 4, 3, 5],
+    si:  [13, 1, 15, 5, 9, 17, 11, 7, 3, 8, 10, 16, 4, 12, 2, 18, 14, 6],
+    tees: "Nicklaus 7,402 \u00b7 Member 6,959 \u00b7 Chairman 6,558" },
+  "carlton-fazio": { name: "Carlton Woods \u2014 Fazio", area: "The Woodlands", check: false,
+    par: [4, 5, 4, 5, 4, 3, 4, 4, 3, 4, 5, 4, 4, 3, 4, 3, 5, 4],
+    si:  [9, 1, 13, 5, 3, 17, 11, 7, 15, 10, 12, 14, 2, 18, 4, 16, 6, 8],
+    tees: "Fazio 7,358 \u00b7 Member 6,806 \u00b7 Chairman 6,562" },
+  "panorama-wf-tb": { name: "Panorama \u2014 Winged Foot/Thunderbird", area: "Conroe, Porter & Magnolia", check: true,
+    par: [5, 3, 4, 4, 4, 4, 3, 5, 4, 4, 3, 5, 4, 4, 4, 3, 5, 4],
+    si:  [1, 17, 5, 13, 11, 7, 15, 9, 3, 16, 18, 2, 10, 12, 8, 14, 6, 4],
+    tees: "Gold 6,749 \u00b7 Blue 6,479 \u00b7 White 6,246" },
+  "panorama-tb-rh": { name: "Panorama \u2014 Thunderbird/Rolling Hills", area: "Conroe, Porter & Magnolia", check: true,
+    par: [4, 3, 5, 4, 4, 4, 3, 5, 4, 4, 4, 3, 5, 4, 3, 4, 4, 5],
+    si:  [15, 17, 1, 9, 11, 7, 13, 5, 3, 8, 6, 12, 10, 14, 18, 4, 16, 2],
+    tees: "Gold 6,732 \u00b7 Blue 6,351 \u00b7 White 6,072" },
+  "panorama-rh-wf": { name: "Panorama \u2014 Rolling Hills/Winged Foot", area: "Conroe, Porter & Magnolia", check: true,
+    par: [4, 4, 3, 5, 4, 3, 4, 4, 5, 5, 3, 4, 4, 4, 4, 3, 5, 4],
+    si:  [7, 5, 11, 9, 13, 17, 3, 15, 1, 2, 18, 6, 14, 12, 8, 16, 10, 4],
+    tees: "Gold 6,869 \u00b7 Blue 6,520 \u00b7 White 6,226" },
+  "rp-aug-bil": { name: "River Plantation \u2014 Augusta/Biloxi", area: "Conroe, Porter & Magnolia", check: true,
+    par: [4, 3, 4, 4, 4, 5, 3, 5, 4, 4, 3, 4, 5, 4, 4, 4, 3, 5],
+    si:  [7, 15, 3, 5, 11, 1, 17, 9, 13, 14, 18, 10, 2, 6, 4, 8, 16, 12],
+    tees: "Black 6,882 \u00b7 Blue 6,301 \u00b7 White 5,815" },
+  "rp-bil-char": { name: "River Plantation \u2014 Biloxi/Charleston", area: "Conroe, Porter & Magnolia", check: true,
+    par: [4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 4, 5, 3, 5, 4, 3, 3, 4],
+    si:  [13, 17, 9, 1, 5, 3, 7, 15, 11, 16, 6, 4, 14, 2, 10, 18, 12, 8],
+    tees: "Black 6,515 \u00b7 Blue 6,024 \u00b7 White 5,619" },
+  "rp-char-aug": { name: "River Plantation \u2014 Charleston/Augusta", area: "Conroe, Porter & Magnolia", check: true,
+    par: [4, 4, 5, 3, 5, 4, 3, 3, 4, 4, 3, 4, 4, 4, 5, 3, 5, 4],
+    si:  [15, 5, 3, 13, 1, 9, 17, 11, 7, 8, 16, 4, 6, 12, 2, 18, 10, 14],
+    tees: "Black 6,533 \u00b7 Blue 6,019 \u00b7 White 5,632" },
+  "conroe-cc": { name: "Conroe Country Club (9 played twice)", area: "Conroe, Porter & Magnolia", check: true,
+    par: [5, 4, 3, 4, 4, 4, 4, 3, 5, 5, 4, 3, 4, 4, 4, 4, 3, 5],
+    si:  [15, 3, 7, 5, 13, 9, 1, 11, 17, 16, 4, 8, 6, 14, 10, 2, 12, 18],
+    tees: "Black 6,574 \u00b7 Blue 6,332 \u00b7 White 5,964" },
+  "oakhurst": { name: "Oakhurst Golf Club", area: "Conroe, Porter & Magnolia", check: false,
+    par: [5, 4, 4, 5, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 4, 3, 4],
+    si:  [9, 3, 11, 5, 17, 15, 13, 7, 1, 8, 14, 12, 10, 18, 16, 4, 6, 2],
+    tees: "Championship 7,002 \u00b7 Oakhurst 6,242 \u00b7 Executive 5,647" },
+  "high-meadow": { name: "High Meadow Ranch", area: "Conroe, Porter & Magnolia", check: true,
+    par: [4, 5, 4, 5, 3, 4, 4, 4, 3, 5, 3, 4, 5, 4, 4, 3, 4, 4],
+    si:  [13, 9, 3, 7, 17, 15, 5, 1, 11, 8, 18, 12, 14, 10, 2, 16, 4, 6],
+    tees: "Medal 7,370 \u00b7 Gold 6,839 \u00b7 Green 6,255" },
+  "lake-windcrest": { name: "Lake Windcrest", area: "Conroe, Porter & Magnolia", check: false,
+    par: [5, 4, 3, 4, 4, 4, 5, 3, 4, 4, 5, 4, 5, 3, 4, 3, 4, 4],
+    si:  [14, 12, 16, 2, 8, 10, 6, 18, 4, 1, 11, 5, 15, 7, 3, 13, 17, 9],
+    tees: "Black 7,040 \u00b7 Gold 6,574 \u00b7 Blue 6,075" }
+};
+const SB_DEFAULT_COURSE = 'margaritaville';
+let sbCourseId = SB_DEFAULT_COURSE;
+
+// Everything the Stableford scoring needs, derived from one course card
+const _sbCourseCache = {};
+function sbCourse(id){
+  const key = SB_COURSES[id] ? id : SB_DEFAULT_COURSE;
+  if(_sbCourseCache[key]) return _sbCourseCache[key];
+  const c = SB_COURSES[key];
+  const idxOf = p => c.par.map((v,i)=>v===p?i:-1).filter(i=>i>=0);
+  // Card playoff: hardest hole first, by stroke index, within each nine
+  const hardest = (from, to) => [...Array(to-from).keys()].map(k=>k+from).sort((a,b)=>c.si[a]-c.si[b]);
+  return _sbCourseCache[key] = {
+    id: key, name: c.name, tees: c.tees, par: c.par, si: c.si, area: c.area, check: !!c.check,
+    front: c.par.slice(0,9), back: c.par.slice(9),
+    par3Idx: idxOf(3), par4Idx: idxOf(4), par5Idx: idxOf(5),
+    playoffFront: hardest(0,9), playoffBack: hardest(9,18)
+  };
+}
+
+// <option> list for every course picker: your home course first, then by area
+function wgCourseOptionsHtml(currentId){
+  const opt = id => `<option value="${id}"${id===currentId?' selected':''}>${SB_COURSES[id].name}${SB_COURSES[id].check?' — check card':''}</option>`;
+  const areas = ['Lake Conroe & Montgomery','The Woodlands','Conroe, Porter & Magnolia'];
+  let html = opt(SB_DEFAULT_COURSE);
+  areas.forEach(a=>{
+    const ids = Object.keys(SB_COURSES).filter(id=>id!==SB_DEFAULT_COURSE && SB_COURSES[id].area===a)
+      .sort((x,y)=>SB_COURSES[x].name.localeCompare(SB_COURSES[y].name));
+    if(ids.length) html += `<optgroup label="${a}">${ids.map(opt).join('')}</optgroup>`;
+  });
+  return html;
+}
+
+/* ---- Course picker shared by every game's setup ----
+   All phones default to the course this phone used last, in any game. */
+function wgLastCourse(){
+  try{ const v = localStorage.getItem('wgLastCourse'); if(v && SB_COURSES[v]) return v; }catch(e){}
+  return SB_DEFAULT_COURSE;
+}
+function wgRememberCourse(id){ try{ localStorage.setItem('wgLastCourse', id); }catch(e){} }
+function wgCourseInfo(id){
+  const c = sbCourse(id);
+  const out = c.front.reduce((a,b)=>a+b,0), inn = c.back.reduce((a,b)=>a+b,0);
+  return `Par ${out}/${inn} = ${out+inn} · Par 3s: ${c.par3Idx.map(i=>i+1).join(', ')} · Tees: ${c.tees}` +
+    (c.check ? ' · ⚠ Card not confirmed — check the Hcp row against the real scorecard before playing for money.' : '');
+}
+// Renders a labelled course dropdown into wrapId; onPick(id) runs on change
+function wgRenderCoursePicker(wrapId, currentId, onPickName){
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  const selId = wrapId + 'Sel';
+  wrap.innerHTML = `<label for="${selId}" style="font-size:12px;color:var(--text-dim);letter-spacing:1px;display:block;margin:0 0 6px">COURSE</label>
+    <select id="${selId}" class="roster-select" onchange="${onPickName}(this.value)">
+      ${wgCourseOptionsHtml(currentId)}
+    </select>
+    <div class="hint" style="margin-top:4px">${wgCourseInfo(currentId)}</div>`;
+}
+
+
+/* ================= MORE GAMES — scoring logic =================
+   Pure functions: no screen code. Every game's compute() takes
+   ctx = {players:[{name,hcp}], groups:[[names]], cfg, course:{par,si,name}, scores:{name:[18]}, events:{key:val}}
+   and returns {money:{name:$}, sections:[{title, head:[], rows:[[]], note}], notes:[], status}
+   Money is each player's net result for the round: + collects, − pays. */
+
+function mgStrokes(hcp, idx, si){
+  const h = Math.round(hcp) || 0;
+  if(h <= 0) return 0;
+  return Math.floor(h/18) + (si[idx] <= (h % 18) ? 1 : 0);
+}
+function mgHas(v){ return v !== null && v !== undefined && !isNaN(v); }
+// Player's score on a hole: gross, or net off full handicap. null if not entered.
+function mgScore(ctx, name, idx, net){
+  const g = (ctx.scores[name] || [])[idx];
+  if(!mgHas(g)) return null;
+  if(!net) return g;
+  const p = ctx.players.find(x=>x.name===name);
+  return g - mgStrokes(p ? p.hcp : 0, idx, ctx.course.si);
+}
+function mgHoleDone(ctx, names, idx){ return names.every(n=>mgHas((ctx.scores[n]||[])[idx])); }
+function mgZero(players){ const m = {}; players.forEach(p=>m[p.name]=0); return m; }
+function mgFmt(n){ return (n>0?'+':n<0?'−':'') + '$' + Math.abs(n).toFixed(2); }
+function mgRound(m){ Object.keys(m).forEach(k=>m[k]=Math.round(m[k]*100)/100); return m; }
+
+// Split a pot by finishing order. entries [{name,val}] lower val wins.
+// Tied players pool the money for the places they occupy (70/30 when pay2).
+function mgPlacePot(entries, pot, pay2){
+  const sorted = [...entries].sort((a,b)=>a.val-b.val);
+  const tiers = [];
+  sorted.forEach(e=>{ const t = tiers[tiers.length-1]; if(t && t[0].val===e.val) t.push(e); else tiers.push([e]); });
+  const pcts = pay2 ? [0.7,0.3] : [1];
+  const out = {}; let slot = 0;
+  tiers.forEach(t=>{
+    if(slot >= pcts.length) return;
+    const pct = pcts.slice(slot, slot+t.length).reduce((a,b)=>a+b,0);
+    t.forEach(e=>out[e.name] = {amt: pot*pct/t.length, place: slot+1});
+    slot += t.length;
+  });
+  return out;
+}
+// Pot game: everyone paid buyIn; winners collect
+function mgPotMoney(players, buyIn, payouts){
+  const m = {}; players.forEach(p=>m[p.name] = -buyIn + (payouts[p.name] ? payouts[p.name].amt : 0));
+  return mgRound(m);
+}
+// Points games settle every pair on the point difference
+function mgPairwise(players, pts, value){
+  const m = mgZero(players);
+  players.forEach(a=>players.forEach(b=>{ if(a!==b) m[a.name] += (pts[a.name]-pts[b.name])*value; }));
+  return mgRound(m);
+}
+function mgOrdinal(n){ return n===1?'1st':n===2?'2nd':n===3?'3rd':n+'th'; }
+
+/* ---------------- SKINS ---------------- */
+function mgSkins(ctx){
+  const {players, cfg} = ctx, names = players.map(p=>p.name), n = players.length;
+  const pot = cfg.buyIn * n;
+  const won = {}; names.forEach(x=>won[x]=0);
+  const rows = []; let carry = 0, blocked = false;
+  for(let h=0; h<18; h++){
+    const done = mgHoleDone(ctx, names, h);
+    if(!done){ rows.push([h+1, '—', 'Waiting on scores']); if(cfg.carry) blocked = true; continue; }
+    if(blocked){ rows.push([h+1, '—', 'Waiting on an earlier hole']); continue; }
+    const sc = names.map(x=>({x, s: mgScore(ctx, x, h, cfg.net)}));
+    const low = Math.min(...sc.map(o=>o.s));
+    const lows = sc.filter(o=>o.s===low);
+    if(lows.length === 1){
+      const worth = 1 + carry; won[lows[0].x] += worth; carry = 0;
+      rows.push([h+1, low, `${lows[0].x} wins ${worth} skin${worth>1?'s':''}`]);
+    } else {
+      if(cfg.carry){ carry++; rows.push([h+1, low, `${lows.length} tied — carries (${carry+1} on next)`]); }
+      else rows.push([h+1, low, `${lows.length} tied — no skin`]);
+    }
+  }
+  const total = names.reduce((a,x)=>a+won[x],0);
+  const value = total ? pot/total : 0;
+  const money = {};
+  names.forEach(x=>money[x] = total ? (-cfg.buyIn + won[x]*value) : 0);
+  const notes = [`Pot $${pot.toFixed(2)} · ${total} skin${total===1?'':'s'} won · $${value.toFixed(2)} per skin`];
+  if(carry && !blocked) notes.push(`${carry} skin${carry>1?'s':''} still carrying — split among the skin winners.`);
+  if(!total) notes.push('No skins won yet — nobody pays until one is.');
+  return {money: mgRound(money), notes, sections:[
+    {title:'Skins won', head:['Player','Skins','Collects'], rows: names.filter(x=>won[x]).sort((a,b)=>won[b]-won[a]).map(x=>[x, won[x], '$'+(won[x]*value).toFixed(2)])},
+    {title:`Hole by hole (${cfg.net?'net':'gross'})`, head:['Hole','Low','Result'], rows}
+  ]};
+}
+
+/* ---------------- CHICAGO (quota) ---------------- */
+function mgChicagoPts(gross, par){
+  const d = gross - par;
+  return d <= -2 ? 8 : d === -1 ? 4 : d === 0 ? 2 : d === 1 ? 1 : 0;
+}
+function mgChicago(ctx){
+  const {players, cfg, course} = ctx;
+  const rows = players.map(p=>{
+    let pts = 0, thru = 0;
+    for(let h=0; h<18; h++){ const g = (ctx.scores[p.name]||[])[h]; if(mgHas(g)){ pts += mgChicagoPts(g, course.par[h]); thru++; } }
+    const quota = cfg.quotaBase - Math.round(p.hcp || 0);
+    return {name:p.name, pts, thru, quota, over: pts - quota};
+  });
+  const done = rows.filter(r=>r.thru===18);
+  const pot = cfg.buyIn * players.length;
+  const pay = mgPlacePot(done.map(r=>({name:r.name, val:-r.over})), pot, cfg.pay2);
+  return {money: mgPotMoney(players, cfg.buyIn, pay),
+    notes:[`Pot $${pot.toFixed(2)}${cfg.pay2?' · 1st 70% / 2nd 30%':''} · points: bogey 1, par 2, birdie 4, eagle 8 · quota ${cfg.quotaBase} minus handicap`],
+    sections:[{title:'Standings', head:['Player','Pts','Quota','+/−','Thru','Pays'],
+      rows: rows.sort((a,b)=>b.over-a.over).map(r=>[r.name, r.pts, r.quota, (r.over>0?'+':'')+r.over, r.thru, pay[r.name]?`${cfg.pay2?mgOrdinal(pay[r.name].place)+' ':''}$${pay[r.name].amt.toFixed(2)}`:''])}]};
+}
+
+/* ---------------- HORSE RACE ---------------- */
+function mgHorseRace(ctx){
+  const {players, cfg, events} = ctx;
+  let alive = players.map(p=>p.name);
+  const out = []; const rows = []; let waiting = null;
+  for(let h=0; h<18 && alive.length>1; h++){
+    if(!mgHoleDone(ctx, alive, h)){ waiting = {hole:h, why:'scores'}; rows.push([h+1, '—', 'Waiting on scores']); break; }
+    const sc = alive.map(x=>({x, s: mgScore(ctx, x, h, cfg.net)}));
+    const worst = Math.max(...sc.map(o=>o.s));
+    const tied = sc.filter(o=>o.s===worst).map(o=>o.x);
+    let loser = null;
+    if(tied.length === 1) loser = tied[0];
+    else {
+      const pick = events[`h${h}|out`];
+      if(pick && tied.includes(pick)) loser = pick;
+      else { waiting = {hole:h, why:'chipoff', tied}; rows.push([h+1, worst, `Chip-off needed: ${tied.join(', ')}`]); break; }
+    }
+    alive = alive.filter(x=>x!==loser); out.push(loser);
+    rows.push([h+1, worst, `${loser} is out${tied.length>1?' (lost chip-off)':''}`]);
+  }
+  const finished = alive.length === 1;
+  const pot = cfg.buyIn * players.length;
+  let pay = {};
+  if(finished){
+    pay[alive[0]] = {amt: pot*(cfg.pay2?0.7:1), place:1};
+    if(cfg.pay2 && out.length) pay[out[out.length-1]] = {amt: pot*0.3, place:2};
+  }
+  return {money: finished ? mgPotMoney(players, cfg.buyIn, pay) : mgRound(mgZero(players)),
+    waiting, alive,
+    notes:[finished ? `Winner: ${alive[0]}` : `${alive.length} still in the race`, `Pot $${pot.toFixed(2)}${cfg.pay2?' · winner 70% / last one out 30%':' · winner takes all'}`],
+    sections:[{title:`Hole by hole (${cfg.net?'net':'gross'})`, head:['Hole','Worst','Result'], rows},
+      {title:'Still in', head:['Player'], rows: alive.map(x=>[x])}]};
+}
+
+/* ---------------- LOW NET / LOW GROSS (flights) ---------------- */
+function mgFlights(players, n){
+  const sorted = [...players].sort((a,b)=>(a.hcp||0)-(b.hcp||0) || a.name.localeCompare(b.name));
+  if(n < 2) return [sorted];
+  const cut = Math.ceil(sorted.length/2);
+  return [sorted.slice(0,cut), sorted.slice(cut)];
+}
+function mgLowNet(ctx){
+  const {players, cfg} = ctx;
+  const money = mgZero(players); const sections = []; const notes = [];
+  const flights = mgFlights(players, cfg.flights);
+  flights.forEach((fl, fi)=>{
+    const label = flights.length>1 ? `Flight ${'AB'[fi]} (hcp ${fl[0].hcp}–${fl[fl.length-1].hcp})` : 'Field';
+    const tot = fl.map(p=>{
+      const sc = ctx.scores[p.name]||[]; const thru = sc.filter(mgHas).length;
+      const gross = sc.filter(mgHas).reduce((a,b)=>a+b,0);
+      return {name:p.name, hcp:p.hcp, gross, net: gross - Math.round(p.hcp||0), thru};
+    });
+    const done = tot.filter(t=>t.thru===18);
+    const potG = cfg.grossOn ? cfg.buyInGross*fl.length : 0, potN = cfg.netOn ? cfg.buyInNet*fl.length : 0;
+    const pg = cfg.grossOn ? mgPlacePot(done.map(t=>({name:t.name, val:t.gross})), potG, cfg.pay2) : {};
+    const pn = cfg.netOn ? mgPlacePot(done.map(t=>({name:t.name, val:t.net})), potN, cfg.pay2) : {};
+    fl.forEach(p=>{
+      money[p.name] -= (cfg.grossOn?cfg.buyInGross:0) + (cfg.netOn?cfg.buyInNet:0);
+      if(pg[p.name]) money[p.name] += pg[p.name].amt;
+      if(pn[p.name]) money[p.name] += pn[p.name].amt;
+    });
+    sections.push({title:label, head:['Player','Hcp','Gross','Net','Thru','Wins'],
+      rows: tot.sort((a,b)=>a.net-b.net).map(t=>[t.name, t.hcp, t.thru?t.gross:'—', t.thru===18?t.net:'—', t.thru,
+        [pg[t.name]?`Gross $${pg[t.name].amt.toFixed(2)}`:'', pn[t.name]?`Net $${pn[t.name].amt.toFixed(2)}`:''].filter(Boolean).join(' · ')])});
+  });
+  notes.push(`${cfg.grossOn?`Low gross $${cfg.buyInGross}`:''}${cfg.grossOn&&cfg.netOn?' + ':''}${cfg.netOn?`low net $${cfg.buyInNet}`:''} per player${flights.length>1?', paid in each flight':''}${cfg.pay2?' · 1st 70% / 2nd 30%':''}. Ties split.`);
+  return {money: mgRound(money), notes, sections};
+}
+
+/* ---------------- JUNK / DOTS ---------------- */
+const MG_JUNK = [['greenie','Greenie'],['sandy','Sandy'],['barkie','Barkie'],['chippie','Chippie']];
+function mgJunk(ctx){
+  const {players, cfg, events} = ctx; const names = players.map(p=>p.name), n = names.length;
+  const money = mgZero(players); const dots = {}; names.forEach(x=>dots[x]={});
+  MG_JUNK.forEach(([k])=>{
+    if(!cfg[k+'On']) return;
+    for(let h=0; h<18; h++) names.forEach(x=>{
+      if(events[`h${h}|${k}|${x}`]){
+        dots[x][k] = (dots[x][k]||0)+1;
+        money[x] += cfg[k]*(n-1);
+        names.forEach(o=>{ if(o!==x) money[o] -= cfg[k]; });
+      }
+    });
+  });
+  let snakeNote = '';
+  if(cfg.snakeOn){
+    let last = -1, holders = [];
+    for(let h=0; h<18; h++){ const t = names.filter(x=>events[`h${h}|snake|${x}`]); if(t.length){ last = h; holders = t; } }
+    if(holders.length){
+      const others = names.filter(x=>!holders.includes(x));
+      others.forEach(o=>{ money[o] += cfg.snake; holders.forEach(hd=>money[hd] -= cfg.snake/holders.length); });
+      snakeNote = `🐍 ${holders.join(' & ')} holding the snake (last 3-putt, hole ${last+1}) — pays $${cfg.snake} to each other player.`;
+    } else snakeNote = '🐍 Nobody has 3-putted yet.';
+  }
+  const on = MG_JUNK.filter(([k])=>cfg[k+'On']);
+  return {money: mgRound(money),
+    notes:[`Each dot collects ${on.map(([k,l])=>`${l} $${cfg[k]}`).join(', ')} from every other player.`, snakeNote].filter(Boolean),
+    sections:[{title:'Dots', head:['Player', ...on.map(([,l])=>l), 'Total'],
+      rows: names.map(x=>[x, ...on.map(([k])=>dots[x][k]||0), on.reduce((a,[k])=>a+(dots[x][k]||0),0)])}]};
+}
+
+/* ---------------- YELLOW BALL (team game, groups are teams) ---------------- */
+function mgYellowPlayer(team, h){ return team[h % team.length]; }
+function mgYellowBall(ctx){
+  const {players, groups, cfg} = ctx;
+  const teams = groups.map((g,i)=>{
+    let total = 0, thru = 0;
+    for(let h=0; h<18; h++){
+      if(!mgHoleDone(ctx, g, h)) continue;
+      const best = Math.min(...g.map(x=>mgScore(ctx, x, h, cfg.net)));
+      total += best + mgScore(ctx, mgYellowPlayer(g,h), h, cfg.net); thru++;
+    }
+    return {i, names:g, total, thru};
+  });
+  const pot = cfg.buyIn * players.length;
+  const done = teams.filter(t=>t.thru===18);
+  const tp = mgPlacePot(done.map(t=>({name:'T'+t.i, val:t.total})), pot, cfg.pay2);
+  const pay = {};
+  teams.forEach(t=>{ if(tp['T'+t.i]) t.names.forEach(x=>pay[x] = {amt: tp['T'+t.i].amt/t.names.length, place: tp['T'+t.i].place}); });
+  return {money: mgPotMoney(players, cfg.buyIn, pay),
+    notes:[`Team score each hole = best ball + the yellow ball player's score (${cfg.net?'net':'gross'}). Lowest 18-hole total wins the $${pot.toFixed(2)} pot${cfg.pay2?' (1st 70% / 2nd 30%)':''}, split among the team.`],
+    sections:[{title:'Teams', head:['Team','Players','Total','Thru','Wins'],
+      rows: teams.sort((a,b)=>(b.thru===18)-(a.thru===18) || a.total-b.total).map(t=>[`Team ${t.i+1}`, t.names.join(', '), t.thru?t.total:'—', t.thru, tp['T'+t.i]?`$${tp['T'+t.i].amt.toFixed(2)}`:''])}]};
+}
+
+/* ---------------- 2 v 2 helpers ---------------- */
+function mgTeams4(players){ const n = players.map(p=>p.name); return {A:[n[0],n[1]], B:[n[2],n[3]]}; }
+function mgBest(ctx, names, h, net){ return Math.min(...names.map(x=>mgScore(ctx, x, h, net))); }
+// +1 A wins hole, −1 B wins, 0 halved, null not played
+function mgBestBallHole(ctx, A, B, h, net){
+  if(!mgHoleDone(ctx, A.concat(B), h)) return null;
+  const a = mgBest(ctx, A, h, net), b = mgBest(ctx, B, h, net);
+  return a<b ? 1 : a>b ? -1 : 0;
+}
+function mgTeamPay(money, win, lose, amt){ win.forEach(x=>money[x]+=amt); lose.forEach(x=>money[x]-=amt); }
+function mgStatus(s){ return s===0 ? 'All square' : (s>0 ? `A ${s} up` : `B ${-s} up`); }
+
+/* ---------------- NASSAU with auto-press ---------------- */
+function mgNassauNine(ctx, A, B, from, cfg){
+  const bets = [{start:from, status:0, pressed:false, thru:0}];
+  for(let h=from; h<from+9; h++){
+    const r = mgBestBallHole(ctx, A, B, h, cfg.net);
+    if(r === null) break;
+    bets.forEach(b=>{ if(h>=b.start){ b.status += r; b.thru = h; } });
+    const latest = bets[bets.length-1];
+    if(cfg.autoPress && !latest.pressed && Math.abs(latest.status) >= cfg.pressAt && h < from+8){
+      latest.pressed = true;
+      bets.push({start:h+1, status:0, pressed:false, thru:h});
+    }
+  }
+  return bets;
+}
+function mgNassau(ctx){
+  const {players, cfg} = ctx; const {A,B} = mgTeams4(players);
+  const money = mgZero(players); const rows = [];
+  const settle = (label, status) => { if(status>0) mgTeamPay(money, A, B, cfg.value); if(status<0) mgTeamPay(money, B, A, cfg.value); rows.push([label, mgStatus(status), status===0?'Push':(status>0?'Team A':'Team B')]); };
+  [['Front',0],['Back',9]].forEach(([nm,from])=>{
+    mgNassauNine(ctx, A, B, from, cfg).forEach((b,i)=>settle(i===0 ? `${nm} 9` : `${nm} press ${i} (from ${b.start+1})`, b.status));
+  });
+  let overall = 0; for(let h=0; h<18; h++){ const r = mgBestBallHole(ctx, A, B, h, cfg.net); if(r===null) break; overall += r; }
+  settle('Overall 18', overall);
+  return {money: mgRound(money),
+    notes:[`Team A: ${A.join(' & ')} · Team B: ${B.join(' & ')} · $${cfg.value} per man per bet · best ball ${cfg.net?'net':'gross'}${cfg.autoPress?` · auto-press at ${cfg.pressAt} down`:''}. Live bets settle as they stand.`],
+    sections:[{title:'Bets', head:['Bet','Status','Winning'], rows}]};
+}
+
+/* ---------------- SIXES (round robin) ---------------- */
+const MG_SIXES_PAIRS = [[[0,1],[2,3]], [[0,2],[1,3]], [[0,3],[1,2]]];
+function mgSixes(ctx){
+  const {players, cfg} = ctx; const n = players.map(p=>p.name);
+  const money = mgZero(players); const rows = [];
+  MG_SIXES_PAIRS.forEach(([a,b], seg)=>{
+    const A = a.map(i=>n[i]), B = b.map(i=>n[i]); let s = 0, thru = 0;
+    for(let h=seg*6; h<seg*6+6; h++){ const r = mgBestBallHole(ctx, A, B, h, cfg.net); if(r===null) break; s += r; thru++; }
+    if(s>0) mgTeamPay(money, A, B, cfg.value); if(s<0) mgTeamPay(money, B, A, cfg.value);
+    rows.push([`Holes ${seg*6+1}–${seg*6+6}`, `${A.join(' & ')} v ${B.join(' & ')}`, s===0?(thru?'All square':'Not started'):(s>0?`${A.join(' & ')} ${s} up`:`${B.join(' & ')} ${-s} up`), thru]);
+  });
+  return {money: mgRound(money), notes:[`$${cfg.value} per man per 6-hole match · best ball ${cfg.net?'net':'gross'}`],
+    sections:[{title:'Matches', head:['Holes','Teams','Status','Thru'], rows}]};
+}
+
+/* ---------------- LOW-HIGH ---------------- */
+function mgLowHigh(ctx){
+  const {players, cfg} = ctx; const {A,B} = mgTeams4(players);
+  let pa = 0, pb = 0; const rows = [];
+  for(let h=0; h<18; h++){
+    if(!mgHoleDone(ctx, A.concat(B), h)) continue;
+    const a = A.map(x=>mgScore(ctx,x,h,cfg.net)), b = B.map(x=>mgScore(ctx,x,h,cfg.net));
+    const lo = Math.min(...a) - Math.min(...b), hi = Math.max(...a) - Math.max(...b);
+    const la = lo<0?1:0, lb = lo>0?1:0, ha = hi<0?1:0, hb = hi>0?1:0;
+    pa += la+ha; pb += lb+hb;
+    rows.push([h+1, la?'A':lb?'B':'—', ha?'A':hb?'B':'—']);
+  }
+  const money = mgZero(players); const diff = pa - pb;
+  if(diff>0) mgTeamPay(money, A, B, diff*cfg.value); if(diff<0) mgTeamPay(money, B, A, -diff*cfg.value);
+  return {money: mgRound(money), notes:[`Team A ${pa} pts · Team B ${pb} pts · $${cfg.value} per point per man (${cfg.net?'net':'gross'})`],
+    sections:[{title:`Team A: ${A.join(' & ')} · Team B: ${B.join(' & ')}`, head:['Hole','Low ball','High ball'], rows}]};
+}
+
+/* ---------------- HAMMER ---------------- */
+function mgHammer(ctx){
+  const {players, cfg, events} = ctx; const {A,B} = mgTeams4(players);
+  const money = mgZero(players); const rows = [];
+  for(let h=0; h<18; h++){
+    const k = +events[`h${h}|hammers`] || 0; const mult = Math.pow(2, k); const amt = cfg.value*mult;
+    const conceded = events[`h${h}|conceded`];
+    if(conceded === 'A' || conceded === 'B'){
+      const [w,l] = conceded==='A' ? [B,A] : [A,B]; mgTeamPay(money, w, l, amt);
+      rows.push([h+1, '×'+mult, `Team ${conceded} conceded — Team ${conceded==='A'?'B':'A'} +$${amt.toFixed(2)} ea`]); continue;
+    }
+    const r = mgBestBallHole(ctx, A, B, h, cfg.net);
+    if(r === null){ if(k) rows.push([h+1, '×'+mult, 'In play']); continue; }
+    if(r>0) mgTeamPay(money, A, B, amt); if(r<0) mgTeamPay(money, B, A, amt);
+    rows.push([h+1, '×'+mult, r===0 ? 'Halved' : `Team ${r>0?'A':'B'} +$${amt.toFixed(2)} ea`]);
+  }
+  return {money: mgRound(money), notes:[`Team A: ${A.join(' & ')} · Team B: ${B.join(' & ')} · $${cfg.value} per man per hole, doubled by every accepted hammer · best ball ${cfg.net?'net':'gross'}`],
+    sections:[{title:'Holes', head:['Hole','Value','Result'], rows}]};
+}
+
+/* ---------------- BANKER ---------------- */
+function mgBankerFor(names, h){ return names[h % names.length]; }
+function mgBanker(ctx){
+  const {players, cfg, events} = ctx; const names = players.map(p=>p.name);
+  const money = mgZero(players); const rows = [];
+  for(let h=0; h<18; h++){
+    if(!mgHoleDone(ctx, names, h)) continue;
+    const bk = mgBankerFor(names, h); const bs = mgScore(ctx, bk, h, cfg.net);
+    const parts = [];
+    names.forEach(x=>{
+      if(x===bk) return;
+      const mult = (events[`h${h}|dbl|${x}`]?2:1) * (events[`h${h}|bdbl|${x}`]?2:1);
+      const s = mgScore(ctx, x, h, cfg.net); const amt = cfg.value*mult;
+      if(s<bs){ money[x]+=amt; money[bk]-=amt; parts.push(`${x} +${amt}`); }
+      else if(s>bs){ money[x]-=amt; money[bk]+=amt; parts.push(`${x} −${amt}`); }
+    });
+    rows.push([h+1, bk, parts.join(' · ') || 'All pushed']);
+  }
+  return {money: mgRound(money), notes:[`Banker rotates in tee order and plays each other player one-on-one for $${cfg.value}. A player can double; the banker can double back. ${cfg.net?'Net':'Gross'} scores.`],
+    sections:[{title:'Holes', head:['Hole','Banker','Results'], rows}]};
+}
+
+/* ---------------- BINGO BANGO BONGO ---------------- */
+const MG_BBB = [['bingo','Bingo — first on the green'],['bango','Bango — closest once all are on'],['bongo','Bongo — first in the hole']];
+function mgBBB(ctx){
+  const {players, cfg, events} = ctx; const pts = {}; players.forEach(p=>pts[p.name]=0);
+  let holes = 0;
+  for(let h=0; h<18; h++){ let any = false; MG_BBB.forEach(([k])=>{ const w = events[`h${h}|${k}`]; if(w && pts[w]!==undefined){ pts[w]++; any = true; } }); if(any) holes++; }
+  return {money: mgPairwise(players, pts, cfg.value), notes:[`$${cfg.value} per point, settled between every pair of players.`],
+    sections:[{title:'Points', head:['Player','Points'], rows: players.map(p=>[p.name, pts[p.name]]).sort((a,b)=>b[1]-a[1])}]};
+}
+
+/* ---------------- NINES (5-3-1) ---------------- */
+function mgNinesHole(scores){ // scores: [[name,s]]×3 → {name:pts}
+  const s = [...scores].sort((a,b)=>a[1]-b[1]); const [a,b,c] = s.map(x=>x[1]); const out = {};
+  if(a===b && b===c) s.forEach(x=>out[x[0]]=3);
+  else if(a===b){ out[s[0][0]]=4; out[s[1][0]]=4; out[s[2][0]]=1; }
+  else if(b===c){ out[s[0][0]]=5; out[s[1][0]]=2; out[s[2][0]]=2; }
+  else { out[s[0][0]]=5; out[s[1][0]]=3; out[s[2][0]]=1; }
+  return out;
+}
+function mgNines(ctx){
+  const {players, cfg} = ctx; const names = players.map(p=>p.name);
+  const pts = {}; names.forEach(x=>pts[x]=0); const rows = [];
+  for(let h=0; h<18; h++){
+    if(!mgHoleDone(ctx, names, h)) continue;
+    const r = mgNinesHole(names.map(x=>[x, mgScore(ctx,x,h,cfg.net)]));
+    names.forEach(x=>pts[x]+=r[x]); rows.push([h+1, ...names.map(x=>r[x])]);
+  }
+  return {money: mgPairwise(players, pts, cfg.value), notes:[`5-3-1 each hole (${cfg.net?'net':'gross'}) · $${cfg.value} per point between each pair`],
+    sections:[{title:'Points', head:['Player','Points'], rows: names.map(x=>[x, pts[x]]).sort((a,b)=>b[1]-a[1])},
+      {title:'Hole by hole', head:['Hole', ...names.map(x=>x.split(' ')[0])], rows}]};
+}
+
+if(typeof module !== 'undefined' && module.exports) module.exports = {mgStrokes, mgScore, mgPlacePot, mgSkins, mgChicago, mgChicagoPts, mgHorseRace, mgLowNet, mgFlights, mgJunk, mgYellowBall, mgYellowPlayer, mgNassau, mgNassauNine, mgSixes, mgLowHigh, mgHammer, mgBanker, mgBankerFor, mgBBB, mgNines, mgNinesHole};
+
+/* ================= MORE GAMES — game catalog =================
+   Each game: kind 'field' (checklist + groups) or 'slots' (fixed seats);
+   scores: whether hole scores are entered; options shown at setup;
+   panel(h, names, ctx, res) returns extra per-hole controls. */
+const M = (k,label,def) => ({k,label,type:'money',def});
+const B = (k,label,def) => ({k,label,type:'bool',def});
+const N = (k,label,def) => ({k,label,type:'num',def});
+const C = (k,label,def,choices) => ({k,label,type:'choice',def,choices});
+
+const MG_GAMES = {
+  skins: {name:'Skins', icon:'💰', kind:'field', scores:true, compute: mgSkins,
+    blurb:'Lowest score on a hole, if nobody ties it, wins the skin.',
+    rules:'Every hole is worth one skin. The outright low score wins it. With carryovers on, a tied hole carries its skin to the next hole. The pot is split by skins won; skins still carrying after 18 go to the skin winners.',
+    options:[M('buyIn','Buy-in per player',5), B('net','Net (handicap strokes)',false), B('carry','Ties carry over',true)]},
+  chicago: {name:'Chicago', icon:'🎯', kind:'field', scores:true, compute: mgChicago,
+    blurb:'Beat your quota: points for bogey, par, birdie, eagle.',
+    rules:'Your quota is the quota number minus your handicap. Points off your gross score: bogey 1, par 2, birdie 4, eagle or better 8. Most points over quota wins the pot. Ties split.',
+    options:[M('buyIn','Buy-in per player',10), N('quotaBase','Quota number (minus handicap)',39), B('pay2','Pay 2nd place (70/30)',false)]},
+  horserace: {name:'Horse Race', icon:'🐎', kind:'field', scores:true, compute: mgHorseRace,
+    blurb:'Worst score on each hole is out. Last one standing wins.',
+    rules:'Everyone still in plays each hole. The highest score is eliminated. If two or more tie for worst, they chip off and you tap who lost. The last player left wins the pot; with 2nd place on, the last one eliminated gets 30%.',
+    options:[M('buyIn','Buy-in per player',5), B('net','Net (handicap strokes)',false), B('pay2','Pay 2nd place (70/30)',false)],
+    panel(h, names, ctx, res){
+      let html = `<div class="mg-panel-line">Still in: <b>${res.alive.join(', ')}</b></div>`;
+      if(res.waiting && res.waiting.why==='chipoff' && res.waiting.hole===h){
+        html += `<div class="mg-panel-line">Chip-off for worst score — tap who <b>lost</b>:</div><div class="mg-chips">` +
+          res.waiting.tied.map(x=>mgChip(`h${h}|out`, x, x, false)).join('') + '</div>';
+      } else if(ctx.events[`h${h}|out`]){
+        html += `<div class="mg-chips">${mgChip(`h${h}|out`, ctx.events[`h${h}|out`], 'Chip-off loser: '+ctx.events[`h${h}|out`]+' (tap to undo)', false)}</div>`;
+      }
+      return html;
+    }},
+  lownet: {name:'Low Net / Low Gross', icon:'🏆', kind:'field', scores:true, compute: mgLowNet,
+    blurb:'Stroke play pots, with flights so everybody has a chance.',
+    rules:'With 2 flights, the field is split in half by handicap and each flight has its own pots. Low gross is the fewest strokes; low net is gross minus handicap. Ties split.',
+    options:[C('flights','Flights',2,[[1,'One flight'],[2,'Two flights']]), B('grossOn','Low gross pot',true), M('buyInGross','Low gross buy-in',5), B('netOn','Low net pot',true), M('buyInNet','Low net buy-in',5), B('pay2','Pay 2nd place (70/30)',false)]},
+  junk: {name:'Junk / Dots', icon:'🟢', kind:'field', scores:false, compute: mgJunk,
+    blurb:'Side bets: greenies, sandies, barkies, chippies and the snake.',
+    rules:'Each dot collects its value from every other player. Greenie: closest to the pin on a par 3 and make par. Sandy: par or better after a bunker. Barkie: par or better after hitting a tree. Chippie: hole out from off the green. Snake: whoever three-putted last pays the snake value to everyone else.',
+    options:[B('greenieOn','Greenies',true), M('greenie','Greenie value',1), B('sandyOn','Sandies',true), M('sandy','Sandy value',1), B('barkieOn','Barkies',true), M('barkie','Barkie value',1), B('chippieOn','Chippies',true), M('chippie','Chippie value',1), B('snakeOn','Snake',true), M('snake','Snake value',5)],
+    panel(h, names, ctx){
+      const cfg = ctx.cfg; const kinds = MG_JUNK.filter(([k])=>cfg[k+'On']);
+      if(cfg.snakeOn) kinds.push(['snake','3-putt 🐍']);
+      if(ctx.course.par[h] !== 3) {/* greenies only count on par 3s */}
+      return names.map(x=>`<div class="mg-junk-row"><div class="mg-junk-name">${mgEsc(x)}</div><div class="mg-chips">` +
+        kinds.filter(([k])=>k!=='greenie' || ctx.course.par[h]===3).map(([k,l])=>mgChip(`h${h}|${k}|${x}`, true, l, true)).join('') + '</div></div>').join('') +
+        (cfg.greenieOn && ctx.course.par[h]!==3 ? '<div class="hint">Greenies only on par 3s.</div>' : '');
+    }},
+  yellowball: {name:'Yellow Ball', icon:'🟡', kind:'field', teams:true, scores:true, compute: mgYellowBall,
+    blurb:'Team game: best ball plus the rotating yellow ball player.',
+    rules:'Your groups are the teams. Each hole the team scores its best ball plus the score of that hole\'s yellow ball player, who rotates in the order the team is listed. Lowest 18-hole team total wins the pot, split among the team.',
+    options:[M('buyIn','Buy-in per player',10), B('net','Net (handicap strokes)',false), B('pay2','Pay 2nd place (70/30)',false)],
+    panel(h, names){ return `<div class="mg-panel-line">🟡 Yellow ball this hole: <b>${mgEsc(mgYellowPlayer(names, h))}</b></div>`; }},
+
+  nassau: {name:'Nassau', icon:'🎲', kind:'slots', slots:[4,4], teamSlots:true, scores:true, compute: mgNassau,
+    blurb:'Front, back and overall bets, with automatic presses.',
+    rules:'Two-man teams, best ball. Three bets: front 9, back 9 and overall 18, each worth the bet value per man. With auto-press on, when a side falls behind by the press number in the latest bet, a new bet starts on the next hole (front and back nines only).',
+    options:[M('value','Bet value (per man)',5), B('net','Net (handicap strokes)',false), B('autoPress','Automatic presses',true), N('pressAt','Press when down by',2)],
+    panel(h, names){ return mgTeamLine(names); }},
+  sixes: {name:'Sixes', icon:'🔄', kind:'slots', slots:[4,4], scores:true, compute: mgSixes,
+    blurb:'Partners rotate every 6 holes so everyone plays with everyone.',
+    rules:'Holes 1–6: players 1 & 2 v 3 & 4. Holes 7–12: 1 & 3 v 2 & 4. Holes 13–18: 1 & 4 v 2 & 3. Each 6-hole match is best ball, worth the bet value per man.',
+    options:[M('value','Bet per 6-hole match (per man)',5), B('net','Net (handicap strokes)',false)],
+    panel(h, names){ const [a,b] = MG_SIXES_PAIRS[Math.floor(h/6)]; return `<div class="mg-panel-line">This match: <b>${a.map(i=>mgEsc(names[i])).join(' & ')}</b> v <b>${b.map(i=>mgEsc(names[i])).join(' & ')}</b></div>`; }},
+  lowhigh: {name:'Low-High', icon:'↕️', kind:'slots', slots:[4,4], teamSlots:true, scores:true, compute: mgLowHigh,
+    blurb:'A point for the low ball and a point for the better high ball.',
+    rules:'Two-man teams. Each hole, the team with the lower low ball wins a point, and the team whose higher score is better wins a point. Ties earn nothing. Each point of difference pays the point value per man.',
+    options:[M('value','Value per point (per man)',1), B('net','Net (handicap strokes)',false)],
+    panel(h, names){ return mgTeamLine(names); }},
+  hammer: {name:'Hammer', icon:'🔨', kind:'slots', slots:[4,4], teamSlots:true, scores:true, compute: mgHammer,
+    blurb:'Match play where either side can double the hole.',
+    rules:'Two-man teams, best ball, each hole worth the hole value per man. Either side can drop the hammer to double it; the other side accepts (tap Hammer) or folds and loses the hole at the value before the hammer. Re-hammers keep doubling.',
+    options:[M('value','Hole value (per man)',1), B('net','Net (handicap strokes)',false)],
+    panel(h, names, ctx){
+      const k = +ctx.events[`h${h}|hammers`] || 0, v = ctx.cfg.value; const conc = ctx.events[`h${h}|conceded`];
+      return mgTeamLine(names) + `<div class="mg-panel-line">This hole: <b>×${Math.pow(2,k)}</b> = $${(v*Math.pow(2,k)).toFixed(2)} per man${conc?` · <b>Team ${conc} folded</b>`:''}</div>
+        <div class="mg-chips">${mgChip(`h${h}|hammers`, k+1, `🔨 Hammer accepted → ×${Math.pow(2,k+1)}`, false, true)}
+        ${k ? mgChip(`h${h}|hammers`, k-1, 'Undo hammer', false, true) : ''}
+        ${mgChip(`h${h}|conceded`, 'A', 'Team A folds', false)}${mgChip(`h${h}|conceded`, 'B', 'Team B folds', false)}</div>`;
+    }},
+  banker: {name:'Banker', icon:'🏦', kind:'slots', slots:[3,5], scores:true, compute: mgBanker,
+    blurb:'Rotating banker plays everyone else one-on-one.',
+    rules:'The banker rotates in tee order. Each other player plays the banker one-on-one for the bet value. A player can double his bet; the banker can double back. Lower score wins; ties push.',
+    options:[M('value','Bet per player per hole',2), B('net','Net (handicap strokes)',false)],
+    panel(h, names, ctx){
+      const bk = mgBankerFor(names, h);
+      return `<div class="mg-panel-line">🏦 Banker this hole: <b>${mgEsc(bk)}</b></div>` + names.filter(x=>x!==bk).map(x=>
+        `<div class="mg-junk-row"><div class="mg-junk-name">${mgEsc(x)}</div><div class="mg-chips">${mgChip(`h${h}|dbl|${x}`, true, 'Doubled', true)}${mgChip(`h${h}|bdbl|${x}`, true, 'Banker doubled back', true)}</div></div>`).join('');
+    }},
+  bbb: {name:'Bingo Bango Bongo', icon:'⛳', kind:'slots', slots:[2,6], scores:false, compute: mgBBB,
+    blurb:'Points for first on, closest once all are on, and first in.',
+    rules:'Three points each hole. Bingo: first on the green. Bango: closest to the pin once everyone is on. Bongo: first in the hole. Each point is worth the point value against every other player.',
+    options:[M('value','Value per point',1)],
+    panel(h, names, ctx){
+      return MG_BBB.map(([k,l])=>`<div class="mg-junk-row mg-col"><div class="mg-junk-name">${l}</div><div class="mg-chips">${names.map(x=>mgChip(`h${h}|${k}`, x, x, false)).join('')}</div></div>`).join('');
+    }},
+  nines: {name:'Nines', icon:'9️⃣', kind:'slots', slots:[3,3], scores:true, compute: mgNines,
+    blurb:'Threesome game: 5-3-1 points every hole.',
+    rules:'Nine points each hole: 5 for low, 3 for middle, 1 for high. Two tied for low get 4 each; two tied for high get 2 each; all three tied get 3 each. Each point is worth the point value against each other player.',
+    options:[M('value','Value per point',1), B('net','Net (handicap strokes)',false)]}
+};
+const MG_ORDER = [['Whole field', ['skins','chicago','horserace','lownet','junk','yellowball']],
+                  ['Foursomes & small groups', ['nassau','sixes','lowhigh','hammer','banker','bbb','nines']]];
+
+function mgEsc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function mgTeamLine(names){ return `<div class="mg-panel-line">Team A: <b>${mgEsc(names[0])} & ${mgEsc(names[1])}</b> · Team B: <b>${mgEsc(names[2])} & ${mgEsc(names[3])}</b></div>`; }
+// A tappable control that sets an event. toggle: on/off. force: always set to val (no tap-to-clear)
+function mgChip(key, val, label, toggle, force){
+  const cur = mg.events[key];
+  const on = toggle ? !!cur : (!force && cur === val);
+  return `<button type="button" class="mg-chip${on?' on':''}" data-ev="${mgEsc(key)}" data-val="${mgEsc(JSON.stringify(val))}" data-mode="${toggle?'toggle':force?'force':'pick'}">${mgEsc(label)}</button>`;
+}
+
+/* ================= state ================= */
+let mg = {game:null, active:false, players:[], groups:null, cfg:{}, courseId:SB_DEFAULT_COURSE, scores:{}, events:{}};
+let mgUnsub = null;
+let mgMyGroupKey = null, mgHole = 0;
+let _mgDirty = {s:{}, e:{}}, _mgInFlight = {s:{}, e:{}}, _mgTimer = null, _mgRetry = null;
+let mgSetupState = {assign:{}, count:1, extras:[], names:[]};
+
+const mgDocRef = id => weekendDb.collection('weekendGames').doc('mg_' + id);
+const mgG = () => MG_GAMES[mg.game];
+function mgCtx(){ return {players: mg.players, groups: mgEffectiveGroups(), cfg: mg.cfg, course: sbCourse(mg.courseId), scores: mg.scores, events: mg.events}; }
+
+/* ================= views ================= */
+function mgShow(view){
+  ['home','setup','play','results','history'].forEach(v=>{ const el = document.getElementById('mg-'+v); if(el) el.style.display = v===view ? '' : 'none'; });
+  document.getElementById('mgNav').style.display = (mg.active && ['play','results','history'].includes(view)) ? 'flex' : 'none';
+  ['play','results','history'].forEach(v=>{ const b = document.getElementById('mgnav-'+v); if(b) b.classList.toggle('active', v===view); });
+  document.getElementById('headerSub').textContent = mg.game && view!=='home' ? mgG().name : 'More Games';
+  if(view!=='play') mgFlush();
+  if(view==='play') mgRenderPlay();
+  if(view==='results') mgRenderResults();
+  if(view==='history') mgLoadHistory();
+  if(view==='home') mgRenderHome();
+  window.scrollTo(0,0);
+}
+
+function mgRenderHome(){
+  if(mgUnsub){ mgUnsub(); mgUnsub = null; }
+  mg.game = null;
+  const wrap = document.getElementById('mgHomeList');
+  wrap.innerHTML = MG_ORDER.map(([title, ids])=>`<div class="mg-home-sec">${title}</div>` + ids.map(id=>{
+    const g = MG_GAMES[id];
+    return `<button type="button" class="mg-game" onclick="mgOpenGame('${id}')"><span class="mg-game-icon">${g.icon}</span>
+      <span class="mg-game-text"><span class="mg-game-name">${g.name}<span class="mg-live" id="mglive-${id}" hidden>● Round in progress</span></span><span class="mg-game-blurb">${g.blurb}</span></span></button>`;
+  }).join('')).join('');
+  Object.keys(MG_GAMES).forEach(id=>mgDocRef(id).get().then(d=>{ const el = document.getElementById('mglive-'+id); if(el && d.exists && d.data().active) el.hidden = false; }).catch(()=>{}));
+}
+
+function mgOpenGame(id){
+  mg = {game:id, active:false, players:[], groups:null, cfg:{}, courseId: wgLastCourse(), scores:{}, events:{}};
+  mgMyGroupKey = null; mgHole = 0; _mgDirty = {s:{},e:{}}; _mgInFlight = {s:{},e:{}};
+  if(mgUnsub) mgUnsub();
+  let first = true;
+  mgUnsub = mgDocRef(id).onSnapshot(doc=>{
+    const d = doc.exists ? doc.data() : null;
+    if(d && d.active){ mgApplyRemote(d); }
+    else if(mg.active){ // round ended on another phone
+      mg.active = false; mg.players = []; mg.scores = {}; mg.events = {};
+      if(!['home','history'].includes(mgCurView())) mgShowSetup();
+    }
+    if(first){ first = false; if(mg.active) mgShow('play'); else mgShowSetup(); }
+  }, err=>{ console.error('More Games listener error', err); if(first){ first = false; mgShowSetup(); } });
+}
+function mgCurView(){ return ['home','setup','play','results','history'].find(v=>document.getElementById('mg-'+v).style.display !== 'none'); }
+
+function mgApplyRemote(d){
+  const wasActive = mg.active;
+  mg.active = true;
+  try{ mg.players = JSON.parse(d.playersJSON || '[]'); }catch(e){ mg.players = []; }
+  try{ mg.groups = d.groupsJSON ? JSON.parse(d.groupsJSON) : null; }catch(e){ mg.groups = null; }
+  try{ mg.cfg = JSON.parse(d.cfgJSON || '{}'); }catch(e){ mg.cfg = {}; }
+  try{ mg.scores = JSON.parse(d.scoresJSON || '{}'); }catch(e){ mg.scores = {}; }
+  try{ mg.events = JSON.parse(d.eventsJSON || '{}'); }catch(e){ mg.events = {}; }
+  mg.courseId = SB_COURSES[d.courseId] ? d.courseId : SB_DEFAULT_COURSE;
+  mgOverlayPending();
+  const v = mgCurView();
+  if(!wasActive && v === 'setup'){ mgShow('play'); return; }
+  if(v === 'play') mgRefreshPlay();
+  if(v === 'results') mgRenderResults();
+}
+
+/* ================= setup ================= */
+function mgShowSetup(){
+  const g = mgG();
+  mgSetupState = {assign:{}, count: g.teams ? 2 : 1, extras:[], names:[]};
+  document.getElementById('mgSetupTitle').textContent = `${g.icon} ${g.name} — Setup`;
+  document.getElementById('mgSetupRules').textContent = g.rules;
+  wgRenderCoursePicker('mgCourseWrap', mg.courseId, 'mgPickCourse');
+  document.getElementById('mgOptions').innerHTML = g.options.map(o=>{
+    const id = 'mgopt_' + o.k;
+    if(o.type === 'bool') return `<label class="mg-opt-bool"><input type="checkbox" id="${id}"${o.def?' checked':''}> ${o.label}</label>`;
+    if(o.type === 'choice') return `<label for="${id}">${o.label}</label><select id="${id}" class="roster-select">${o.choices.map(([v,l])=>`<option value="${v}"${v===o.def?' selected':''}>${l}</option>`).join('')}</select>`;
+    return `<label for="${id}">${o.label}${o.type==='money'?' ($)':''}</label><input type="number" id="${id}" step="${o.type==='money'?'0.01':'1'}" value="${o.def}" inputmode="decimal">`;
+  }).join('');
+  const field = g.kind === 'field';
+  document.getElementById('mgFieldSetup').style.display = field ? '' : 'none';
+  document.getElementById('mgSlotSetup').style.display = field ? 'none' : '';
+  if(field){
+    document.getElementById('mgRoster').innerHTML = ROSTER.map(n=>`<div class="sb-check-row"><input type="checkbox" id="mgchk_${n.replace(/[^a-zA-Z0-9]/g,'')}" value="${mgEsc(n)}"><label for="mgchk_${n.replace(/[^a-zA-Z0-9]/g,'')}">${mgEsc(n)} (hcp ${getHcp(n)})</label></div>`).join('');
+    document.getElementById('mgGroupLabel').textContent = g.teams ? 'Teams — tap a number to put each player on his team (listed order sets the yellow ball rotation)' : 'Groups — tap a number to put each player in his group';
+    document.getElementById('mgGroupCountLabel').textContent = g.teams ? 'Number of teams:' : 'Number of groups:';
+    mgRenderGroupSetup();
+  } else mgRenderSlots();
+  mgShow('setup');
+}
+function mgPickCourse(id){ mg.courseId = SB_COURSES[id] ? id : SB_DEFAULT_COURSE; wgRememberCourse(mg.courseId); wgRenderCoursePicker('mgCourseWrap', mg.courseId, 'mgPickCourse'); }
+
+function mgRenderSlots(){
+  const g = mgG(); const [min,max] = g.slots;
+  const labels = g.teamSlots ? ['Team A','Team A','Team B','Team B'] : null;
+  const opts = `<option value="">${'— Select —'}</option>` + ROSTER.map(n=>`<option value="${mgEsc(n)}">${mgEsc(n)} (${getHcp(n)})</option>`).join('') + '<option value="__custom__">+ Add a name</option>';
+  let html = '';
+  for(let i=0;i<max;i++){
+    const lab = labels ? labels[i] : `Player ${i+1}${i>=min?' (optional)':''}${g.name==='Banker'&&i===0?' — banks hole 1':''}`;
+    html += `<label for="mgslot${i}">${lab}</label><select id="mgslot${i}" class="roster-select" onchange="mgSlotCustom(${i})">${opts}</select>
+      <div id="mgslotc${i}" style="display:none;gap:8px;margin-top:6px;"><input type="text" id="mgslotn${i}" placeholder="Name" style="flex:1"><input type="number" id="mgsloth${i}" placeholder="HCP" style="width:80px"></div>`;
+  }
+  document.getElementById('mgSlots').innerHTML = html;
+  document.getElementById('mgSlotHint').textContent = g.name==='Sixes' ? 'Seat order sets the rotation: 1 & 2 v 3 & 4, then 1 & 3 v 2 & 4, then 1 & 4 v 2 & 3.' : (g.name==='Banker' ? 'Seat order is the banker rotation.' : '');
+}
+function mgSlotCustom(i){ const v = document.getElementById('mgslot'+i).value; document.getElementById('mgslotc'+i).style.display = v==='__custom__' ? 'flex' : 'none'; }
+
+function mgCheckedNames(){
+  const out = [];
+  document.querySelectorAll('#mgRoster input[type=checkbox]').forEach(c=>{ if(c.checked) out.push(c.value); });
+  mgSetupState.extras.forEach(p=>{ if(!out.includes(p.name)) out.push(p.name); });
+  return out;
+}
+function mgAddExtra(){
+  const n = document.getElementById('mgExtraName').value.trim(), h = parseFloat(document.getElementById('mgExtraHcp').value);
+  if(!n || isNaN(h)){ alert('Enter a name and handicap.'); return; }
+  mgSetupState.extras.push({name:n, hcp:h});
+  document.getElementById('mgExtraName').value = ''; document.getElementById('mgExtraHcp').value = '';
+  document.getElementById('mgExtraList').textContent = 'Added: ' + mgSetupState.extras.map(p=>`${p.name} (hcp ${p.hcp})`).join(', ');
+  mgRenderGroupSetup();
+}
+function mgChangeCount(d){ mgSetupState.count = Math.max(mgG().teams?2:1, Math.min(12, mgSetupState.count + d)); mgRenderGroupSetup(); }
+function mgAssign(i, g){ const n = mgSetupState.names[i]; if(n===undefined) return; if(mgSetupState.assign[n]===g) delete mgSetupState.assign[n]; else mgSetupState.assign[n] = g; mgRenderGroupSetup(); }
+function mgRenderGroupSetup(){
+  const wrap = document.getElementById('mgGroupSetup'); if(!wrap) return;
+  const st = mgSetupState; document.getElementById('mgGroupCount').textContent = st.count;
+  const names = mgCheckedNames(); st.names = names;
+  Object.keys(st.assign).forEach(n=>{ if(!names.includes(n) || st.assign[n] > st.count) delete st.assign[n]; });
+  if(!names.length){ wrap.innerHTML = '<div class="hint">Check off who\'s playing and they\'ll show up here.</div>'; return; }
+  if(st.count === 1){ wrap.innerHTML = '<div class="hint">One group: everyone is together. Add groups if you\'re in more than one foursome.</div>'; return; }
+  const word = mgG().teams ? 'Team' : 'Group';
+  wrap.innerHTML = '<div class="sbg-list">' + names.map((n,i)=>`<div class="sbg-row${st.assign[n]?'':' unassigned'}"><span class="sbg-name">${mgEsc(n)}</span><div class="sbg-btns">${
+    Array.from({length:st.count},(_,k)=>`<button type="button" class="${st.assign[n]===k+1?'sel':''}" onclick="mgAssign(${i},${k+1})">${k+1}</button>`).join('')}</div></div>`).join('') + '</div>' +
+    '<div class="sbg-summary">' + Array.from({length:st.count},(_,k)=>{ const m = names.filter(n=>st.assign[n]===k+1); return `<div class="sbg-card"><b>${word} ${k+1}</b> · ${m.length} ${m.length===1?'player':'players'}${m.length?'<br>'+m.map(mgEsc).join(', '):''}</div>`; }).join('') +
+    (names.some(n=>!st.assign[n]) ? `<div class="sbg-card warn">Not assigned yet: ${names.filter(n=>!st.assign[n]).map(mgEsc).join(', ')}</div>` : '') + '</div>';
+}
+
+function mgReadOptions(){
+  const cfg = {};
+  mgG().options.forEach(o=>{
+    const el = document.getElementById('mgopt_' + o.k);
+    if(o.type === 'bool') cfg[o.k] = !!(el && el.checked);
+    else if(o.type === 'choice') cfg[o.k] = el ? (isNaN(+el.value) ? el.value : +el.value) : o.def;
+    else { const v = el ? parseFloat(el.value) : NaN; cfg[o.k] = isNaN(v) ? o.def : v; }
+  });
+  return cfg;
+}
+
+function mgStart(){
+  const g = mgG(); const cfg = mgReadOptions();
+  let players = [], groups = null;
+  if(g.kind === 'field'){
+    const names = mgCheckedNames();
+    const min = g.teams ? 4 : 2;
+    if(names.length < min){ alert(`Select at least ${min} players.`); return; }
+    players = names.map(n=>{ const x = mgSetupState.extras.find(p=>p.name===n); return {name:n, hcp: x ? x.hcp : (getHcp(n) || 0)}; });
+    if(mgSetupState.count > 1){
+      const open = names.filter(n=>!mgSetupState.assign[n]);
+      if(open.length){ alert('Put everyone in a ' + (g.teams?'team':'group') + ' first. Not assigned: ' + open.join(', ')); return; }
+      groups = [];
+      for(let k=1;k<=mgSetupState.count;k++){ const m = names.filter(n=>mgSetupState.assign[n]===k); if(m.length) groups.push(m); }
+      if(g.teams && groups.length < 2){ alert('Yellow Ball needs at least 2 teams.'); return; }
+    } else if(g.teams){ alert('Set up at least 2 teams.'); return; }
+  } else {
+    const [min,max] = g.slots;
+    for(let i=0;i<max;i++){
+      const v = document.getElementById('mgslot'+i).value;
+      if(!v) continue;
+      if(v === '__custom__'){
+        const n = document.getElementById('mgslotn'+i).value.trim(), h = parseFloat(document.getElementById('mgsloth'+i).value);
+        if(!n){ alert(`Enter a name for seat ${i+1}.`); return; }
+        players.push({name:n, hcp: isNaN(h) ? 0 : h});
+      } else players.push({name:v, hcp: getHcp(v) || 0});
+    }
+    if(players.length < min){ alert(`${g.name} needs ${min===max?'exactly':'at least'} ${min} players.`); return; }
+    if(g.teamSlots && [0,1,2,3].some(i=>!document.getElementById('mgslot'+i).value)){ alert('Fill all four seats.'); return; }
+  }
+  if(new Set(players.map(p=>p.name)).size !== players.length){ alert('Each player can only be in once.'); return; }
+  const sel = document.getElementById('mgCourseWrapSel'); if(sel && SB_COURSES[sel.value]) mg.courseId = sel.value;
+  mg.active = true; mg.players = players; mg.groups = groups; mg.cfg = cfg; mg.scores = {}; mg.events = {};
+  players.forEach(p=>mg.scores[p.name] = new Array(18).fill(null));
+  mgMyGroupKey = null; mgHole = 0; _mgDirty = {s:{},e:{}}; _mgInFlight = {s:{},e:{}};
+  try{ localStorage.removeItem('mgGroup_'+mg.game); }catch(e){}
+  mgDocRef(mg.game).set({active:true, game:mg.game, courseId:mg.courseId, playersJSON:JSON.stringify(players), groupsJSON:JSON.stringify(groups),
+    cfgJSON:JSON.stringify(cfg), scoresJSON:JSON.stringify(mg.scores), eventsJSON:'{}', updatedAt: firebase.firestore.FieldValue.serverTimestamp()})
+    .catch(err=>{ console.error('More Games start failed', err); alert('Could not start the round — check your connection.'); });
+  mgShow('play');
+}
+
+/* ================= groups on this phone ================= */
+function mgEffectiveGroups(){
+  const names = mg.players.map(p=>p.name);
+  if(!Array.isArray(mg.groups) || !mg.groups.length) return names.length ? [names] : [];
+  const gs = mg.groups.map(g=>g.filter(n=>names.includes(n))).filter(g=>g.length);
+  const placed = new Set([].concat(...gs)); const spare = names.filter(n=>!placed.has(n));
+  if(spare.length) gs.push(spare);
+  return gs;
+}
+const mgKey = g => g.slice().sort().join('|');
+function mgMyGroupIndex(groups){
+  if(groups.length === 1) return 0;
+  if(mgMyGroupKey === null){ try{ const s = JSON.parse(localStorage.getItem('mgGroup_'+mg.game) || 'null'); if(s){ mgMyGroupKey = s.key; mgHole = s.hole || 0; } }catch(e){} }
+  return mgMyGroupKey === null ? -1 : groups.findIndex(g=>mgKey(g)===mgMyGroupKey);
+}
+function mgRemember(){ try{ localStorage.setItem('mgGroup_'+mg.game, JSON.stringify({key:mgMyGroupKey, hole:mgHole})); }catch(e){} }
+function mgPickGroup(i){ const gs = mgEffectiveGroups(); if(!gs[i]) return; mgMyGroupKey = mgKey(gs[i]); mgHole = mgDefaultHole(gs[i]); mgRemember(); mgRenderPlay(); }
+function mgChangeGroup(){ mgFlush(); mgMyGroupKey = null; try{ localStorage.removeItem('mgGroup_'+mg.game); }catch(e){} mgRenderPlay(true); }
+function mgGoHole(i){ mgFlush(); mgHole = ((i%18)+18)%18; mgRemember(); mgRenderPlay(); }
+
+function mgHoleState(names, h){
+  if(!mgG().scores){ return Object.keys(mg.events).some(k=>k.startsWith(`h${h}|`) && mg.events[k]) ? 'done' : 'empty'; }
+  const n = names.filter(x=>mgHas((mg.scores[x]||[])[h])).length;
+  return n===0 ? 'empty' : n===names.length ? 'done' : 'partial';
+}
+function mgDefaultHole(names){
+  if(!mgG().scores) return 0;
+  const done = i => mgHoleState(names, i)==='done';
+  for(let i=0;i<18;i++) if(!done(i) && done((i+17)%18)) return i;
+  for(let i=0;i<18;i++) if(!done(i)) return i;
+  return 17;
+}
+
+/* ================= play screen ================= */
+function mgRenderPlay(forcePicker){
+  const wrap = document.getElementById('mgPlayWrap'); if(!wrap) return;
+  const groups = mgEffectiveGroups();
+  if(!groups.length){ wrap.innerHTML = '<div class="empty">No round in progress.</div>'; return; }
+  const gi = forcePicker ? -1 : mgMyGroupIndex(groups);
+  if(gi < 0){
+    const word = mgG().teams ? 'team' : 'group';
+    wrap.innerHTML = `<div class="hint" style="margin-top:0;">Which ${word} are you in?</div>` + groups.map((g,i)=>`<button type="button" class="sbp-btn" onclick="mgPickGroup(${i})"><div class="sbp-title">${word==='team'?'Team':'Group'} ${i+1}</div><div class="sbp-names">${g.map(mgEsc).join(', ')}</div></button>`).join('');
+    return;
+  }
+  const names = groups[gi]; const g = mgG(); const c = sbCourse(mg.courseId); const h = mgHole;
+  wrap.innerHTML = `
+    <div class="sbh-top"><span class="sbh-grp">${groups.length>1 ? (g.teams?'Team ':'Group ')+(gi+1) : '⛳ '+mgEsc(c.name)}</span>
+      ${groups.length>1 ? '<button type="button" class="sbh-change" onclick="mgChangeGroup()">⇄ Change</button>' : ''}</div>
+    <div class="sbh-strip" id="mgStrip">${mgStripHtml(names)}</div>
+    <div class="sbh-head">
+      <button type="button" class="sbh-nav" onclick="mgGoHole(mgHole-1)" aria-label="Previous hole">◀</button>
+      <div class="sbh-title"><div class="sbh-hole">Hole ${h+1}</div><div class="sbh-par">Par ${c.par[h]} · Hcp ${c.si[h]}</div></div>
+      <button type="button" class="sbh-nav" onclick="mgGoHole(mgHole+1)" aria-label="Next hole">▶</button>
+    </div>
+    ${g.scores ? names.map((x,i)=>{
+      const v = (mg.scores[x]||[])[h]; const p = mg.players.find(q=>q.name===x) || {hcp:0};
+      const st = mg.cfg.net ? mgStrokes(p.hcp, h, c.si) : 0;
+      return `<div class="sbh-row"><div class="sbh-name">${mgEsc(x)}${st?` <span class="mg-dot" title="Handicap strokes">${'•'.repeat(st)}</span>`:''}<span class="sbh-sub" id="mgSub${i}">${mgSubline(x)}</span></div>
+        <input type="number" min="1" inputmode="numeric" enterkeyhint="next" class="sbh-input" data-pi="${i}" value="${mgHas(v)?v:''}" aria-label="${mgEsc(x)} score"></div>`;
+    }).join('') : ''}
+    <div id="mgPanel" class="mg-panel">${mgPanelHtml(h, names)}</div>
+    <button class="btn" type="button" onclick="mgGoHole(mgHole+1)">${h===17?'Back to Hole 1 ▶':'Next: Hole '+(h+2)+' ▶'}</button>
+    <div id="mgSaveMsg" class="hint sbh-status"></div>`;
+  const inputs = Array.from(wrap.querySelectorAll('.sbh-input'));
+  inputs.forEach((inp,k)=>{
+    inp.addEventListener('input', e=>{
+      const x = names[+e.target.dataset.pi]; const v = parseFloat(e.target.value); const val = isNaN(v) ? null : v;
+      if(!mg.scores[x]) mg.scores[x] = new Array(18).fill(null);
+      mg.scores[x][h] = val;
+      (_mgDirty.s[x] = _mgDirty.s[x] || {})[h] = val;
+      mgRefreshStatus(names); mgSaveSoon();
+    });
+    inp.addEventListener('keydown', e=>{ if(e.key!=='Enter') return; e.preventDefault(); if(inputs[k+1]) inputs[k+1].focus(); else { inp.blur(); mgGoHole(mgHole+1); } });
+  });
+}
+function mgPanelHtml(h, names){
+  const g = mgG(); if(!g.panel) return '';
+  const ctx = mgCtx(); return g.panel(h, names, ctx, g.compute(ctx));
+}
+function mgStripHtml(names){
+  let s = ''; for(let i=0;i<18;i++){ const st = mgHoleState(names, i); s += `<button type="button" class="${[st==='empty'?'':st, i===mgHole?'cur':''].filter(Boolean).join(' ')}" onclick="mgGoHole(${i})">${i+1}</button>`; } return s;
+}
+function mgSubline(x){
+  const sc = mg.scores[x]||[]; const f = sbNineGross(sc,1,9), b = sbNineGross(sc,10,9);
+  const part = (l,o)=> l+' '+(o.thru ? o.total+(o.thru<9?' ('+o.thru+')':'') : '—');
+  return part('Out',f)+' · '+part('In',b);
+}
+function sbNineGross(scores, start, count){ let total=0, thru=0; for(let i=0;i<count;i++){ const v = scores[start-1+i]; if(mgHas(v)){ total+=v; thru++; } } return {total, thru}; }
+function mgCurNames(){ const gs = mgEffectiveGroups(); const i = mgMyGroupIndex(gs); return i<0 ? null : gs[i]; }
+function mgRefreshStatus(names){
+  const s = document.getElementById('mgStrip'); if(s) s.innerHTML = mgStripHtml(names);
+  names.forEach((x,i)=>{ const el = document.getElementById('mgSub'+i); if(el) el.textContent = mgSubline(x); });
+  const p = document.getElementById('mgPanel'); if(p) p.innerHTML = mgPanelHtml(mgHole, names);
+}
+// Another phone saved: keep a box that's being typed in, refresh the rest
+function mgRefreshPlay(){
+  const wrap = document.getElementById('mgPlayWrap');
+  const focused = wrap ? wrap.querySelector('.sbh-input:focus') : null;
+  const names = mgCurNames();
+  if(!focused || !names){ mgRenderPlay(); return; }
+  wrap.querySelectorAll('.sbh-input').forEach(inp=>{ if(inp===focused) return; const v = (mg.scores[names[+inp.dataset.pi]]||[])[mgHole]; inp.value = mgHas(v)?v:''; });
+  mgRefreshStatus(names);
+}
+
+// Panel taps (chips) set per-hole events
+document.addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('.mg-chip'); if(!b || !mg.active) return;
+  const key = b.dataset.ev, mode = b.dataset.mode; let val = JSON.parse(b.dataset.val);
+  const cur = mg.events[key];
+  if(mode === 'toggle') val = cur ? null : true;
+  else if(mode === 'pick' && cur === val) val = null;
+  if(val === null || val === 0) delete mg.events[key]; else mg.events[key] = val;
+  _mgDirty.e[key] = (val === 0) ? null : val;
+  const names = mgCurNames(); if(names) mgRefreshStatus(names);
+  mgSaveSoon();
+});
+
+/* ================= multi-phone saves (merge only what this phone changed) ================= */
+function mgOverlayPending(){
+  [_mgInFlight, _mgDirty].forEach(src=>{
+    Object.keys(src.s).forEach(x=>{ if(!mg.scores[x]) return; Object.keys(src.s[x]).forEach(i=>mg.scores[x][+i] = src.s[x][i]); });
+    Object.keys(src.e).forEach(k=>{ if(src.e[k]===null) delete mg.events[k]; else mg.events[k] = src.e[k]; });
+  });
+}
+function mgSetMsg(t, warn){ const el = document.getElementById('mgSaveMsg'); if(el){ el.textContent = t; el.classList.toggle('warn', !!warn); } }
+function mgSaveSoon(){ clearTimeout(_mgTimer); _mgTimer = setTimeout(mgFlush, 500); }
+function mgPendingEmpty(p){ return !Object.keys(p.s).length && !Object.keys(p.e).length; }
+function mgFlush(){
+  clearTimeout(_mgTimer);
+  if(!mg.active || !mg.game) return;
+  if(!mgPendingEmpty(_mgInFlight) || mgPendingEmpty(_mgDirty)) return;
+  _mgInFlight = _mgDirty; _mgDirty = {s:{}, e:{}};
+  const pend = _mgInFlight, ref = mgDocRef(mg.game);
+  mgSetMsg('Saving…');
+  weekendDb.runTransaction(tx=>tx.get(ref).then(doc=>{
+    const d = doc.exists ? doc.data() : null;
+    if(!d || !d.active) return 'ended';
+    let sc = {}, ev = {}, pl = [];
+    try{ sc = JSON.parse(d.scoresJSON||'{}')||{}; }catch(e){} try{ ev = JSON.parse(d.eventsJSON||'{}')||{}; }catch(e){} try{ pl = JSON.parse(d.playersJSON||'[]')||[]; }catch(e){}
+    const names = new Set(pl.map(p=>p.name));
+    Object.keys(pend.s).forEach(x=>{ if(!names.has(x)) return; if(!Array.isArray(sc[x])) sc[x] = new Array(18).fill(null); Object.keys(pend.s[x]).forEach(i=>sc[x][+i] = pend.s[x][i]); });
+    Object.keys(pend.e).forEach(k=>{ if(pend.e[k]===null) delete ev[k]; else ev[k] = pend.e[k]; });
+    tx.update(ref, {scoresJSON: JSON.stringify(sc), eventsJSON: JSON.stringify(ev), updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
+    return 'ok';
+  })).then(r=>{ _mgInFlight = {s:{},e:{}}; mgSetMsg(r==='ended' ? 'This round has ended.' : 'Saved.'); if(!mgPendingEmpty(_mgDirty)) mgFlush(); })
+  .catch(err=>{
+    console.error('More Games save failed', err);
+    Object.keys(pend.s).forEach(x=>Object.keys(pend.s[x]).forEach(i=>{ const d = _mgDirty.s[x] = _mgDirty.s[x] || {}; if(!(i in d)) d[i] = pend.s[x][i]; }));
+    Object.keys(pend.e).forEach(k=>{ if(!(k in _mgDirty.e)) _mgDirty.e[k] = pend.e[k]; });
+    _mgInFlight = {s:{},e:{}};
+    mgSetMsg('⚠ Not saved yet — no signal? Retrying…', true);
+    clearTimeout(_mgRetry); _mgRetry = setTimeout(mgFlush, 4000);
+  });
+}
+
+/* ================= results ================= */
+function mgResultsHtml(ctx, gameId){
+  const g = MG_GAMES[gameId]; const res = g.compute(ctx);
+  const money = Object.keys(res.money).map(x=>[x, res.money[x]]).sort((a,b)=>b[1]-a[1]);
+  const cell = v => typeof v === 'number' ? v : mgEsc(v);
+  return `<div class="hint" style="margin:0 0 8px;">⛳ ${mgEsc(ctx.course.name)}</div>
+    <div class="mg-money">${money.map(([x,v])=>`<div class="mg-money-row"><span>${mgEsc(x)}</span><span class="${v>0?'money-pos':v<0?'money-neg':''}">${mgFmt(v)}</span></div>`).join('')}</div>
+    ${res.notes.map(n=>`<div class="hint">${mgEsc(n)}</div>`).join('')}
+    ${res.sections.map(s=>`<h3 class="mg-sec">${mgEsc(s.title)}</h3><div style="overflow-x:auto"><table><tr>${s.head.map((hd,i)=>`<th${i===0?' class="name-col"':''}>${mgEsc(hd)}</th>`).join('')}</tr>${
+      s.rows.length ? s.rows.map(r=>`<tr>${r.map((v,i)=>`<td${i===0?' class="name-col"':''}>${cell(v)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${s.head.length}" class="empty">Nothing yet.</td></tr>`}</table></div>`).join('')}`;
+}
+function mgRenderResults(){
+  const w = document.getElementById('mgResultsWrap');
+  w.innerHTML = mg.active ? mgResultsHtml(mgCtx(), mg.game) : '<div class="empty">No round in progress.</div>';
+}
+
+/* ================= end round + history ================= */
+function mgEndRound(){
+  if(!mg.active){ mgShowSetup(); return; }
+  if(!confirm('End this round and save it to History? The live round will be cleared for everyone.')) return;
+  mgFlush();
+  weekendDb.collection('weekendHistory').add({game:'mg-'+mg.game, endedAt: firebase.firestore.FieldValue.serverTimestamp(), courseId: mg.courseId,
+    playersJSON: JSON.stringify(mg.players), groupsJSON: JSON.stringify(mg.groups), cfgJSON: JSON.stringify(mg.cfg), scoresJSON: JSON.stringify(mg.scores), eventsJSON: JSON.stringify(mg.events)})
+    .catch(err=>console.error('More Games history save failed', err));
+  mgDocRef(mg.game).set({active:false, game:mg.game, playersJSON:'[]', scoresJSON:'{}', eventsJSON:'{}', updatedAt: firebase.firestore.FieldValue.serverTimestamp()})
+    .catch(err=>console.error('More Games clear failed', err));
+  mg.active = false; mg.players = []; mg.scores = {}; mg.events = {};
+  mgShowSetup();
+}
+let _mgHist = [];
+function mgLoadHistory(){
+  const w = document.getElementById('mgHistList'); document.getElementById('mgHistDetail').style.display = 'none'; w.style.display = '';
+  document.getElementById('mgHistBack').style.display = mg.active ? 'none' : '';
+  w.innerHTML = '<div class="hint">Loading...</div>';
+  weekendDb.collection('weekendHistory').orderBy('endedAt','desc').get().then(snap=>{
+    _mgHist = []; snap.forEach(doc=>{ const d = doc.data(); if(d.game === 'mg-'+mg.game) _mgHist.push({id:doc.id, ...d}); });
+    if(!_mgHist.length){ w.innerHTML = `<div class="empty">No ${mgEsc(mgG().name)} rounds saved yet.</div>`; return; }
+    w.innerHTML = _mgHist.map((d,i)=>{
+      let n = 0; try{ n = JSON.parse(d.playersJSON||'[]').length; }catch(e){}
+      const date = d.endedAt && d.endedAt.toDate ? d.endedAt.toDate().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : 'Unknown date';
+      return `<div class="hist-item" onclick="mgOpenHistory(${i})"><div class="hist-item-date">${date}</div><div class="hist-item-sub">${mgEsc(sbCourse(d.courseId).name)} · ${n} players</div></div>`;
+    }).join('');
+  }).catch(err=>{ console.error(err); w.innerHTML = '<div class="empty">Could not load history. Check your connection.</div>'; });
+}
+function mgOpenHistory(i){
+  const d = _mgHist[i]; if(!d) return;
+  const J = (s,f)=>{ try{ return JSON.parse(s) ?? f; }catch(e){ return f; } };
+  const players = J(d.playersJSON,[]);
+  const groups = J(d.groupsJSON,null);
+  const ctx = {players, groups: (Array.isArray(groups)&&groups.length) ? groups : [players.map(p=>p.name)], cfg: J(d.cfgJSON,{}), course: sbCourse(d.courseId), scores: J(d.scoresJSON,{}), events: J(d.eventsJSON,{})};
+  document.getElementById('mgHistList').style.display = 'none';
+  const det = document.getElementById('mgHistDetail'); det.style.display = '';
+  document.getElementById('mgHistDetailBody').innerHTML = mgResultsHtml(ctx, mg.game);
+}
+function mgHistBackToList(){ document.getElementById('mgHistDetail').style.display = 'none'; document.getElementById('mgHistList').style.display = ''; }
+
+document.getElementById('mgRoster').addEventListener('change', ()=>mgRenderGroupSetup());
+mgShow('home');
+</script>
+</body>
+</html>
