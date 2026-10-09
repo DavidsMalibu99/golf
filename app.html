@@ -133,6 +133,13 @@ tr:hover td{background:#fafaf6}
 .grp-hole-hdr{display:flex;justify-content:space-between;align-items:baseline;background:#1b4332;color:#fff;border-radius:10px 10px 0 0;padding:10px 14px}
 .grp-hole-hdr .gh-num{font-size:22px;font-weight:800}
 .grp-hole-hdr .gh-par{font-size:14px;opacity:.85;font-weight:600}
+.grp-hole-hdr{align-items:center;gap:10px}
+.grp-hole-hdr .gh-par{margin-right:auto}
+.grp-beta{font-size:12px;color:#1b4332;background:#e8f5e9;border:1px solid #b7dfbf;border-radius:8px;padding:6px 10px;margin:8px 0}
+.gh-yds{background:#fff;color:#1b4332;border:none;border-radius:16px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.yardage-layer{position:fixed;inset:0;z-index:1000;background:#1f5130;padding-top:env(safe-area-inset-top)}
+.yardage-layer iframe{display:block;width:100%;height:100%;border:0}
+body.yardage-open{overflow:hidden}
 .grp-hole-body{border:1px solid #e0e0d8;border-top:none;border-radius:0 0 10px 10px;padding:4px 10px 10px;margin-bottom:10px}
 .grp-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid #f0f0ea}
 .grp-row:last-child{border-bottom:none}
@@ -2272,8 +2279,9 @@ function renderGroupEntry() {
       <div><div class="gb-name">Group ${g.num}</div><div class="gb-sub">${g.startHole ? 'Started on Hole ' + g.startHole : 'No starting hole'}</div></div>
       <button class="grp-link" onclick="changeScoreGroup()">Change group</button>
     </div>
+    <div class="grp-beta">📍 New: GPS yardages (beta). Tap Yardages on any hole. If a number looks off, tell David.</div>
     <div class="grp-strip">${strip}</div>
-    <div class="grp-hole-hdr"><span class="gh-num">Hole ${h}</span><span class="gh-par">Par ${par}</span></div>
+    <div class="grp-hole-hdr"><span class="gh-num">Hole ${h}</span><span class="gh-par">Par ${par}</span><button class="gh-yds" onclick="openYardages(${h})">📍 Yardages</button></div>
     <div class="grp-hole-body">${rows}</div>
     <button class="grp-post ${allPosted && !dirty ? 'saved' : ''}" onclick="postGroupHole()" ${_grp.busy ? 'disabled' : ''}>${postLabel}</button>
     <div class="grp-nav">
@@ -2290,6 +2298,24 @@ function pickScoreGroup(h) {
   renderGroupEntry();
 }
 function changeScoreGroup() { _grp.groupHole = null; _grp.curHole = null; _grp.pending = {}; _grpForget(); renderGroupEntry(); }
+// GPS yardages (front nine, Margaritaville): opens over the scorecard and stays loaded so GPS keeps its fix.
+let _yLayer = null;
+function openYardages(hole) {
+  if (!_yLayer) {
+    _yLayer = document.createElement('div'); _yLayer.className = 'yardage-layer';
+    const f = document.createElement('iframe');
+    f.src = 'yardage.html?hole=' + hole + '&embed=1'; f.title = 'Yardages'; f.allow = 'geolocation; screen-wake-lock';
+    _yLayer.appendChild(f); document.body.appendChild(_yLayer);
+    window.addEventListener('message', (ev) => {
+      if (ev.origin === location.origin && ev.data && ev.data.type === 'msg-close-yardages') closeYardages();
+    });
+  } else {
+    _yLayer.querySelector('iframe').contentWindow.postMessage({ type: 'msg-yardage-hole', hole }, location.origin);
+  }
+  _yLayer.hidden = false; document.body.classList.add('yardage-open');
+}
+function closeYardages() { if (_yLayer) { _yLayer.hidden = true; document.body.classList.remove('yardage-open'); } }
+
 function gotoGroupHole(n) { _grp.curHole = n; renderGroupEntry(); }
 function stepGroupHole(dir) {
   const g = getGroupForStart(_grp.groupHole); if (!g) return;
