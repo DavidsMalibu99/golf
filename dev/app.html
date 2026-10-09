@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta name="robots" content="noindex">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="WNS DEV">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="WNS DEV">
 <title>DEV · Wednesday Night Scramble 2026 ⛳</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -3147,6 +3147,32 @@ init().then(() => {
     </div>
   </div>
 </div>
+<script>
+// New-version check: when the app comes back on screen (or every 5 minutes), see if this
+// page has changed on the server. If so, offer a one-tap update instead of reloading under
+// someone mid-score.
+(function () {
+  const url = location.pathname;
+  const hash = (t) => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return h; };
+  let base = null, shown = false;
+  const check = () => fetch(url + '?v=' + Date.now(), { cache: 'no-store' }).then((r) => r.ok ? r.text() : null).then((t) => {
+    if (!t) return;
+    const h = hash(t);
+    if (base === null) { base = h; return; }
+    if (h !== base && !shown) {
+      shown = true;
+      const bar = document.createElement('div');
+      bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:14px;z-index:3000;background:#1b4332;color:#fff;border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(0,0,0,.3);font:600 14px -apple-system,system-ui,sans-serif';
+      bar.innerHTML = '<span>A new version of the app is ready.</span><button style="background:#fff;color:#1b4332;border:0;border-radius:8px;padding:8px 14px;font-weight:700">Update</button>';
+      bar.querySelector('button').onclick = () => location.reload();
+      document.body.appendChild(bar);
+    }
+  }).catch(() => {});
+  check();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+  setInterval(check, 5 * 60 * 1000);
+})();
+</script>
 <script>
 // Dev only: copy the live league's data into the dev database. Reads live, writes dev only.
 async function copyLiveToDev() {

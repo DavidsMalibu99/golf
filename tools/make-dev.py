@@ -15,7 +15,9 @@ DEV = '''const firebaseConfig = {
 };'''
 assert 'wns-scramble"' in LIVE
 s = s.replace(LIVE, DEV + '\nconst LIVE_CONFIG = ' + LIVE.split('=', 1)[1].strip(), 1)
-s = s.replace('<head>', '<head>\n<meta name="robots" content="noindex">\n<link rel="apple-touch-icon" href="apple-touch-icon.png">\n<meta name="apple-mobile-web-app-title" content="WNS DEV">', 1)
+s = s.replace('<head>', '<head>\n<meta name="robots" content="noindex">', 1)
+s = s.replace('<meta name="apple-mobile-web-app-title" content="Wed Scramble">', '<meta name="apple-mobile-web-app-title" content="WNS DEV">', 1)
+assert 'WNS DEV' in s and 'rel="apple-touch-icon"' in s
 s = re.sub(r'<title>(.*?)</title>', r'<title>DEV · \1</title>', s, count=1)
 
 banner = '''<div id="dev-bar" style="position:sticky;top:0;z-index:2000;background:#d32f2f;color:#fff;font:600 13px/1.3 -apple-system,system-ui,sans-serif;padding:6px 12px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap">
