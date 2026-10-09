@@ -372,7 +372,7 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
       const pick = a => a[Math.floor(rnd() * a.length)];
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       outline.forEach(p => { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); });
-      x0 -= 90; x1 += 90; y0 -= 60; y1 += 60;
+      x0 -= 260; x1 += 260; y0 -= 120; y1 += 120;   // wide enough to fill an iPad screen
       const inside = (x, y) => { let c = false; for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
         const a = outline[i], b = outline[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) c = !c; } return c; };
       const edge = (x, y) => { let m = Infinity; for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
