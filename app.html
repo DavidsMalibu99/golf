@@ -232,6 +232,10 @@ body.yardage-open{overflow:hidden}
     </div>
     <div class="admin-row" style="margin-top:8px;padding-top:8px;border-top:1px solid #e0d8c0">
       <label style="font-size:12px;color:#555">Live Scorecard:</label>
+      <select id="nine-select" onchange="onNineSelect()" style="padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px">
+        <option value="front">Front 9 (1–9)</option>
+        <option value="back">Back 9 (10–18)</option>
+      </select>
       <button class="btn" id="start-round-btn" onclick="startRound()" style="background:#1a6b8a">🏌️ Start Round</button>
       <button class="btn" id="end-round-btn" onclick="endRound()" style="background:#856404;display:none">🏁 End Round & Post Results</button>
       <button class="btn" onclick="clearRound()" style="background:#888">🗑 Clear Round</button>
@@ -285,7 +289,7 @@ body.yardage-open{overflow:hidden}
   </div>
 
   <div class="card" id="holes-card" style="display:none">
-    <div class="card-title">🕳️ Hole Assignments — Week <span id="holes-wk-label">?</span></div>
+    <div class="card-title">🕳️ Hole Assignments — Week <span id="holes-wk-label">?</span> · <span class="nine-label">Front 9 (holes 1–9)</span></div>
     <div id="hole-list" style="display:grid;gap:6px;margin-bottom:12px"></div>
     <div style="font-size:11px;color:#888;margin-bottom:10px">Drag a team name onto a different hole row to swap assignments manually.</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -328,7 +332,7 @@ body.yardage-open{overflow:hidden}
   <!-- Live leaderboard — visible to everyone during round -->
   <div id="sc-live-board" class="card" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:0">🏌️ Live Leaderboard — Week <span id="sc-wk-label">?</span></div>
+      <div class="card-title" style="margin-bottom:0">🏌️ Live Leaderboard — Week <span id="sc-wk-label">?</span> · <span class="nine-label">Front 9 (holes 1–9)</span></div>
       <span id="sc-live-status" style="font-size:12px;color:#888"></span>
     </div>
     <div id="sc-live-table"></div>
@@ -862,7 +866,7 @@ function validateLocks() {
 
 async function clearRound() {
   if (!confirm('Clear the current round? This removes live scores but keeps all pairings, results, and history.')) return;
-  roundState = { active: false, weekNum: 0, scores: {} };
+  roundState = { active: false, weekNum: 0, nine: roundState.nine || 'front', scores: {} };
   try {
     await db.collection('wns2').doc('round').delete();
   } catch(e) { console.log('clearRound error:', e); }
@@ -1576,7 +1580,7 @@ function renderHoleAssignment(assignment, wk) {
       return `<div class="hole-team-badge${isOvf?' overflow':''}" data-team="${t}" draggable="true" ondragstart="holeDragStart(event)" ondragend="holeDragEnd(event)">${expandTeamLabel(t)}</div>`;
     }).join('');
     const rpBadge = repeatStatus[hIdx] ? '<span style="font-size:10px;background:#fff3cd;color:#856404;border-radius:4px;padding:2px 5px;margin-left:4px">⚠ repeat</span>' : '';
-    return `<div class="hole-row" ondragover="holeDragOver(event)" ondragleave="holeDragLeave(event)" ondrop="holeDrop(event,${hIdx})"><div class="hole-num">${hIdx+1}</div><div class="hole-teams">${badges}</div>${rpBadge}</div>`;
+    return `<div class="hole-row" ondragover="holeDragOver(event)" ondragleave="holeDragLeave(event)" ondrop="holeDrop(event,${hIdx})"><div class="hole-num">${hIdx+1+HOLE_OFFSET}</div><div class="hole-teams">${badges}</div>${rpBadge}</div>`;
   }).join('');
 }
 
@@ -1621,19 +1625,39 @@ function holeDrop(evt, targetHoleIdx) {
 
 // ─── LIVE SCORECARD ──────────────────────────────────────────────────────────
 
-const HOLE_PARS   = [4,3,4,4,3,4,5,3,5];           // holes 1-9
-const HOLE_HDCPS  = [3,17,7,5,15,1,9,13,11];        // Men's handicap rating (corrected 7/30 - was using women's card for holes 3-9)
-const TIEBREAK_ORDER = [5,0,3,2,6,8,7,4,1];         // 0-indexed: hole6,hole1,hole4,hole3,hole7,hole9,hole8,hole5,hole2
+// Front or back nine. Scores are always stored as 9 slots (index 0-8); on the
+// back nine slot 0 is hole 10. HOLE_OFFSET is only added when showing a hole number.
+const NINES = {
+  front: { pars: [4,3,4,4,3,4,5,3,5], hdcps: [3,17,7,5,15,1,9,13,11],  tb: [5,0,3,2,6,8,7,4,1], offset: 0 }, // holes 1-9 (men's card, corrected 7/30)
+  back:  { pars: [5,3,4,4,4,3,4,4,5], hdcps: [10,18,14,2,4,16,8,6,12], tb: [3,4,7,6,0,8,2,5,1], offset: 9 }  // holes 10-18
+};
+let HOLE_PARS = NINES.front.pars, HOLE_HDCPS = NINES.front.hdcps, TIEBREAK_ORDER = NINES.front.tb, HOLE_OFFSET = 0; // tiebreak = hardest hole first
+function applyNine(nine) {
+  const n = NINES[nine] ? nine : 'front';
+  roundState.nine = n;
+  HOLE_PARS = NINES[n].pars; HOLE_HDCPS = NINES[n].hdcps; TIEBREAK_ORDER = NINES[n].tb; HOLE_OFFSET = NINES[n].offset;
+  const sel = document.getElementById('nine-select'); if (sel && roundState.active) sel.value = n;
+  document.querySelectorAll('.nine-label').forEach(el => el.textContent = n === 'back' ? 'Back 9 (holes 10–18)' : 'Front 9 (holes 1–9)');
+}
+function onNineSelect() {
+  if (roundState.active) { applyNine(roundState.nine); alert('A round is in progress. The nine is set when the round starts.'); return; }
+  applyNine(document.getElementById('nine-select').value);
+  try { localStorage.setItem('wns-nine', roundState.nine); } catch(e) {}
+  const wk = parseInt(document.getElementById('holes-wk-label').textContent) || state.weekNum;
+  const asgn = APP_HOLE_HISTORY[wk];
+  if (Array.isArray(asgn) && document.getElementById('hole-list').innerHTML) renderHoleAssignment(asgn, wk);
+}
 
 // roundState: { active: bool, weekNum: int, scores: { "LastName+LastName": [null,null,...] } }
-let roundState = { active: false, weekNum: 0, scores: {} };
+let roundState = { active: false, weekNum: 0, nine: 'front', scores: {} };
 let _scUnsubscribe = null;   // Firestore onSnapshot unsub handle
 
 // ── Admin controls ───────────────────────────────────────────────────────────
 
 async function startRound() {
   const wk = parseInt(document.getElementById('week-num').value) || state.weekNum;
-  if (!confirm(`Start the Live Scorecard for Week ${wk}? All previous scores for this week will be cleared.`)) return;
+  const nine = (document.getElementById('nine-select') || {}).value === 'back' ? 'back' : 'front';
+  if (!confirm(`Start the Live Scorecard for Week ${wk} on the ${nine === 'back' ? 'BACK nine (holes 10-18)' : 'FRONT nine (holes 1-9)'}? All previous scores for this week will be cleared.`)) return;
 
   // Build team list from generated pairings this week
   const teamLabels = getGeneratedTeamLabels();
@@ -1642,8 +1666,10 @@ async function startRound() {
   roundState = {
     active: true,
     weekNum: wk,
+    nine,
     scores: {}
   };
+  applyNine(nine);
   teamLabels.forEach(label => { roundState.scores[label] = Array(9).fill(null); });
   window._pendingScores = {}; // clear all pending scores for new round
   window._justWroteLabel = {};
@@ -1835,7 +1861,7 @@ function checkAutoPostSafe(ranked, idx, alreadySaved) {
     if (a.diff !== b.diff) continue;
     const h = TIEBREAK_ORDER.find(k => a.scores[k] !== null && b.scores[k] !== null && a.scores[k] !== b.scores[k]);
     if (h === undefined) problems.push(`${a.label} and ${b.label} are tied on every hole — tiebreak can't separate ${places[i]} from ${places[i + 1]}`);
-    else tiebreakNotes.push(`${places[i]} over ${places[i + 1]}: ${a.label} beat ${b.label} on hole ${h + 1}`);
+    else tiebreakNotes.push(`${places[i]} over ${places[i + 1]}: ${a.label} beat ${b.label} on hole ${h + 1 + HOLE_OFFSET}`);
   }
   return { problems, tiebreakNotes };
 }
@@ -1870,7 +1896,8 @@ async function saveRoundMeta() {
   try {
     await db.collection('wns2').doc('round').set({
       active:  roundState.active,
-      weekNum: roundState.weekNum
+      weekNum: roundState.weekNum,
+      nine:    roundState.nine || 'front'
     });
   } catch(e) { console.log('saveRoundMeta error:', e); }
 }
@@ -1893,6 +1920,7 @@ async function loadRoundState() {
       const d = doc.data();
       roundState.active  = d.active || false;
       roundState.weekNum = d.weekNum || 0;
+      if (roundState.active) applyNine(d.nine);
     }
     const snap = await teamScoresCol().get();
     roundState.scores = {};
@@ -1912,6 +1940,7 @@ function subscribeRound() {
     const d = doc.data();
     roundState.active  = d.active || false;
     roundState.weekNum = d.weekNum || 0;
+    if (roundState.active) applyNine(d.nine);
     showRoundUI();
     updateRoundAdminUI();
   });
@@ -2005,7 +2034,7 @@ function loadTeamScorecard() {
   }
 
   if (startingHole) {
-    holeNum.textContent = startingHole;
+    holeNum.textContent = startingHole + HOLE_OFFSET;
     holeDiv.style.display = '';
   } else {
     holeDiv.style.display = 'none';
@@ -2047,7 +2076,7 @@ function renderHoleEntries(label, scores, startingHole) {
 
     return `<div class="sc-hole-cell ${cls} ${isPosted?'posted':'pending'}" id="sc-cell-${i}" style="${startBorder}">
       ${startBadge}
-      <div class="hnum">Hole ${i+1}</div>
+      <div class="hnum">Hole ${i+1+HOLE_OFFSET}</div>
       <div class="hpar">Par ${par}</div>
       <div class="hctrl">
         <button class="minus" onclick="adjustScore('${label}',${i},-1)" ${isPosted?'style="opacity:.4;pointer-events:none"':''}>−</button>
@@ -2236,7 +2265,7 @@ function renderGroupEntry() {
         const done = _grpPlayOrder(gr.startHole).filter(h => _grpHoleState(gr, h) === 'done').length;
         return `<button class="grp-pick" onclick="pickScoreGroup('${gr.startHole}')">
           <div class="gp-top"><span class="gp-name">Group ${gr.num}</span>
-          ${gr.startHole ? `<span class="gp-hole">Starts Hole ${gr.startHole}</span>` : ''}</div>
+          ${gr.startHole ? `<span class="gp-hole">Starts Hole ${gr.startHole + HOLE_OFFSET}</span>` : ''}</div>
           <div class="gp-teams">${gr.teams.map(_grpNames).join('<br>')}</div>
           <div class="gp-prog">${done}/9 holes posted</div>
         </button>`;
@@ -2256,7 +2285,7 @@ function renderGroupEntry() {
   const strip = Array.from({ length: 9 }, (_, i) => i + 1).map(n => {
     const st = _grpHoleState(g, n);
     const cls = [st === 'done' ? 'done' : st === 'part' ? 'part' : '', n === h ? 'cur' : '', n === g.startHole ? 'start' : ''].join(' ');
-    return `<button class="${cls}" onclick="gotoGroupHole(${n})">${n}</button>`;
+    return `<button class="${cls}" onclick="gotoGroupHole(${n})">${n + HOLE_OFFSET}</button>`;
   }).join('');
 
   const rows = g.teams.map((l, i) => {
@@ -2273,20 +2302,21 @@ function renderGroupEntry() {
     </div>`;
   }).join('');
 
-  const postLabel = _grp.busy ? 'Saving…' : allPosted && !dirty ? `✓ Hole ${h} Posted` : allPosted ? `Update Hole ${h}` : `Post Hole ${h}`;
+  const H = h + HOLE_OFFSET;
+  const postLabel = _grp.busy ? 'Saving…' : allPosted && !dirty ? `✓ Hole ${H} Posted` : allPosted ? `Update Hole ${H}` : `Post Hole ${H}`;
   box.innerHTML = `
     <div class="grp-bar">
-      <div><div class="gb-name">Group ${g.num}</div><div class="gb-sub">${g.startHole ? 'Started on Hole ' + g.startHole : 'No starting hole'}</div></div>
+      <div><div class="gb-name">Group ${g.num}</div><div class="gb-sub">${g.startHole ? 'Started on Hole ' + (g.startHole + HOLE_OFFSET) : 'No starting hole'}</div></div>
       <button class="grp-link" onclick="changeScoreGroup()">Change group</button>
     </div>
     <div class="grp-beta">📍 New: GPS yardages (beta). Tap Yardages on any hole. If a number looks off, tell David.</div>
     <div class="grp-strip">${strip}</div>
-    <div class="grp-hole-hdr"><span class="gh-num">Hole ${h}</span><span class="gh-par">Par ${par}</span><button class="gh-yds" onclick="openYardages(${h})">📍 Yardages</button></div>
+    <div class="grp-hole-hdr"><span class="gh-num">Hole ${H}</span><span class="gh-par">Par ${par}</span><button class="gh-yds" onclick="openYardages(${H})">📍 Yardages</button></div>
     <div class="grp-hole-body">${rows}</div>
     <button class="grp-post ${allPosted && !dirty ? 'saved' : ''}" onclick="postGroupHole()" ${_grp.busy ? 'disabled' : ''}>${postLabel}</button>
     <div class="grp-nav">
-      <button onclick="stepGroupHole(-1)">◀ Hole ${order[(pos + 8) % 9]}</button>
-      <button onclick="stepGroupHole(1)">Hole ${order[(pos + 1) % 9]} ▶</button>
+      <button onclick="stepGroupHole(-1)">◀ Hole ${order[(pos + 8) % 9] + HOLE_OFFSET}</button>
+      <button onclick="stepGroupHole(1)">Hole ${order[(pos + 1) % 9] + HOLE_OFFSET} ▶</button>
     </div>
     <div class="grp-msg" id="grp-msg"></div>`;
 }
@@ -2298,7 +2328,7 @@ function pickScoreGroup(h) {
   renderGroupEntry();
 }
 function changeScoreGroup() { _grp.groupHole = null; _grp.curHole = null; _grp.pending = {}; _grpForget(); renderGroupEntry(); }
-// GPS yardages (front nine, Margaritaville): opens over the scorecard and stays loaded so GPS keeps its fix.
+// GPS yardages (Margaritaville, holes 1-18): opens over the scorecard and stays loaded so GPS keeps its fix.
 let _yLayer = null;
 function openYardages(hole) {
   if (!_yLayer) {
@@ -2369,7 +2399,7 @@ async function postGroupHole() {
   const msg = document.getElementById('grp-msg');
   if (msg) {
     msg.style.color = ok ? '#1b4332' : '#c00';
-    msg.textContent = ok ? `✓ Hole ${h} posted for Group ${g.num}` : '⚠ Could not save — check signal and tap Post again';
+    msg.textContent = ok ? `✓ Hole ${h + HOLE_OFFSET} posted for Group ${g.num}` : '⚠ Could not save — check signal and tap Post again';
   }
 }
 
@@ -2988,6 +3018,11 @@ async function init() {
   await loadPairings();
   await loadHoleHistory();
   await loadRoundState();
+  if (!roundState.active) {  // no round running: use the nine the admin last picked
+    let n = 'front'; try { n = localStorage.getItem('wns-nine') || 'front'; } catch(e) {}
+    const sel = document.getElementById('nine-select'); if (sel) sel.value = NINES[n] ? n : 'front';
+    applyNine(n);
+  } else applyNine(roundState.nine);
 
   // Apply UI state
   document.getElementById('week-num').value = state.weekNum;
