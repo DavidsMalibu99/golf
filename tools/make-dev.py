@@ -1,4 +1,5 @@
-"""Build dev/app.html (test copy on the wns-scramble-dev database) from app.html.
+"""Build dev/app.html, dev/Weekendgames.html and dev/Moregames.html (test copies on the
+wns-scramble-dev database) from the live pages.
 usage: python3 tools/make-dev.py   (run after changing app.html, or before trying a change in dev)"""
 import re, shutil, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
@@ -55,4 +56,17 @@ s = s.replace('</body>', tool, 1)
 (root / 'dev' / 'app.html').write_text(s)
 shutil.copy(root / 'yardage.html', root / 'dev' / 'yardage.html')
 shutil.copy(root / 'tools' / 'dev-apple-touch-icon.png', root / 'dev' / 'apple-touch-icon.png')  # logo with a red DEV band
-print('dev/app.html written')
+
+# Weekend Games and More Games: same dev database and a red banner (no copy button;
+# start a test round in dev instead).
+for name in ('Weekendgames.html', 'Moregames.html'):
+    w = (root / name).read_text()
+    cfg = re.search(r'const firebaseConfig = \{.*?\};', w, re.S).group(0)
+    assert 'wns-scramble"' in cfg
+    w = w.replace(cfg, DEV, 1)
+    w = w.replace('<head>', '<head>\n<meta name="robots" content="noindex">', 1)
+    w = re.sub(r'<title>(.*?)</title>', r'<title>DEV · \1</title>', w, count=1)
+    w = w.replace('<body>', '<body>\n<div id="dev-bar" style="position:sticky;top:0;z-index:2000;background:#d32f2f;color:#fff;font:600 13px/1.3 -apple-system,system-ui,sans-serif;padding:6px 12px;text-align:center">🧪 DEV TEST COPY. Nothing here touches the real games.</div>', 1)
+    assert 'wns-scramble-dev' in w and 'dev-bar' in w
+    (root / 'dev' / name).write_text(w)
+print('dev/app.html, dev/Weekendgames.html, dev/Moregames.html written')

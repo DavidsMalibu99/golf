@@ -301,6 +301,12 @@
   .team-member{display:flex; justify-content:space-between; font-size:0.85rem; color:var(--cream); padding:2px 0;}
   .team-member.dropped{color:var(--text-dim); text-decoration:line-through;}
   .draw-shuffling{color:var(--gold-soft); font-weight:700; letter-spacing:1px;}
+  /* GPS yardages overlay (Margaritaville only) */
+  .yardage-layer{position:fixed;inset:0;z-index:1000;background:#1f5130;padding-top:env(safe-area-inset-top)}
+  .yardage-layer iframe{display:block;width:100%;height:100%;border:0}
+  body.yardage-open{overflow:hidden}
+  .yds-btn{display:inline-block;margin-top:6px;background:var(--gold-soft);color:#1f3d27;border:0;border-radius:6px;padding:5px 12px;font-weight:700;font-size:0.85rem;cursor:pointer}
+  .yds-btn[hidden]{display:none}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -387,6 +393,7 @@
         <div style="text-align:center;">
           <div class="hole-num">Hole <span id="playHoleNum"></span> / 18</div>
           <div id="playHoleInfo" class="hint" style="margin-top:2px;"></div>
+          <button type="button" id="wolfYds" class="yds-btn" onclick="openYardages(currentHole)" hidden>📍 Yardages</button>
         </div>
         <button onclick="nextHoleNav()">Next →</button>
       </div>
@@ -1181,6 +1188,7 @@ function showView(name){
 
 function renderHole(){
   document.getElementById('playHoleNum').textContent = currentHole;
+  ydsSet('wolfYds', wolfCourseId);
   const wc = sbCourse(wolfCourseId);
   const hi = document.getElementById('playHoleInfo');
   if(hi) hi.textContent = `Par ${wc.par[currentHole-1]} · Hcp ${wc.si[currentHole-1]} · ${wc.name}`;
@@ -2131,7 +2139,7 @@ function renderSbHoleCard(grid, members, gi, groupCount){
     <div class="sbh-strip" id="sbhStrip">${sbStripHtml(members)}</div>
     <div class="sbh-head">
       <button type="button" class="sbh-nav" onclick="sbStepHole(-1)" aria-label="Previous hole">◀</button>
-      <div class="sbh-title"><div class="sbh-hole">Hole ${idx+1}</div><div class="sbh-par">Par ${par}</div></div>
+      <div class="sbh-title"><div class="sbh-hole">Hole ${idx+1}</div><div class="sbh-par">Par ${par}</div>${ydsBtn(sbCourse(sbCourseId).id, idx+1)}</div>
       <button type="button" class="sbh-nav" onclick="sbStepHole(1)" aria-label="Next hole">▶</button>
     </div>
     ${members.map((name,i)=>{
@@ -2741,6 +2749,7 @@ function renderSbBoard(){
         <div style="text-align:center">
           <div style="font-size:1.4rem;font-weight:700;color:var(--gold-soft)">Hole <span id="nv-hole-num">1</span></div>
           <div style="font-size:0.75rem;color:var(--text-dim)">Par <span id="nv-par-display">4</span> &nbsp;·&nbsp; $<span id="nv-val-display">0.25</span>/pt</div>
+          <button type="button" id="nvYds" class="yds-btn" onclick="openYardages(nvHole)" hidden>📍 Yardages</button>
         </div>
         <button class="btn secondary" onclick="nvNextHole()" id="nv-next-btn">Next ▶</button>
       </div>
@@ -2911,6 +2920,7 @@ function renderSbBoard(){
         <div style="text-align:center">
           <div style="font-size:1.4rem;font-weight:700;color:var(--gold-soft)">Hole <span id="fm-hole-num">1</span></div>
           <div style="font-size:0.75rem;color:var(--text-dim)">Par <span id="fm-par-display">4</span> &nbsp;·&nbsp; SI <span id="fm-si-display">3</span> &nbsp;·&nbsp; <span id="fm-format-badge" style="color:var(--gold-soft);font-weight:700"></span></div>
+          <button type="button" id="fmYds" class="yds-btn" onclick="openYardages(fmHole)" hidden>📍 Yardages</button>
         </div>
         <button class="btn secondary" onclick="fmNextHole()" id="fm-next-btn">Next ▶</button>
       </div>
@@ -3042,6 +3052,7 @@ function renderSbBoard(){
         <div style="text-align:center">
           <div style="font-size:1.4rem;font-weight:700;color:var(--gold-soft)">Hole <span id="sw-hole-num">1</span></div>
           <div style="font-size:0.75rem;color:var(--text-dim)">Par <span id="sw-par-display">4</span> &nbsp;·&nbsp; SI <span id="sw-si-display">3</span> &nbsp;·&nbsp; <span style="color:var(--gold-soft);font-weight:700">GROSS</span></div>
+          <button type="button" id="swYds" class="yds-btn" onclick="openYardages(swHole)" hidden>📍 Yardages</button>
         </div>
         <button class="btn secondary" onclick="swNextHole()" id="sw-next-btn">Next ▶</button>
       </div>
@@ -3376,6 +3387,7 @@ function nvStartRound() {
 function nvRenderHole() {
   const h = nvHole - 1;
   document.getElementById('nv-hole-num').textContent = nvHole;
+  ydsSet('nvYds', nvCourseId);
   document.getElementById('nv-par-display').textContent = nvPar[h];
   document.getElementById('nv-val-display').textContent = nvDollarVal.toFixed(2);
   document.getElementById('nv-prev-btn').disabled = nvHole === 1;
@@ -4629,6 +4641,7 @@ function fmPickTeam(teamId){
 function fmRenderHole(){
   const h = fmHole - 1;
   document.getElementById('fm-hole-num').textContent = fmHole;
+  ydsSet('fmYds', fmCourseId);
   document.getElementById('fm-par-display').textContent = fmC().par[h];
   document.getElementById('fm-si-display').textContent = fmC().si[h];
   document.getElementById('fm-format-badge').textContent = fmFormat === 'gross' ? 'GROSS' : 'NET (HCP)';
@@ -5157,6 +5170,7 @@ function swPickTeam(teamId){
 function swRenderHole(){
   const h = swHole - 1;
   document.getElementById('sw-hole-num').textContent = swHole;
+  ydsSet('swYds', swCourseId);
   document.getElementById('sw-par-display').textContent = swC().par[h];
   document.getElementById('sw-si-display').textContent = swC().si[h];
   document.getElementById('sw-prev-btn').disabled = swHole === 1;
@@ -5351,6 +5365,32 @@ function swHistoryBackHome(){
 
 // ============ END SWEETHEART SCRAMBLE ============
 
+</script>
+<script>
+// GPS yardages (Margaritaville, holes 1-18), same page the Wednesday scramble uses.
+// Opens over the scorecard and stays loaded so GPS keeps its fix.
+const YDS_COURSE = 'margaritaville';
+let _yLayer = null;
+function openYardages(hole) {
+  hole = parseInt(hole) || 1;
+  if (!_yLayer) {
+    _yLayer = document.createElement('div'); _yLayer.className = 'yardage-layer';
+    const f = document.createElement('iframe');
+    f.src = 'yardage.html?hole=' + hole + '&embed=1'; f.title = 'Yardages'; f.allow = 'geolocation; screen-wake-lock';
+    _yLayer.appendChild(f); document.body.appendChild(_yLayer);
+    window.addEventListener('message', (ev) => {
+      if (ev.origin === location.origin && ev.data && ev.data.type === 'msg-close-yardages') closeYardages();
+    });
+  } else {
+    _yLayer.querySelector('iframe').contentWindow.postMessage({ type: 'msg-yardage-hole', hole }, location.origin);
+  }
+  _yLayer.hidden = false; document.body.classList.add('yardage-open');
+}
+function closeYardages() { if (_yLayer) { _yLayer.hidden = true; document.body.classList.remove('yardage-open'); } }
+function ydsBtn(courseId, hole) {
+  return courseId === YDS_COURSE ? `<button type="button" class="yds-btn" onclick="openYardages(${hole})">📍 Yardages</button>` : '';
+}
+function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.hidden = courseId !== YDS_COURSE; }
 </script>
 </body>
 </html>
