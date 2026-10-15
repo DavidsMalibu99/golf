@@ -359,6 +359,7 @@ body.yardage-open{overflow:hidden}
       </div>
     </div>
     <div id="sc-scorecard-grid" style="display:none">
+      <button type="button" class="gh-yds" style="margin:0 0 10px" onclick="openYardages(_teamNextHole())">📍 Yardages</button>
       <div id="sc-holes-grid"></div>
       <div id="sc-total-row" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 14px;background:#1b4332;color:#fff;border-radius:8px;font-weight:700;font-size:14px">
         <span>Total</span>
@@ -1512,6 +1513,7 @@ function assignHoles() {
 
   renderHoleAssignment(assignment, wk);
   document.getElementById('holes-card').style.display = '';
+  saveHoles(); // save right away so phones get their groups even if nobody taps Save
 }
 
 function autoAssignHoles(labels, holesNeeded, isOdd, wk, sameHoleConstraints) {
@@ -1623,6 +1625,7 @@ function holeDrop(evt, targetHoleIdx) {
   const wk = parseInt(document.getElementById('holes-wk-label').textContent) || state.weekNum;
   renderHoleAssignment(asgn, wk);
   _draggedTeam = null; _dragSourceHoleIdx = null;
+  saveHoles();
 }
 
 // ─── LIVE SCORECARD ──────────────────────────────────────────────────────────
@@ -1664,6 +1667,14 @@ async function startRound() {
   // Build team list from generated pairings this week
   const teamLabels = getGeneratedTeamLabels();
   if (!teamLabels.length) { alert('Generate and save teams first before starting the round.'); return; }
+
+  // Groups, the group score screen and the Yardages button all come from this week's hole
+  // assignments. Save the ones on screen; if there are none, say so before starting.
+  const holesWk = parseInt(document.getElementById('holes-wk-label').textContent);
+  if (holesWk === wk && document.querySelector('#hole-list .hole-row')) await saveHoles();
+  if (!Array.isArray(APP_HOLE_HISTORY[wk])) {
+    if (!confirm(`Holes have not been assigned for Week ${wk}.\n\nWithout them, phones show one long team list instead of Group 1, 2, 3, and there is no Yardages button.\n\nTap Cancel, then ⛳ Assign Holes on the Roster tab. Or tap OK to start anyway.`)) return;
+  }
 
   roundState = {
     active: true,
@@ -2065,25 +2076,26 @@ function renderHoleEntries(label, scores, startingHole) {
   container.innerHTML = scores.map((s, i) => {
     const par = HOLE_PARS[i];
     const isPosted = s !== null;
-    const displayVal = isPosted ? s : pending[i];
+    const displayVal = isPosted && pending[i] === s ? s : pending[i];
     const diff = displayVal - par;
     const cls  = diff < 0 ? 'under-par' : diff > 0 ? 'over-par' : 'at-par';
     const diffStr = diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`;
     const isStart = startingHole === (i + 1);
     const startBorder = isStart ? 'box-shadow:0 0 0 3px #e65100;' : '';
     const startBadge = isStart ? '<div style="font-size:9px;background:#e65100;color:#fff;border-radius:4px;padding:1px 5px;margin-bottom:2px;font-weight:700">START</div>' : '';
-    const postBtn = isPosted
-      ? `<button class="post-btn posted-state" onclick="unpostHoleScore('${label}',${i})">✓ Posted</button>`
-      : `<button class="post-btn" onclick="postHoleScore('${label}',${i})">Post Score</button>`;
+    const changed = isPosted && pending[i] !== s;
+    const postBtn = isPosted && !changed
+      ? `<button class="post-btn posted-state" onclick="postHoleScore('${label}',${i})">✓ Posted</button>`
+      : `<button class="post-btn" onclick="postHoleScore('${label}',${i})">${changed ? 'Update Score' : 'Post Score'}</button>`;
 
     return `<div class="sc-hole-cell ${cls} ${isPosted?'posted':'pending'}" id="sc-cell-${i}" style="${startBorder}">
       ${startBadge}
       <div class="hnum">Hole ${i+1+HOLE_OFFSET}</div>
       <div class="hpar">Par ${par}</div>
       <div class="hctrl">
-        <button class="minus" onclick="adjustScore('${label}',${i},-1)" ${isPosted?'style="opacity:.4;pointer-events:none"':''}>−</button>
+        <button class="minus" onclick="adjustScore('${label}',${i},-1)">−</button>
         <span class="hval" id="sc-val-${i}">${displayVal}</span>
-        <button class="plus"  onclick="adjustScore('${label}',${i},+1)" ${isPosted?'style="opacity:.4;pointer-events:none"':''}>+</button>
+        <button class="plus"  onclick="adjustScore('${label}',${i},+1)">+</button>
       </div>
       <div style="font-size:10px;color:#888;margin-top:2px" id="sc-diff-${i}">${isPosted?diffStr:''}</div>
       <div style="margin-top:4px">${postBtn}</div>
@@ -2093,7 +2105,6 @@ function renderHoleEntries(label, scores, startingHole) {
 
 function adjustScore(label, holeIdx, delta) {
   if (!roundState.scores[label]) return;
-  if (roundState.scores[label][holeIdx] !== null) return; // already posted, no changes
   if (!window._pendingScores) window._pendingScores = {};
   if (!window._pendingScores[label]) window._pendingScores[label] = Array(9).fill(null).map((_,i) => HOLE_PARS[i]);
 
@@ -2102,6 +2113,11 @@ function adjustScore(label, holeIdx, delta) {
   const newVal = current + delta;
   if (newVal < 1 || newVal > 15) return;
   window._pendingScores[label][holeIdx] = newVal;
+  const postedVal = roundState.scores[label][holeIdx];
+  if (postedVal !== null) { // fixing a posted hole: show Update until it's re-posted
+    renderHoleEntries(label, roundState.scores[label], getStartingHole(label));
+    return;
+  }
 
   // Update cell display only — don't touch live board yet
   const valEl = document.getElementById(`sc-val-${holeIdx}`);
@@ -2141,11 +2157,21 @@ async function postHoleScore(label, holeIdx) {
     }
   }
 
+  renderHoleEntries(label, roundState.scores[label], getStartingHole(label));
   updateTotalDisplay(roundState.scores[label]);
   refreshLiveBoard();
   window._scSaveTimers = window._scSaveTimers || {};
   clearTimeout(window._scSaveTimers[label]);
   window._scSaveTimers[label] = setTimeout(() => saveTeamScore(label), 600);
+}
+
+// Long-list Yardages: open on this team's next hole to post, in play order from its start.
+function _teamNextHole() {
+  const label = document.getElementById('sc-team-select').value;
+  const sc = roundState.scores[label] || [];
+  const order = _grpPlayOrder(getStartingHole(label) || 1);
+  const next = order.find(h => sc[h - 1] === null || sc[h - 1] === undefined) || order[0];
+  return next + HOLE_OFFSET;
 }
 
 async function unpostHoleScore(label, holeIdx) {
