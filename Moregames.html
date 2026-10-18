@@ -369,9 +369,32 @@ let _hcListeners = [];
 function hcCourse(name, which) {
   const p = hcData.players[name];
   if (!p || p.index === null || p.index === undefined || p.index === '' || isNaN(Number(p.index))) return null;
-  const tee = hcData.tees[which === 'wkd' ? p.wkd : p.wed];
+  const tee = hcData.tees[hcTeeOf(name, which)];
   if (!tee || isNaN(Number(tee.rating)) || isNaN(Number(tee.slope))) return null;
   return Math.round(Number(p.index) * Number(tee.slope) / 113 + (Number(tee.rating) - Number(tee.par || 71)));
+}
+// The tee a player is playing: the one last picked for that game, else his other one, else Gold
+function hcTeeOf(name, which) {
+  const p = hcData.players[name] || {};
+  const id = which === 'wkd' ? (p.wkd || p.wed) : (p.wed || p.wkd);
+  return hcData.tees[id] ? id : (hcData.tees.gold ? 'gold' : Object.keys(hcData.tees)[0]);
+}
+function hcHasIndex(name) {
+  const p = hcData.players[name];
+  return !!p && p.index !== null && p.index !== undefined && p.index !== '' && !isNaN(Number(p.index));
+}
+// Pick the tee a player is playing today; it stays picked for next time
+function hcSetTee(dbRef, name, which, teeId) {
+  if (!hcData.players[name]) hcData.players[name] = { index: null, wed: '', wkd: '' };
+  hcData.players[name][which] = teeId;
+  return hcSave(dbRef);
+}
+// A small tee picker for a player with an index (empty string if he has none)
+function hcTeeSelect(name, which, onchangeJs, disabled) {
+  if (!hcHasIndex(name)) return '';
+  const cur = hcTeeOf(name, which);
+  return `<select class="hc-tee" onclick="event.stopPropagation()" onchange="${onchangeJs}" ${disabled ? 'disabled' : ''} aria-label="Tee for ${name.replace(/"/g, '&quot;')}">` +
+    Object.keys(hcData.tees).map(id => `<option value="${id}"${id === cur ? ' selected' : ''}>${hcData.tees[id].name}</option>`).join('') + `</select>`;
 }
 function hcTeeName(id) { return (hcData.tees[id] || {}).name || ''; }
 function hcInit(dbRef, onChange) {

@@ -30,6 +30,8 @@ nav button:hover:not(.active){background:#ebebE6}
 .toggle{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:#e0e0da;flex-shrink:0;font-weight:700;transition:all .15s;color:#888}
 .player-card.playing .toggle{background:#1b4332;color:#fff}
 .pname{font-size:12px;font-weight:500;flex:1;line-height:1.2}
+.hc-tee{font-size:11px;border:1px solid #cfe3d6;border-radius:8px;padding:1px 2px;background:#fff;color:#1b4332;margin-right:4px;flex-shrink:0}
+.hc-tee:disabled{opacity:1;color:#1b4332;-webkit-appearance:none;appearance:none;border-color:transparent;background:#f3f7f4;padding:2px 5px}
 .hcp-badge{font-size:11px;background:#e4f0e8;color:#1b4332;padding:2px 5px;border-radius:8px;font-weight:600;cursor:text;flex-shrink:0}
 .hcp-input{width:42px;padding:2px 4px;border:1px solid #1b4332;border-radius:4px;font-size:11px;text-align:center}
 /* Teams */
@@ -510,9 +512,32 @@ let _hcListeners = [];
 function hcCourse(name, which) {
   const p = hcData.players[name];
   if (!p || p.index === null || p.index === undefined || p.index === '' || isNaN(Number(p.index))) return null;
-  const tee = hcData.tees[which === 'wkd' ? p.wkd : p.wed];
+  const tee = hcData.tees[hcTeeOf(name, which)];
   if (!tee || isNaN(Number(tee.rating)) || isNaN(Number(tee.slope))) return null;
   return Math.round(Number(p.index) * Number(tee.slope) / 113 + (Number(tee.rating) - Number(tee.par || 71)));
+}
+// The tee a player is playing: the one last picked for that game, else his other one, else Gold
+function hcTeeOf(name, which) {
+  const p = hcData.players[name] || {};
+  const id = which === 'wkd' ? (p.wkd || p.wed) : (p.wed || p.wkd);
+  return hcData.tees[id] ? id : (hcData.tees.gold ? 'gold' : Object.keys(hcData.tees)[0]);
+}
+function hcHasIndex(name) {
+  const p = hcData.players[name];
+  return !!p && p.index !== null && p.index !== undefined && p.index !== '' && !isNaN(Number(p.index));
+}
+// Pick the tee a player is playing today; it stays picked for next time
+function hcSetTee(dbRef, name, which, teeId) {
+  if (!hcData.players[name]) hcData.players[name] = { index: null, wed: '', wkd: '' };
+  hcData.players[name][which] = teeId;
+  return hcSave(dbRef);
+}
+// A small tee picker for a player with an index (empty string if he has none)
+function hcTeeSelect(name, which, onchangeJs, disabled) {
+  if (!hcHasIndex(name)) return '';
+  const cur = hcTeeOf(name, which);
+  return `<select class="hc-tee" onclick="event.stopPropagation()" onchange="${onchangeJs}" ${disabled ? 'disabled' : ''} aria-label="Tee for ${name.replace(/"/g, '&quot;')}">` +
+    Object.keys(hcData.tees).map(id => `<option value="${id}"${id === cur ? ' selected' : ''}>${hcData.tees[id].name}</option>`).join('') + `</select>`;
 }
 function hcTeeName(id) { return (hcData.tees[id] || {}).name || ''; }
 function hcInit(dbRef, onChange) {
@@ -730,6 +755,7 @@ function toggleAdmin() {
     document.getElementById('admin-section').style.display = 'none';
     document.getElementById('show-admin-btn').style.display = '';
     saveState();
+    renderPlayers(); // tee pickers lock again
   } else {
     // Showing — require PIN if not already unlocked this session
     if (!_adminUnlocked) {
@@ -745,6 +771,7 @@ function toggleAdmin() {
     document.getElementById('admin-section').style.display = '';
     document.getElementById('show-admin-btn').style.display = 'none';
     saveState();
+    renderPlayers(); // tee pickers unlock
   }
 }
 
@@ -773,6 +800,7 @@ function renderPlayers() {
     return `<div class="player-card${on?' playing':''}" onclick="togglePlayer(\'${safe}\')">
       <div class="toggle">${on?'✓':'+'}</div>
       <div class="pname">${p.name}</div>
+      ${hcTeeSelect(p.name, 'wed', `wedPickTee('${safe}', this.value)`, !_adminUnlocked)}
       <div class="hcp-badge" onclick="editHcp(event,\'${safe}\')" title="Click to edit HCP">HCP ${h}</div>
     </div>`;
   }).join('');
@@ -873,6 +901,12 @@ function editHcp(evt, name) {
 function commitHcp(evt, name) {
   const val = parseInt(evt.target.value);
   if (!isNaN(val) && val >= 0 && val <= 54) { state.hcps[name] = val; saveHcps(); }
+  renderPlayers();
+}
+
+// Tee picked on the player list (admin): saved as the tee he's playing on Wednesdays
+function wedPickTee(name, teeId) {
+  hcSetTee(db, name, 'wed', teeId).catch(e => console.log('tee save failed', e));
   renderPlayers();
 }
 

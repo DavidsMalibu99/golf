@@ -309,6 +309,7 @@
   .yds-btn{display:inline-block;margin-top:6px;background:var(--gold-soft);color:#1f3d27;border:0;border-radius:6px;padding:5px 12px;font-weight:700;font-size:0.85rem;cursor:pointer}
   .yds-btn[hidden]{display:none}
   input.from-sb{outline:2px solid var(--gold-soft); outline-offset:-2px}
+  .sb-check-row select.hc-tee{margin-left:auto;background:var(--dark-green,#123);color:var(--cream,#fff);border:1px solid var(--line-green,#3a5);border-radius:6px;padding:3px 4px;font-size:0.8rem}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -340,9 +341,32 @@ let _hcListeners = [];
 function hcCourse(name, which) {
   const p = hcData.players[name];
   if (!p || p.index === null || p.index === undefined || p.index === '' || isNaN(Number(p.index))) return null;
-  const tee = hcData.tees[which === 'wkd' ? p.wkd : p.wed];
+  const tee = hcData.tees[hcTeeOf(name, which)];
   if (!tee || isNaN(Number(tee.rating)) || isNaN(Number(tee.slope))) return null;
   return Math.round(Number(p.index) * Number(tee.slope) / 113 + (Number(tee.rating) - Number(tee.par || 71)));
+}
+// The tee a player is playing: the one last picked for that game, else his other one, else Gold
+function hcTeeOf(name, which) {
+  const p = hcData.players[name] || {};
+  const id = which === 'wkd' ? (p.wkd || p.wed) : (p.wed || p.wkd);
+  return hcData.tees[id] ? id : (hcData.tees.gold ? 'gold' : Object.keys(hcData.tees)[0]);
+}
+function hcHasIndex(name) {
+  const p = hcData.players[name];
+  return !!p && p.index !== null && p.index !== undefined && p.index !== '' && !isNaN(Number(p.index));
+}
+// Pick the tee a player is playing today; it stays picked for next time
+function hcSetTee(dbRef, name, which, teeId) {
+  if (!hcData.players[name]) hcData.players[name] = { index: null, wed: '', wkd: '' };
+  hcData.players[name][which] = teeId;
+  return hcSave(dbRef);
+}
+// A small tee picker for a player with an index (empty string if he has none)
+function hcTeeSelect(name, which, onchangeJs, disabled) {
+  if (!hcHasIndex(name)) return '';
+  const cur = hcTeeOf(name, which);
+  return `<select class="hc-tee" onclick="event.stopPropagation()" onchange="${onchangeJs}" ${disabled ? 'disabled' : ''} aria-label="Tee for ${name.replace(/"/g, '&quot;')}">` +
+    Object.keys(hcData.tees).map(id => `<option value="${id}"${id === cur ? ' selected' : ''}>${hcData.tees[id].name}</option>`).join('') + `</select>`;
 }
 function hcTeeName(id) { return (hcData.tees[id] || {}).name || ''; }
 function hcInit(dbRef, onChange) {
@@ -647,7 +671,7 @@ function getHcp(name){
   if(c !== null) return c;
   return (hcpOverrides[name] !== undefined) ? hcpOverrides[name] : ROSTER_HCP[name];
 }
-hcInit(weekendDb);
+hcInit(weekendDb, ()=>{ if(typeof populateSbRosterChecklist === 'function' && document.getElementById('sbRosterChecks')) populateSbRosterChecklist(); });
 weekendDb.collection('wns2').doc('state').onSnapshot(doc=>{
   if(doc.exists){
     const d = doc.data();
@@ -1793,14 +1817,26 @@ document.getElementById('sbRosterChecks').addEventListener('change', ()=>sbRende
 
 function populateSbRosterChecklist(){
   const wrap = document.getElementById('sbRosterChecks');
-  wrap.innerHTML = ROSTER.map(name => `
-    <div class="sb-check-row">
-      <input type="checkbox" id="sbchk_${name.replace(/[^a-zA-Z0-9]/g,'')}" value="${name}">
-      <label for="sbchk_${name.replace(/[^a-zA-Z0-9]/g,'')}">${name} (hcp ${getHcp(name)})</label>
-    </div>
-  `).join('');
+  const keep = new Set([...wrap.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value)); // redraws keep ticks
+  wrap.innerHTML = ROSTER.map(name => {
+    const id = 'sbchk_'+name.replace(/[^a-zA-Z0-9]/g,'');
+    const safe = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="sb-check-row">
+      <input type="checkbox" id="${id}" value="${name}"${keep.has(name)?' checked':''}>
+      <label for="${id}">${name} (hcp <span id="${id}_h">${getHcp(name)}</span>)</label>
+      ${hcTeeSelect(name, 'wkd', `sbPickTee('${safe}', this.value)`)}
+    </div>`;
+  }).join('');
   sbRenderGroupSetup();
   sbRenderCourseSelect();
+}
+
+// Tee picked for a player on the setup screen: saved as the tee he's playing on weekends
+function sbPickTee(name, teeId){
+  hcSetTee(weekendDb, name, 'wkd', teeId).catch(e=>console.error('tee save failed', e));
+  const h = document.getElementById('sbchk_'+name.replace(/[^a-zA-Z0-9]/g,'')+'_h');
+  if(h) h.textContent = getHcp(name);
+  sbRenderGroupSetup();
 }
 
 /* ---- Course (setup) ---- */
