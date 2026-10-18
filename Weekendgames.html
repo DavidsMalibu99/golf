@@ -381,7 +381,7 @@
       <input type="number" id="customValue" placeholder="e.g. 0.25, 0.50, 1.00" step="0.01" value="1.00">
 
       <button class="btn" onclick="startRound()">Start Round</button>
-      <div class="hint">Wolf rotates automatically in tee order for holes 1-15 — each Wolf can't repeat a partner they've already picked. On holes 16-18, the Wolf is whoever is down the most money, with no partner restriction. Team score = best ball. Each player on the losing side pays the hole value to each player on the winning side — so Wolf + partner beating the other 3 collects $3 each at a $1 hole value. Lone Wolf pays/collects double. Ties push.</div>
+      <div class="hint">Wolf rotates automatically in tee order for holes 1-15 — each Wolf can't repeat a partner they've already picked. On holes 16-18, the Wolf is whoever is down the most money, with no partner restriction. Team score = best ball. Each player on the losing side pays the hole value to each player on the winning side — so Wolf + partner beating the other 3 collects $3 each at a $1 hole value. Lone Wolf pays/collects double. Birdie bonus: if the winning side's best ball is a birdie, the hole pays double; an eagle or better pays 4x. The bonus doesn't stack with Lone Wolf (a Lone Wolf birdie is still 2x, a Lone Wolf eagle is 4x). If both sides birdie it's a tie — no blood. Ties push.</div>
     </div>
   </div>
 
@@ -954,7 +954,7 @@ let players = [];
 let holeValue = 1.00;
 let currentHole = 1;
 let holes = {}; // holeNumber -> {wolfIdx, decision:'lone'|partnerIdx, scores:[5]}
-let wolfCourseId = SB_DEFAULT_COURSE; // for reference only — Wolf scoring never uses par
+let wolfCourseId = SB_DEFAULT_COURSE; // par from this course drives the birdie/eagle bonus
 
 function wolfPickCourse(id){
   wolfCourseId = SB_COURSES[id] ? id : SB_DEFAULT_COURSE;
@@ -970,6 +970,7 @@ function wolfRenderSetupCourse(){
 const wolfRoundDocRef = weekendDb.collection('weekendGames').doc('wolf_active');
 let _skipNextWolfSnapshot = false;
 let _wolfSaveTimer = null;
+const WOLF_CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 function wolfFirestoreSaveNow(){
   _skipNextWolfSnapshot = true;
@@ -979,6 +980,7 @@ function wolfFirestoreSaveNow(){
     playersJSON: JSON.stringify(players),
     holesJSON: JSON.stringify(holes),
     courseId: wolfCourseId,
+    writer: WOLF_CLIENT_ID,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).catch(err=>{
     console.error('Wolf save failed', err);
@@ -994,7 +996,17 @@ function wolfFirestoreSaveDebounced(){
 function wolfApplyRemoteData(data){
   if(typeof data.holeValue === 'number') holeValue = data.holeValue;
   try{ players = JSON.parse(data.playersJSON || '[]'); }catch(e){ players = []; }
-  try{ holes = JSON.parse(data.holesJSON || '{}'); }catch(e){ holes = {}; }
+  let incoming;
+  try{ incoming = JSON.parse(data.holesJSON || '{}'); }catch(e){ incoming = {}; }
+  const mine = holes[currentHole];
+  const theirs = incoming[currentHole];
+  if(mine && !mine.saved && (!theirs || !theirs.saved)){
+    const merged = theirs || {wolfIdx:mine.wolfIdx, decision:null, scores:[null,null,null,null,null], saved:false};
+    if((merged.decision===null || merged.decision===undefined) && mine.decision!==null && mine.decision!==undefined) merged.decision = mine.decision;
+    merged.scores = merged.scores.map((sc,i)=> (sc===null && mine.scores[i]!==null) ? mine.scores[i] : sc);
+    incoming[currentHole] = merged;
+  }
+  holes = incoming;
   if(players.length) wolfCourseId = SB_COURSES[data.courseId] ? data.courseId : SB_DEFAULT_COURSE;
 
   const wolfApp = document.getElementById('wolf-app');
@@ -1018,9 +1030,15 @@ function wolfApplyRemoteData(data){
 }
 
 wolfRoundDocRef.onSnapshot(doc=>{
-  if(_skipNextWolfSnapshot){ _skipNextWolfSnapshot = false; return; }
+  // Ignore this phone's own writes — both the instant local copy and the
+  // server's confirmation that arrives a moment later. The old one-shot skip
+  // flag only caught the first, so the confirmation could wipe a pick made
+  // in between (e.g. tapping Lone Wolf right after picking a partner).
+  if(doc.metadata && doc.metadata.hasPendingWrites) return;
   if(doc.exists){
-    wolfApplyRemoteData(doc.data());
+    const d = doc.data();
+    if(d && d.writer === WOLF_CLIENT_ID) return;
+    wolfApplyRemoteData(d);
   }
 }, err=>console.error('Wolf listener error', err));
 
@@ -1055,6 +1073,7 @@ function endWolfRound(){
     holeValue: holeValue,
     playersJSON: '[]',
     holesJSON: '{}',
+    writer: WOLF_CLIENT_ID,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).catch(err=>{
     console.error('Wolf clear-active failed', err);
@@ -1157,11 +1176,11 @@ function wolfIndexForHole(h){
 }
 
 function getUsedPartners(wolfIdx, excludeHole){
-  const used = new Set();
+  const used = new Map(); // partnerIdx -> hole it was picked on
   Object.keys(holes).forEach(k=>{
     const hh = parseInt(k);
     if(hh<=15 && hh!==excludeHole && holes[hh].saved && holes[hh].wolfIdx===wolfIdx && typeof holes[hh].decision === 'number'){
-      used.add(holes[hh].decision);
+      used.set(holes[hh].decision, hh);
     }
   });
   return used;
@@ -1210,7 +1229,7 @@ function renderHole(){
 
   const reasonEl = document.getElementById('wolfReason');
   if(currentHole <= 15){
-    reasonEl.textContent = 'Auto-rotation (holes 1-15). Can\'t repeat a partner already picked in an earlier hole.';
+    reasonEl.textContent = 'Auto-rotation (holes 1-15). Can\'t repeat a partner already picked — grayed-out names show the hole (#) they were picked on.';
   } else {
     const totals = computeTotalsBeforeHole(currentHole);
     reasonEl.textContent = 'Biggest loser going into this hole (down $' + Math.abs(Math.min(0,totals[wIdx])).toFixed(2) + '). No partner restriction on holes 16-18.';
@@ -1220,7 +1239,7 @@ function renderHole(){
   const grid = document.getElementById('partnerGrid');
   grid.innerHTML = '';
   const restrictPartners = currentHole <= 15;
-  const usedPartners = restrictPartners ? getUsedPartners(wIdx, currentHole) : new Set();
+  const usedPartners = restrictPartners ? getUsedPartners(wIdx, currentHole) : new Map();
   players.forEach((name,i)=>{
     if(i===wIdx) return;
     const btn = document.createElement('button');
@@ -1229,10 +1248,11 @@ function renderHole(){
     if(alreadyUsed){
       btn.disabled = true;
       btn.style.opacity = '0.35';
-      btn.title = 'Already picked ' + name + ' as partner in an earlier hole (1-15)';
+      btn.textContent = name + ' (#' + usedPartners.get(i) + ')';
+      btn.title = 'Already picked ' + name + ' as partner on hole ' + usedPartners.get(i);
     }
     if(rec.decision===i) btn.classList.add('sel');
-    btn.onclick = ()=>{ if(!alreadyUsed){ rec.decision = i; renderHole(); wolfFirestoreSaveDebounced(); } };
+    btn.onclick = ()=>{ if(!alreadyUsed){ holes[currentHole].decision = i; renderHole(); wolfFirestoreSaveDebounced(); } };
     grid.appendChild(btn);
   });
   const loneBtn = document.getElementById('loneBtn');
@@ -1250,7 +1270,7 @@ function renderHole(){
   });
   sg.querySelectorAll('input').forEach(inp=>{
     inp.addEventListener('input', e=>{
-      rec.scores[parseInt(e.target.dataset.idx)] = parseFloat(e.target.value) || null;
+      holes[currentHole].scores[parseInt(e.target.dataset.idx)] = parseFloat(e.target.value) || null;
       wolfFirestoreSaveDebounced();
     });
   });
@@ -1283,12 +1303,15 @@ function saveHole(){
     return;
   }
   rec.saved = true;
+  const wcPar = sbCourse(wolfCourseId).par;
+  rec.par = (wcPar && typeof wcPar[currentHole-1]==='number') ? wcPar[currentHole-1] : null;
   computeHoleMoney(rec);
   document.getElementById('saveMsg').textContent = 'Hole ' + currentHole + ' saved!';
   clearTimeout(_wolfSaveTimer);
   wolfFirestoreSaveNow();
+  const savedHole = currentHole;
   if(currentHole<18){
-    setTimeout(()=>{ currentHole++; renderHole(); }, 500);
+    setTimeout(()=>{ if(currentHole===savedHole){ currentHole++; renderHole(); } }, 500);
   }
 }
 
@@ -1297,13 +1320,16 @@ function computeHoleMoney(rec){
   //   each winner = val * (# losers)
   //   each loser  = -val * (# winners)
   // Lone Wolf doubles the per-person value. Always zero-sum. Ties push.
+  // Birdie bonus: winning side's best ball 1 under par = 2x, 2+ under = 4x.
+  // Doesn't stack with Lone Wolf — the hole uses the bigger multiplier.
+  // Both sides birdie = equal best balls = push. Holes saved before par was
+  // stored (rec.par missing) get no bonus.
   const wIdx = rec.wolfIdx;
   const money = [0,0,0,0,0];
   const isLone = (rec.decision === 'lone');
 
   const teamA = isLone ? [wIdx] : [wIdx, rec.decision];
   const teamB = [0,1,2,3,4].filter(i=>!teamA.includes(i));
-  const val = isLone ? holeValue * 2 : holeValue;
 
   const bestA = Math.min(...teamA.map(i=>rec.scores[i]));
   const bestB = Math.min(...teamB.map(i=>rec.scores[i]));
@@ -1311,6 +1337,16 @@ function computeHoleMoney(rec){
   let winners = null, losers = null;
   if(bestA < bestB){ winners = teamA; losers = teamB; }
   else if(bestB < bestA){ winners = teamB; losers = teamA; }
+
+  let mult = isLone ? 2 : 1;
+  rec.bonus = null;
+  if(winners && typeof rec.par === 'number'){
+    const under = rec.par - (winners===teamA ? bestA : bestB);
+    if(under >= 2){ rec.bonus = 'eagle'; mult = Math.max(mult, 4); }
+    else if(under === 1){ rec.bonus = 'birdie'; mult = Math.max(mult, 2); }
+  }
+  rec.mult = mult;
+  const val = holeValue * mult;
 
   if(winners){
     winners.forEach(i=>money[i] =  val * losers.length);
@@ -1330,7 +1366,9 @@ function buildWolfCardTable(playersArr, holesObj){
   html += '</tr>';
   savedHoles.forEach(h=>{
     const rec = holesObj[h];
-    const decisionText = rec.decision==='lone' ? 'Lone Wolf' : ('w/ '+playersArr[rec.decision]);
+    let decisionText = rec.decision==='lone' ? 'Lone Wolf' : ('w/ '+playersArr[rec.decision]);
+    if(rec.bonus==='birdie') decisionText += '<br><span style="font-size:0.7rem;">🐦 birdie ' + rec.mult + 'x</span>';
+    if(rec.bonus==='eagle') decisionText += '<br><span style="font-size:0.7rem;">🦅 eagle ' + rec.mult + 'x</span>';
     html += `<tr><td>${h}</td><td>${playersArr[rec.wolfIdx]}</td><td>${decisionText}</td>`;
     rec.scores.forEach((s,i)=>{
       const m = rec.money[i];
