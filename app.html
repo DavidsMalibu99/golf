@@ -230,6 +230,7 @@ body.yardage-open{overflow:hidden}
       <button class="btn" onclick="generateTeams()">Generate Teams</button>
       <button class="btn gray" onclick="toggleAdmin()">Hide Admin</button>
       <button class="btn" onclick="showAddPlayer()" style="background:#2d6a4f">+ Add Player</button>
+      <button class="btn" onclick="openHcEditor()" style="background:#1a6b8a">🏌️ Index &amp; Tees</button>
       <button class="btn" onclick="resetFirebase()" style="background:#c0392b;margin-left:8px">🗑 Reset Firebase DB</button>
     </div>
     <div class="admin-row" style="margin-top:8px;padding-top:8px;border-top:1px solid #e0d8c0">
@@ -359,6 +360,7 @@ body.yardage-open{overflow:hidden}
       </div>
     </div>
     <div id="sc-scorecard-grid" style="display:none">
+      <button type="button" class="gh-yds" style="margin:0 0 10px" onclick="openYardages(_teamNextHole())">📍 Yardages</button>
       <div id="sc-holes-grid"></div>
       <div id="sc-total-row" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 14px;background:#1b4332;color:#fff;border-radius:8px;font-weight:700;font-size:14px">
         <span>Total</span>
@@ -492,6 +494,131 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 </script>
+<script>
+/* ---- Handicap index + tees (shared by the Wednesday scramble and weekend games) ----
+   Saved at wns2/handicaps: { tees: {id:{name,rating,slope,par}}, players: {name:{index,wed,wkd}} }.
+   Course handicap = index × slope ÷ 113 + (rating − par), rounded — the same number GHIN shows.
+   A player with no index keeps the plain handicap he has today. */
+const HC_DEFAULT_TEES = {
+  white:  { name: 'White',  rating: 72.5, slope: 131, par: 71 },
+  gold:   { name: 'Gold',   rating: 69.5, slope: 125, par: 71 },
+  silver: { name: 'Silver', rating: 65.0, slope: 116, par: 71 }
+};
+const HC_SEED = { 'Dave Dawson': { index: 15.6, wed: 'gold', wkd: 'silver' } };
+let hcData = { tees: JSON.parse(JSON.stringify(HC_DEFAULT_TEES)), players: JSON.parse(JSON.stringify(HC_SEED)) };
+let _hcListeners = [];
+function hcCourse(name, which) {
+  const p = hcData.players[name];
+  if (!p || p.index === null || p.index === undefined || p.index === '' || isNaN(Number(p.index))) return null;
+  const tee = hcData.tees[which === 'wkd' ? p.wkd : p.wed];
+  if (!tee || isNaN(Number(tee.rating)) || isNaN(Number(tee.slope))) return null;
+  return Math.round(Number(p.index) * Number(tee.slope) / 113 + (Number(tee.rating) - Number(tee.par || 71)));
+}
+function hcTeeName(id) { return (hcData.tees[id] || {}).name || ''; }
+function hcInit(dbRef, onChange) {
+  if (onChange) _hcListeners.push(onChange);
+  dbRef.collection('wns2').doc('handicaps').onSnapshot(doc => {
+    const d = doc.exists ? doc.data() : {};
+    // Defaults only until the first save; after that the saved list is the whole truth
+    hcData = {
+      tees: doc.exists && d.tees ? d.tees : JSON.parse(JSON.stringify(HC_DEFAULT_TEES)),
+      players: doc.exists && d.players ? d.players : JSON.parse(JSON.stringify(HC_SEED))
+    };
+    _hcListeners.forEach(fn => { try { fn(); } catch (e) { console.log('hc listener', e); } });
+  }, err => console.log('handicaps listener error', err));
+}
+function hcSave(dbRef) {
+  return dbRef.collection('wns2').doc('handicaps').set({ tees: hcData.tees, players: hcData.players });
+}
+</script>
+<script>
+// Admin: Index & Tees editor (Wednesday app). Saves to wns2/handicaps, which the weekend games read too.
+function hcParseIndex(v) {
+  v = String(v || '').trim(); if (!v) return null;
+  const plus = v.startsWith('+'); const n = parseFloat(v.replace('+', ''));
+  if (isNaN(n)) return undefined;
+  return plus ? -n : n;
+}
+function hcFmtIndex(n) { return (n === null || n === undefined || n === '') ? '' : (n < 0 ? '+' + Math.abs(n) : String(n)); }
+function openHcEditor(focusName) {
+  let box = document.getElementById('hc-editor');
+  if (!box) {
+    box = document.createElement('div'); box.id = 'hc-editor';
+    box.style.cssText = 'position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.45);overflow:auto;padding:16px';
+    document.body.appendChild(box);
+  }
+  const teeIds = Object.keys(hcData.tees);
+  const teeOpts = (sel) => '<option value="">—</option>' + teeIds.map(id => `<option value="${id}"${id === sel ? ' selected' : ''}>${hcData.tees[id].name}</option>`).join('');
+  const names = [...new Set(APP_DATA.roster.map(p => p.name).concat(Object.keys(hcData.players)))].sort((a, b) => a.localeCompare(b));
+  const cell = 'padding:4px;border-bottom:1px solid #eee';
+  box.innerHTML = `<div style="background:#fff;max-width:720px;margin:0 auto;border-radius:12px;padding:16px;font-size:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">🏌️ Index &amp; Tees</h3>
+      <button class="btn gray" onclick="document.getElementById('hc-editor').remove()">Close</button></div>
+    <p style="color:#666;margin:0 0 10px">Course handicap = index × slope ÷ 113 + (rating − par), rounded, same as GHIN. Wednesday uses the Wed tee, weekend games use the Weekend tee. Leave the index blank to keep the player's current HCP. Plus handicaps: type +1.2.</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:6px" id="hc-tees">
+      <tr><th style="text-align:left">Tee</th><th>Rating</th><th>Slope</th><th>Par</th></tr>
+      ${teeIds.map(id => { const t = hcData.tees[id]; return `<tr data-tee="${id}"><td style="${cell}"><input value="${t.name}" style="width:90px" data-k="name"></td>
+        <td style="${cell};text-align:center"><input value="${t.rating}" inputmode="decimal" style="width:60px" data-k="rating"></td>
+        <td style="${cell};text-align:center"><input value="${t.slope}" inputmode="numeric" style="width:50px" data-k="slope"></td>
+        <td style="${cell};text-align:center"><input value="${t.par || 71}" inputmode="numeric" style="width:40px" data-k="par"></td></tr>`; }).join('')}
+    </table>
+    <button class="btn" style="background:#2d6a4f;margin-bottom:14px" onclick="hcAddTee()">+ Add tee</button>
+    <table style="width:100%;border-collapse:collapse" id="hc-players">
+      <tr><th style="text-align:left">Player</th><th>Index</th><th>Wed tee</th><th>Wed HCP</th><th>Weekend tee</th><th>Wknd HCP</th></tr>
+      ${names.map(n => { const p = hcData.players[n] || {}; const safe = n.replace(/"/g, '&quot;');
+        return `<tr data-name="${safe}"${n === focusName ? ' style="background:#fff8e1"' : ''}><td style="${cell}">${n}</td>
+        <td style="${cell};text-align:center"><input value="${hcFmtIndex(p.index)}" inputmode="decimal" style="width:56px" data-k="index" oninput="hcPreviewRow(this)"></td>
+        <td style="${cell};text-align:center"><select data-k="wed" onchange="hcPreviewRow(this)">${teeOpts(p.wed)}</select></td>
+        <td style="${cell};text-align:center" data-out="wed"></td>
+        <td style="${cell};text-align:center"><select data-k="wkd" onchange="hcPreviewRow(this)">${teeOpts(p.wkd)}</select></td>
+        <td style="${cell};text-align:center" data-out="wkd"></td></tr>`; }).join('')}
+    </table>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+      <button class="btn" onclick="hcSaveEditor()">💾 Save</button><span id="hc-msg" style="font-weight:600;color:#1b4332"></span></div>
+  </div>`;
+  box.querySelectorAll('#hc-players tr[data-name]').forEach(tr => hcPreviewRow(tr.querySelector('input')));
+  const f = box.querySelector('#hc-players tr[style]'); if (f) f.scrollIntoView({ block: 'center' });
+}
+function hcReadTees() {
+  const tees = {};
+  document.querySelectorAll('#hc-tees tr[data-tee]').forEach(tr => {
+    const g = k => tr.querySelector(`[data-k="${k}"]`).value.trim();
+    if (!g('name')) return;
+    tees[tr.dataset.tee] = { name: g('name'), rating: parseFloat(g('rating')), slope: parseFloat(g('slope')), par: parseFloat(g('par')) || 71 };
+  });
+  return tees;
+}
+function hcPreviewRow(el) {
+  const tr = el.closest('tr'); const tees = hcReadTees();
+  const idx = hcParseIndex(tr.querySelector('[data-k="index"]').value);
+  ['wed', 'wkd'].forEach(w => {
+    const t = tees[tr.querySelector(`[data-k="${w}"]`).value];
+    const out = tr.querySelector(`[data-out="${w}"]`);
+    if (idx === undefined) { out.textContent = '⚠'; return; }
+    out.textContent = (idx === null || !t || isNaN(t.rating) || isNaN(t.slope)) ? (w === 'wed' ? getHcpPlain(tr.dataset.name) + '*' : '') : Math.round(idx * t.slope / 113 + (t.rating - t.par));
+  });
+}
+function hcAddTee() {
+  const name = prompt('Tee name (as GHIN shows it), e.g. Blue'); if (!name) return;
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  hcData.tees = hcReadTees(); hcData.tees[id] = { name, rating: '', slope: '', par: 71 };
+  openHcEditor();
+}
+async function hcSaveEditor() {
+  const tees = hcReadTees(); const players = {}; let bad = [];
+  document.querySelectorAll('#hc-players tr[data-name]').forEach(tr => {
+    const idx = hcParseIndex(tr.querySelector('[data-k="index"]').value);
+    if (idx === undefined) { bad.push(tr.dataset.name); return; }
+    const wed = tr.querySelector('[data-k="wed"]').value, wkd = tr.querySelector('[data-k="wkd"]').value;
+    if (idx !== null || wed || wkd) players[tr.dataset.name] = { index: idx, wed, wkd };
+  });
+  if (bad.length) { alert('Check the index for: ' + bad.join(', ')); return; }
+  hcData = { tees, players };
+  try { await hcSave(db); document.getElementById('hc-msg').textContent = '✓ Saved. Wednesday and weekend games now use these.'; }
+  catch (e) { document.getElementById('hc-msg').textContent = '⚠ Save failed — check signal and try again.'; }
+  renderPlayers();
+}
+</script>
 
 <script>
 const APP_DATA = {"roster":[{"name":"Cary Howell","hcp":3},{"name":"Trey McDaniel","hcp":2},{"name":"Dale Dugas","hcp":6},{"name":"Craig Taylor","hcp":8},{"name":"Russell Emmott","hcp":9},{"name":"Dale Vasek","hcp":8},{"name":"Jake Kelly","hcp":8},{"name":"David Meyer","hcp":10},{"name":"Dave Fritz","hcp":11},{"name":"Mike Beck","hcp":11},{"name":"Jamie Daspit","hcp":12},{"name":"Curtis Newstrom","hcp":10},{"name":"Ronnie Dartez","hcp":15},{"name":"Tom Bledsoe","hcp":15},{"name":"Havey Duke","hcp":12},{"name":"Don Sawyer","hcp":15},{"name":"Karey Carter","hcp":17},{"name":"David Carden","hcp":17},{"name":"Jerry Rains","hcp":15},{"name":"Dave Dawson","hcp":17},{"name":"Alan Sonnefeld","hcp":19},{"name":"Floyd Blackwell","hcp":20},{"name":"Ed Menville (Bubba)","hcp":18},{"name":"Brian Patrossi","hcp":19},{"name":"Mike Cross","hcp":19},{"name":"Todd Lee","hcp":25},{"name":"Larry Schuelke","hcp":21},{"name":"Dan Vacek","hcp":25},{"name":"David Sauceda","hcp":25},{"name":"Andy Rodriguez","hcp":14},{"name":"Jay Anderson","hcp":15},{"name":"Nevan","hcp":20},{"name":"Chad Moore","hcp":0},{"name":"Pat McKenna","hcp":16}],"leaderboard":[{"rank":1,"name":"Cary Howell","winnings":375,"weeks":13,"avg":28.85},{"rank":2,"name":"Dave Dawson","winnings":235,"weeks":12,"avg":19.58},{"rank":3,"name":"Dale Vasek","winnings":170,"weeks":9,"avg":18.89},{"rank":4,"name":"David Sauceda","winnings":165,"weeks":5,"avg":33.0},{"rank":5,"name":"Brian Patrossi","winnings":155,"weeks":11,"avg":14.09},{"rank":6,"name":"David Meyer","winnings":135,"weeks":13,"avg":10.38},{"rank":7,"name":"Karey Carter","winnings":135,"weeks":13,"avg":10.38},{"rank":8,"name":"Jamie Daspit","winnings":120,"weeks":9,"avg":13.33},{"rank":9,"name":"Dave Fritz","winnings":100,"weeks":9,"avg":11.11},{"rank":10,"name":"Tom Bledsoe","winnings":100,"weeks":11,"avg":9.09},{"rank":11,"name":"Havey Duke","winnings":100,"weeks":11,"avg":9.09},{"rank":12,"name":"Ed Menville (Bubba)","winnings":85,"weeks":9,"avg":9.44},{"rank":13,"name":"Curtis Newstrom","winnings":75,"weeks":7,"avg":10.71},{"rank":14,"name":"Chad Moore","winnings":75,"weeks":2,"avg":37.5},{"rank":15,"name":"Jake Kelly","winnings":70,"weeks":12,"avg":5.83},{"rank":16,"name":"Todd Lee","winnings":65,"weeks":1,"avg":65.0},{"rank":17,"name":"Jerry Rains","winnings":60,"weeks":9,"avg":6.67},{"rank":18,"name":"Trey McDaniel","winnings":50,"weeks":11,"avg":4.55},{"rank":19,"name":"Mike Cross","winnings":40,"weeks":12,"avg":3.33},{"rank":20,"name":"David Carden","winnings":20,"weeks":9,"avg":2.22},{"rank":21,"name":"Alan Sonnefeld","winnings":20,"weeks":6,"avg":3.33},{"rank":22,"name":"Dan Vacek","winnings":20,"weeks":8,"avg":2.5},{"rank":23,"name":"Don Sawyer","winnings":10,"weeks":11,"avg":0.91},{"rank":24,"name":"Andy Rodriguez","winnings":10,"weeks":3,"avg":3.33},{"rank":25,"name":"Dale Dugas","winnings":0,"weeks":3,"avg":0},{"rank":26,"name":"Craig Taylor","winnings":0,"weeks":4,"avg":0},{"rank":27,"name":"Russell Emmott","winnings":0,"weeks":1,"avg":0},{"rank":28,"name":"Mike Beck","winnings":0,"weeks":2,"avg":0},{"rank":29,"name":"Ronnie Dartez","winnings":0,"weeks":7,"avg":0},{"rank":30,"name":"Larry Schuelke","winnings":0,"weeks":1,"avg":0},{"rank":31,"name":"Floyd Blackwell","winnings":0,"weeks":7,"avg":0},{"rank":32,"name":"Jay Anderson","winnings":0,"weeks":2,"avg":0},{"rank":33,"name":"Nevan","winnings":0,"weeks":1,"avg":0},{"rank":34,"name":"Pat McKenna","winnings":0,"weeks":0,"avg":0}],"yearly":[{"name":"Cary Howell","hcp":0,"pts":69,"scores":[10,10,4,1,1,10,1,10,10,1,1,0,4,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Dave Dawson","hcp":0,"pts":47,"scores":[6,1,10,10,4,1,1,1,1,0,1,0,10,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Dave Fritz","hcp":0,"pts":26,"scores":[0,4,0,6,0,0,1,1,1,1,1,0,10,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Dale Dugas","hcp":0,"pts":3,"scores":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"David Meyer","hcp":0,"pts":40,"scores":[1,1,10,1,10,1,4,1,4,1,4,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Jake Kelly","hcp":0,"pts":32,"scores":[6,6,1,1,1,6,1,6,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Brian Patrossi","hcp":0,"pts":37,"scores":[4,1,1,1,0,10,6,0,1,1,10,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Todd Lee","hcp":0,"pts":10,"scores":[10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Havey Duke","hcp":0,"pts":25,"scores":[0,1,1,1,6,0,1,1,1,10,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Dale Vasek","hcp":0,"pts":35,"scores":[1,1,0,10,4,1,10,0,1,0,6,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Karey Carter","hcp":0,"pts":34,"scores":[1,10,1,1,10,4,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Mike Cross","hcp":0,"pts":28,"scores":[1,4,6,4,1,1,0,6,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Tom Bledsoe","hcp":0,"pts":30,"scores":[1,1,0,1,1,1,10,1,1,1,6,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"David Sauceda","hcp":0,"pts":31,"scores":[0,0,4,1,0,0,0,10,0,6,0,0,0,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Jamie Daspit","hcp":0,"pts":29,"scores":[0,0,0,4,6,4,1,0,1,10,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Trey McDaniel","hcp":0,"pts":28,"scores":[1,1,0,1,1,1,6,4,0,6,0,0,6,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Don Sawyer","hcp":0,"pts":17,"scores":[4,1,4,1,1,1,0,1,0,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Curtis Newstrom","hcp":0,"pts":19,"scores":[0,0,1,0,1,1,0,0,1,0,10,0,1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Jerry Rains","hcp":0,"pts":25,"scores":[1,6,0,1,0,6,0,1,4,1,1,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Ed Menville (Bubba)","hcp":0,"pts":21,"scores":[1,1,0,1,1,0,0,0,10,4,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Ronnie Dartez","hcp":0,"pts":10,"scores":[0,1,0,1,1,1,4,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Alan Sonnefeld","hcp":0,"pts":11,"scores":[0,1,1,1,0,1,0,1,0,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Larry Schuelke","hcp":0,"pts":1,"scores":[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"David Carden","hcp":0,"pts":14,"scores":[1,1,0,1,1,1,0,1,6,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Mike Beck","hcp":0,"pts":2,"scores":[0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Dan Vacek","hcp":0,"pts":13,"scores":[1,1,0,6,1,1,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Andy Rodriguez","hcp":0,"pts":6,"scores":[0,0,0,0,0,0,0,0,1,1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Floyd Blackwell","hcp":0,"pts":10,"scores":[0,0,0,0,0,1,1,4,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Craig Taylor","hcp":0,"pts":4,"scores":[1,0,0,0,1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Jay Anderson","hcp":0,"pts":2,"scores":[0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Russell Emmott","hcp":0,"pts":1,"scores":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Nevan","hcp":0,"pts":1,"scores":[0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Chad Moore","hcp":0,"pts":11,"scores":[0,0,0,0,0,0,0,0,0,0,0,0,1,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"name":"Pat McKenna","hcp":0,"pts":0,"scores":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}],"weekDates":["3/11","3/18","3/25","4/1","4/8","4/15","4/22","4/29","5/6","5/13","5/20","5/27","6/3","6/10","6/17","6/24","7/1","7/8","7/15","7/22","7/29","8/5","8/12","8/19","8/26","9/2","9/9","9/16","9/23","9/30","10/7","10/14","10/21","10/28"],"weeklyPayout":[{"name":"Cary Howell","results":["1","1","3","P","P","1","P","1","1","P","P","","3","2","","","","","","","","","","","","","","","","","","","",""],"total":375},{"name":"Dale Dugas","results":["P","","","","","P","","","","","P","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Craig Taylor","results":["P","","","","P","","","","","","","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Russell Emmott","results":["P","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Dale Vasek","results":["P","P","","1","3","P","1","","P","","2","","","P","","","","","","","","","","","","","","","","","","","",""],"total":170},{"name":"Jake Kelly","results":["2","2","P","P","P","2","P","2","P","P","","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":70},{"name":"David Meyer","results":["P","P","1","P","1","P","3","P","3","P","3","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":135},{"name":"Dave Fritz","results":["","3","","2","","","P","P","P","P","P","","1","P","","","","","","","","","","","","","","","","","","","",""],"total":100},{"name":"Mike Beck","results":["","","","","","","","","P","","P","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Jamie Daspit","results":["","","","3","2","3","P","","P","1","P","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":120},{"name":"Curtis Newstrom","results":["","","P","","P","P","","","P","","1","","P","3","","","","","","","","","","","","","","","","","","","",""],"total":75},{"name":"Ronnie Dartez","results":["","P","","P","P","P","3","","P","P","","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Tom Bledsoe","results":["P","P","","P","P","P","1","P","P","P","2","","2","","","","","","","","","","","","","","","","","","","","",""],"total":100},{"name":"Havey Duke","results":["","P","P","P","2","","P","P","P","1","P","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":100},{"name":"Don Sawyer","results":["3","P","3","P","P","P","","P","","P","P","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":10},{"name":"Karey Carter","results":["P","1","P","P","1","3","P","P","P","P","P","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":135},{"name":"David Carden","results":["P","P","","P","P","P","","P","2","P","","","","P","","","","","","","","","","","","","","","","","","","",""],"total":20},{"name":"Jerry Rains","results":["P","2","","P","","2","","P","3","P","P","","3","","","","","","","","","","","","","","","","","","","","",""],"total":60},{"name":"Dave Dawson","results":["2","P","1","1","3","P","P","P","P","","P","","1","P","","","","","","","","","","","","","","","","","","","",""],"total":235},{"name":"Alan Sonnefeld","results":["","P","P","P","","P","","P","","","","","","2","","","","","","","","","","","","","","","","","","","",""],"total":20},{"name":"Ed Menville (Bubba)","results":["P","P","","P","P","","","","1","3","P","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":85},{"name":"Brian Patrossi","results":["3","P","P","P","","1","2","","P","P","1","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":155},{"name":"Mike Cross","results":["P","3","2","3","P","P","","2","P","P","P","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":40},{"name":"Todd Lee","results":["1","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"total":65},{"name":"Dan Vacek","results":["P","P","","2","P","P","","","P","P","","","P","","","","","","","","","","","","","","","","","","","","",""],"total":20},{"name":"Trey McDaniel","results":["P","P","3","P","P","P","2","3","","2","","","2","P","","","","","","","","","","","","","","","","","","","",""],"total":50},{"name":"David Sauceda","results":["","","3","P","","","","1","","2","","","","1","","","","","","","","","","","","","","","","","","","",""],"total":165},{"name":"Larry Schuelke","results":["","","","P","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Floyd Blackwell","results":["","","","","","P","P","3","P","P","","","P","P","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Andy Rodriguez","results":["","","","","","","","","P","P","3","","","","","","","","","","","","","","","","","","","","","","",""],"total":10},{"name":"Jay Anderson","results":["","","","","","","","","","P","P","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Nevan","results":["","","","","","","","","","P","","","","","","","","","","","","","","","","","","","","","","","",""],"total":0},{"name":"Chad Moore","results":["","","","","","","","","","","","","P","1","","","","","","","","","","","","","","","","","","","",""],"total":75},{"name":"Pat McKenna","results":["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"total":0}],"pairingHistory":{"5":[["Cary Howell","Dan Vacek"],["Trey McDaniel","Mike Cross"],["Craig Taylor","Ed Menville (Bubba)"],["Dale Vasek","Dave Dawson"],["Jake Kelly","David Carden"],["David Meyer","Karey Carter"],["Jamie Daspit","Havey Duke"],["Curtis Newstrom","Don Sawyer"],["Ronnie Dartez","Tom Bledsoe"]],"6":[["Trey McDaniel","Alan Sonnefeld"],["Cary Howell","Brian Patrossi"],["Dale Dugas","Floyd Blackwell"],["Dale Vasek","Mike Cross"],["Jake Kelly","Jerry Rains"],["David Meyer","David Carden"],["Jamie Daspit","Karey Carter"],["Curtis Newstrom","Dan Vacek"],["Dave Dawson","Tom Bledsoe"],["Ronnie Dartez","Don Sawyer"]],"7":[["Trey McDaniel","Brian Patrossi"],["Cary Howell","Floyd Blackwell"],["Dale Vasek","Tom Bledsoe"],["Jake Kelly","Don Sawyer"],["David Meyer","Ronnie Dartez"],["Dave Fritz","Karey Carter"],["Jamie Daspit","Dave Dawson"]],"8":[["Trey McDaniel","Floyd Blackwell"],["Cary Howell","David Sauceda"],["Karey Carter","David Carden"],["Jake Kelly","Mike Cross"],["David Meyer","Alan Sonnefeld"],["Dave Fritz","Don Sawyer"],["Dave Dawson","Havey Duke"],["Tom Bledsoe","Jerry Rains"]],"9":[["Cary Howell","Ed Menville (Bubba)"],["Dale Vasek","Brian Patrossi"],["Jake Kelly","Dan Vacek"],["David Meyer","Jerry Rains"],["Dave Fritz","Floyd Blackwell"],["Curtis Newstrom","Mike Cross"],["Jamie Daspit","Tom Bledsoe"],["Dave Dawson","Karey Carter"],["Andy Rodriguez","Ronnie Dartez"],["Harvey","Brother in law"]],"10":[["Trey McDaniel","David Sauceda"],["Cary Howell","Mike Cross"],["Jake Kelly","Floyd Blackwell"],["David Meyer","Brian Patrossi"],["Dave Fritz","Nevan"],["Jamie Daspit","Havey Duke"],["Dave Dawson","Jerry Rains"],["Andy Rodriguez","Karey Carter"],["Ronnie Dartez","David Carden"],["Tom Bledsoe","Ed Menville (Bubba)"],["Don Sawyer","Dan Vacek"]],"11":[["Cary Howell","Karey Carter"],["Dale Dugas","Mike Cross"],["Dale Vasek","Tom Bledsoe"],["David Meyer","Andy Rodriguez"],["Dave Fritz","Jerry Rains"],["Curtis Newstrom","Brian Patrossi"],["Havey Duke","Dave Dawson"],["Jamie Daspit","Jay Anderson"],["Don Sawyer","bolos Mansur"]],"13":[["Chad Moore","Floyd Blackwell"],["Trey McDaniel","Tom Bledsoe"],["Cary Howell","Jerry Rains"],["Craig Taylor","Dan Vasek"],["Havey Duke","Mike Cross"],["Jake Kelly","Brian Patrossi"],["David Meyer","Don Sawyer"],["Dave Fritz","Dave Dawson"],["Jamie Daspit","Karey Carter"],["Curtis Newstrom","Ed Menville (Bubba)"]],"14":[["Chad Moore","David Sauceda"],["Trey McDaniel","Floyd Blackwell"],["Cary Howell","Alan Sonnefeld"],["Craig Taylor","Dave Dawson"],["Dale Vasek","Ed Menville (Bubba)"],["Jake Kelly","Don Sawyer"],["David Meyer","David Carden"],["Curtis Newstrom","Karey Carter"],["Dave Fritz","Brian Patrossi"],["Jamie Daspit","Mike Cross"]]}}
@@ -573,6 +700,10 @@ async function resetFirebase() {
 }
 
 function getHcp(name) {
+  const c = hcCourse(name, 'wed'); // index + Wednesday tee, when set
+  return c !== null ? c : getHcpPlain(name);
+}
+function getHcpPlain(name) {
   if (state.hcps[name] !== undefined) return state.hcps[name];
   const p = APP_DATA.roster.find(r=>r.name===name);
   return p ? p.hcp : 0;
@@ -728,6 +859,7 @@ function togglePlayer(name) {
 
 function editHcp(evt, name) {
   evt.stopPropagation();
+  if (hcCourse(name, 'wed') !== null) { openHcEditor(name); return; } // HCP comes from index + tee
   const badge = evt.target;
   const cur = getHcp(name);
   const safe = name.replace(/'/g,"\\'");
@@ -1512,6 +1644,7 @@ function assignHoles() {
 
   renderHoleAssignment(assignment, wk);
   document.getElementById('holes-card').style.display = '';
+  saveHoles(); // save right away so phones get their groups even if nobody taps Save
 }
 
 function autoAssignHoles(labels, holesNeeded, isOdd, wk, sameHoleConstraints) {
@@ -1623,6 +1756,7 @@ function holeDrop(evt, targetHoleIdx) {
   const wk = parseInt(document.getElementById('holes-wk-label').textContent) || state.weekNum;
   renderHoleAssignment(asgn, wk);
   _draggedTeam = null; _dragSourceHoleIdx = null;
+  saveHoles();
 }
 
 // ─── LIVE SCORECARD ──────────────────────────────────────────────────────────
@@ -1664,6 +1798,14 @@ async function startRound() {
   // Build team list from generated pairings this week
   const teamLabels = getGeneratedTeamLabels();
   if (!teamLabels.length) { alert('Generate and save teams first before starting the round.'); return; }
+
+  // Groups, the group score screen and the Yardages button all come from this week's hole
+  // assignments. Save the ones on screen; if there are none, say so before starting.
+  const holesWk = parseInt(document.getElementById('holes-wk-label').textContent);
+  if (holesWk === wk && document.querySelector('#hole-list .hole-row')) await saveHoles();
+  if (!Array.isArray(APP_HOLE_HISTORY[wk])) {
+    if (!confirm(`Holes have not been assigned for Week ${wk}.\n\nWithout them, phones show one long team list instead of Group 1, 2, 3, and there is no Yardages button.\n\nTap Cancel, then ⛳ Assign Holes on the Roster tab. Or tap OK to start anyway.`)) return;
+  }
 
   roundState = {
     active: true,
@@ -2065,25 +2207,26 @@ function renderHoleEntries(label, scores, startingHole) {
   container.innerHTML = scores.map((s, i) => {
     const par = HOLE_PARS[i];
     const isPosted = s !== null;
-    const displayVal = isPosted ? s : pending[i];
+    const displayVal = isPosted && pending[i] === s ? s : pending[i];
     const diff = displayVal - par;
     const cls  = diff < 0 ? 'under-par' : diff > 0 ? 'over-par' : 'at-par';
     const diffStr = diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`;
     const isStart = startingHole === (i + 1);
     const startBorder = isStart ? 'box-shadow:0 0 0 3px #e65100;' : '';
     const startBadge = isStart ? '<div style="font-size:9px;background:#e65100;color:#fff;border-radius:4px;padding:1px 5px;margin-bottom:2px;font-weight:700">START</div>' : '';
-    const postBtn = isPosted
-      ? `<button class="post-btn posted-state" onclick="unpostHoleScore('${label}',${i})">✓ Posted</button>`
-      : `<button class="post-btn" onclick="postHoleScore('${label}',${i})">Post Score</button>`;
+    const changed = isPosted && pending[i] !== s;
+    const postBtn = isPosted && !changed
+      ? `<button class="post-btn posted-state" onclick="postHoleScore('${label}',${i})">✓ Posted</button>`
+      : `<button class="post-btn" onclick="postHoleScore('${label}',${i})">${changed ? 'Update Score' : 'Post Score'}</button>`;
 
     return `<div class="sc-hole-cell ${cls} ${isPosted?'posted':'pending'}" id="sc-cell-${i}" style="${startBorder}">
       ${startBadge}
       <div class="hnum">Hole ${i+1+HOLE_OFFSET}</div>
       <div class="hpar">Par ${par}</div>
       <div class="hctrl">
-        <button class="minus" onclick="adjustScore('${label}',${i},-1)" ${isPosted?'style="opacity:.4;pointer-events:none"':''}>−</button>
+        <button class="minus" onclick="adjustScore('${label}',${i},-1)">−</button>
         <span class="hval" id="sc-val-${i}">${displayVal}</span>
-        <button class="plus"  onclick="adjustScore('${label}',${i},+1)" ${isPosted?'style="opacity:.4;pointer-events:none"':''}>+</button>
+        <button class="plus"  onclick="adjustScore('${label}',${i},+1)">+</button>
       </div>
       <div style="font-size:10px;color:#888;margin-top:2px" id="sc-diff-${i}">${isPosted?diffStr:''}</div>
       <div style="margin-top:4px">${postBtn}</div>
@@ -2093,7 +2236,6 @@ function renderHoleEntries(label, scores, startingHole) {
 
 function adjustScore(label, holeIdx, delta) {
   if (!roundState.scores[label]) return;
-  if (roundState.scores[label][holeIdx] !== null) return; // already posted, no changes
   if (!window._pendingScores) window._pendingScores = {};
   if (!window._pendingScores[label]) window._pendingScores[label] = Array(9).fill(null).map((_,i) => HOLE_PARS[i]);
 
@@ -2102,6 +2244,11 @@ function adjustScore(label, holeIdx, delta) {
   const newVal = current + delta;
   if (newVal < 1 || newVal > 15) return;
   window._pendingScores[label][holeIdx] = newVal;
+  const postedVal = roundState.scores[label][holeIdx];
+  if (postedVal !== null) { // fixing a posted hole: show Update until it's re-posted
+    renderHoleEntries(label, roundState.scores[label], getStartingHole(label));
+    return;
+  }
 
   // Update cell display only — don't touch live board yet
   const valEl = document.getElementById(`sc-val-${holeIdx}`);
@@ -2141,11 +2288,21 @@ async function postHoleScore(label, holeIdx) {
     }
   }
 
+  renderHoleEntries(label, roundState.scores[label], getStartingHole(label));
   updateTotalDisplay(roundState.scores[label]);
   refreshLiveBoard();
   window._scSaveTimers = window._scSaveTimers || {};
   clearTimeout(window._scSaveTimers[label]);
   window._scSaveTimers[label] = setTimeout(() => saveTeamScore(label), 600);
+}
+
+// Long-list Yardages: open on this team's next hole to post, in play order from its start.
+function _teamNextHole() {
+  const label = document.getElementById('sc-team-select').value;
+  const sc = roundState.scores[label] || [];
+  const order = _grpPlayOrder(getStartingHole(label) || 1);
+  const next = order.find(h => sc[h - 1] === null || sc[h - 1] === undefined) || order[0];
+  return next + HOLE_OFFSET;
 }
 
 async function unpostHoleScore(label, holeIdx) {
@@ -3070,6 +3227,7 @@ async function init() {
 }
 
 init().then(() => {
+  hcInit(db, () => { renderPlayers(); });
   // Real-time listener — updates all devices instantly when playing/HCP state changes
   db.collection('wns2').doc('state').onSnapshot(doc => {
     if (!doc.exists) return;
