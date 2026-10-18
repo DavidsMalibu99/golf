@@ -2309,7 +2309,29 @@ function sbPlayoffHole(sa, sb, order){
 // With a playoff order, ties on val are ranked by the card playoff; anyone
 // still dead level after every hole shares. Tied men pool the money for the
 // places they occupy: a 4-way tie for 1st with 2nd on splits 70%+30% four ways.
-function sbPlacePayouts(entries, pot, pay2, playoffOrder){
+// Whole dollars: 1st gets 70% rounded UP to the dollar, 2nd gets the rest. A tie that
+// can't split evenly pays the odd dollar(s) to whoever wins the card playoff over all
+// 18 holes (hardest hole first). Pots that aren't whole dollars keep exact cents.
+function sbMoney(v){ const c = Math.round(v*100); return c % 100 === 0 ? String(c/100) : (c/100).toFixed(2); }
+function sbWholeSplit(total, tier, oddOrder, notes){
+  const k = tier.length;
+  if(!Number.isInteger(Math.round(total*100)/100) || k === 1) return tier.map(()=>total/k);
+  const base = Math.floor(total / k);
+  let extra = Math.round(total - base * k);
+  if(extra === 0) return tier.map(()=>base);
+  const order = [...tier.keys()].sort((a,b)=>{
+    if(!oddOrder) return 0;
+    const h = sbPlayoffHole(tier[a].scores, tier[b].scores, oddOrder);
+    return h < 0 ? 0 : tier[a].scores[h] - tier[b].scores[h];
+  });
+  const amts = tier.map(()=>base);
+  order.slice(0, extra).forEach(i=>{ amts[i] += 1; });
+  const got = order.slice(0, extra).map(i=>tier[i].name);
+  if(notes) notes.push(`Odd $${extra} of the split to ${got.join(' & ')} (card playoff, hardest hole first)`);
+  return amts;
+}
+
+function sbPlacePayouts(entries, pot, pay2, playoffOrder, oddOrder){
   const cmp = (a,b)=>{
     if(a.val !== b.val) return a.val - b.val;
     if(!playoffOrder) return 0;
@@ -2322,22 +2344,25 @@ function sbPlacePayouts(entries, pot, pay2, playoffOrder){
     const last = tiers[tiers.length-1];
     if(last && cmp(last[0], e) === 0) last.push(e); else tiers.push([e]);
   });
+  const whole = Number.isInteger(Math.round(pot*100)/100);
+  const first = pay2 ? (whole ? Math.ceil(pot*0.7 - 1e-9) : pot*0.7) : pot;
   const pcts = pay2 ? [0.7, 0.3] : [1];
+  const placeAmts = pay2 ? [first, pot - first] : [pot];
   const payouts = {};   // name -> {amt, place}
   const notes = [];
   let slot = 0;
   tiers.forEach((tier, ti)=>{
     if(slot >= pcts.length) return;
-    const pct = pcts.slice(slot, slot + tier.length).reduce((x,y)=>x+y, 0);
-    const amt = pot * pct / tier.length;
-    tier.forEach(e=>{ payouts[e.name] = {amt, place: slot + 1}; });
+    const tierTotal = placeAmts.slice(slot, slot + tier.length).reduce((x,y)=>x+y, 0);
+    const amts = sbWholeSplit(tierTotal, tier, oddOrder, notes);
+    tier.forEach((e,i)=>{ payouts[e.name] = {amt: amts[i], place: slot + 1}; });
     // Explain playoffs that decided a paid place
     const prev = tiers[ti-1];
     if(playoffOrder && prev && prev[0].val === tier[0].val){
       const h = sbPlayoffHole(prev[0].scores, tier[0].scores, playoffOrder);
       if(h >= 0) notes.push(`${prev.map(e=>e.name).join(' & ')} beat ${tier.map(e=>e.name).join(' & ')} on hole ${h+1} for ${sbOrdinal(payouts[prev[0].name].place)}`);
     }
-    if(tier.length > 1) notes.push(`${tier.map(e=>e.name).join(', ')} tied for ${sbOrdinal(slot+1)} — split evenly`);
+    if(tier.length > 1) notes.push(`${tier.map(e=>e.name).join(', ')} tied for ${sbOrdinal(slot+1)} — split`);
     slot += tier.length;
   });
   // A paid tier right after the last paid place that the playoff separated
@@ -2380,6 +2405,7 @@ function computeSbBoardData(playersArr, scoresObj, pots, draw, course){
   });
 
   const n = playersArr.length;
+  const odd18 = [...Array(18).keys()].sort((a,b)=>course.si[a]-course.si[b]); // hardest hole first
 
   // ---- Nine-hole pots: most margin over target, card playoff on ties ----
   const pay2 = !!pots.pay2;
@@ -2387,23 +2413,23 @@ function computeSbBoardData(playersArr, scoresObj, pots, draw, course){
   const backPot  = (pots.backOn  ? pots.back  : 0) * n;
   const frontPay = sbPlacePayouts(
     rows.filter(r=>r.front.complete).map(r=>({name:r.name, val:-r.front.margin, scores:r.scores})),
-    frontPot, pay2, pots.playoff ? course.playoffFront : null);
+    frontPot, pay2, pots.playoff ? course.playoffFront : null, odd18);
   const backPay = sbPlacePayouts(
     rows.filter(r=>r.back.complete).map(r=>({name:r.name, val:-r.back.margin, scores:r.scores})),
-    backPot, pay2, pots.playoff ? course.playoffBack : null);
+    backPot, pay2, pots.playoff ? course.playoffBack : null, odd18);
 
   // ---- Par 3 pot: lowest combined gross, ties split ----
   const par3Pot = (pots.par3On ? pots.par3 : 0) * n;
   const par3Pay = sbPlacePayouts(
     rows.filter(r=>r.par3.complete).map(r=>({name:r.name, val:r.par3.total, scores:r.scores})),
-    par3Pot, pay2, null);
+    par3Pot, pay2, null, odd18);
 
   // ---- Par 4 / Par 5 pots: lowest combined NET, ties split ----
   function netPot(key, onKey, amtKey){
     const pot = (pots[onKey] ? pots[amtKey] : 0) * n;
     const pay = sbPlacePayouts(
       rows.filter(r=>r[key].complete).map(r=>({name:r.name, val:r[key].total, scores:r.scores})),
-      pot, pay2, null);
+      pot, pay2, null, odd18);
     return {pot, pay};
   }
   const p4 = netPot('par4','par4On','par4');
@@ -2411,7 +2437,7 @@ function computeSbBoardData(playersArr, scoresObj, pots, draw, course){
 
   // ---- Blind draw pot ----
   const drawPot = (pots.drawOn ? pots.draw : 0) * n;
-  const drawResult = computeSbDrawResult(rows, draw, drawPot);
+  const drawResult = computeSbDrawResult(rows, draw, drawPot, odd18);
 
   return {
     course, rows, pots, n,
@@ -2432,7 +2458,7 @@ function sbDrawEligible(rows, basis){
 
 // Scores the locked teams against the current cards. Teams stay fixed; standings
 // re-derive on every render so a corrected score updates the money.
-function computeSbDrawResult(rows, draw, drawPot){
+function computeSbDrawResult(rows, draw, drawPot, oddOrder){
   if(!draw || !Array.isArray(draw.teams) || draw.teams.length === 0) return null;
   const basis = draw.basis || 'total';
   const key = basis === 'front' ? 'front' : (basis === 'back' ? 'back' : 'total');
@@ -2464,9 +2490,14 @@ function computeSbDrawResult(rows, draw, drawPot){
   const winnerIdx = best===null ? [] : scored.filter(t=>t.total===best).map(t=>t.idx);
   const potPerTeam = winnerIdx.length ? drawPot/winnerIdx.length : 0;
 
+  // Whole dollars: split the pot across every winning player; odd dollars by card playoff
+  const winMen = [];
+  teams.forEach(t=>{ t.win = winnerIdx.includes(t.idx); if(t.win) t.members.forEach(m=>winMen.push({m, name:m.name, scores:(byName[m.name]||{}).scores || []})); });
+  const shares = winMen.length ? sbWholeSplit(drawPot, winMen, oddOrder, null) : [];
+  winMen.forEach((w,i)=>{ w.m.amt = shares[i]; });
   teams.forEach(t=>{
-    t.win = winnerIdx.includes(t.idx);
-    t.perPlayer = t.win ? potPerTeam/t.members.length : 0;
+    t.perPlayer = t.win ? t.members[0].amt : 0;
+    t.evenSplit = t.win && t.members.every(m=>m.amt === t.members[0].amt);
   });
 
   return {basis, teams, winnerIdx, potPerTeam, drawnAt: draw.drawnAt || null};
@@ -2590,7 +2621,7 @@ function clearSbDraw(){
 function sbPayPill(pay, name){
   const p = pay.payouts[name];
   if(!p) return '';
-  return `<span class="win-pill">${pay.pay2 ? sbOrdinal(p.place)+' ' : ''}+$${p.amt.toFixed(2)}</span>`;
+  return `<span class="win-pill">${pay.pay2 ? sbOrdinal(p.place)+' ' : ''}+$${sbMoney(p.amt)}</span>`;
 }
 
 function potLines(entries, pay){
@@ -2686,7 +2717,7 @@ function renderSbMoney(data, live){
         return `<div class="team-card${t.win?' win':''}">
           <div class="team-head">
             <span>Team ${i+1}${t.ghost?' · ghost, best 2 count':''}${t.complete?'':' · incomplete'}</span>
-            <span class="th-total">${t.complete ? (t.total>=0?'+':'')+fmtNum(t.total) : '—'}${t.win?` &nbsp;<span class="win-pill">+$${t.perPlayer.toFixed(2)} ea</span>`:''}</span>
+            <span class="th-total">${t.complete ? (t.total>=0?'+':'')+fmtNum(t.total) : '—'}${t.win?` &nbsp;<span class="win-pill">${t.evenSplit ? '+$'+sbMoney(t.perPlayer)+' ea' : t.members.map(m=>'+$'+sbMoney(m.amt)).join(' / ')}</span>`:''}</span>
           </div>${members}</div>`;
       }).join('');
     }
