@@ -307,6 +307,7 @@
   body.yardage-open{overflow:hidden}
   .yds-btn{display:inline-block;margin-top:6px;background:var(--gold-soft);color:#1f3d27;border:0;border-radius:6px;padding:5px 12px;font-weight:700;font-size:0.85rem;cursor:pointer}
   .yds-btn[hidden]{display:none}
+  input.from-sb{outline:2px solid var(--gold-soft); outline-offset:-2px}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1220,6 +1221,7 @@ function renderHole(){
   }
   if(!rec.saved){
     rec.wolfIdx = wolfIndexForHole(currentHole);
+    players.forEach((name,i)=>{ if(rec.scores[i]===null){ const v = sbLiveScore(name, currentHole-1); if(v!==null) rec.scores[i] = v; } });
   }
   const wIdx = rec.wolfIdx;
 
@@ -1303,6 +1305,7 @@ function saveHole(){
     return;
   }
   rec.saved = true;
+  sbFillBlanks(players.map((name,i)=>[name, rec.scores[i]]), currentHole-1);
   const wcPar = sbCourse(wolfCourseId).par;
   rec.par = (wcPar && typeof wcPar[currentHole-1]==='number') ? wcPar[currentHole-1] : null;
   computeHoleMoney(rec);
@@ -1691,7 +1694,58 @@ sbRoundDocRef.onSnapshot(doc=>{
     sbApplyRemoteData(doc.data());
   }
   _sbSnapshotLoaded = true;
+  sidePrefillFromSb(); // Wolf / NASCAR on this phone pick up scores typed into Stableford
 }, err=>console.error('Stableford listener error', err));
+
+/* ---- One score, every game ----
+   When a Stableford round is live, a Wolf or NASCAR group types each hole once.
+   Scores typed in Stableford fill the blank score boxes in Wolf / NASCAR (same player
+   name, same hole), and a hole saved in Wolf / NASCAR fills any blank Stableford boxes.
+   Nothing is ever overwritten: a score already there always wins. */
+function sbLiveScore(name, holeIdx){
+  if(!sbPlayers.some(p=>p.name===name)) return null;
+  const a = sbScores[name];
+  const v = Array.isArray(a) ? a[holeIdx] : null;
+  return (v===null || v===undefined || v==='' || isNaN(Number(v))) ? null : Number(v);
+}
+function sbFillBlanks(pairs, holeIdx){
+  let any = false;
+  pairs.forEach(([name, v])=>{
+    if(v===null || v===undefined || isNaN(v) || !sbPlayers.some(p=>p.name===name)) return;
+    if(!Array.isArray(sbScores[name])) sbScores[name] = new Array(18).fill(null);
+    const cur = sbScores[name][holeIdx];
+    if(cur===null || cur===undefined || cur===''){ sbScores[name][holeIdx] = v; sbMarkDirty(name, holeIdx, v); any = true; }
+  });
+  if(any) sbScoreSaveNow();
+}
+function sidePrefillFromSb(){
+  // Wolf: fill blank boxes on the hole on screen (not saved yet)
+  const wolfPlay = document.getElementById('view-play');
+  if(wolfPlay && wolfPlay.style.display !== 'none' && players.length){
+    const rec = holes[currentHole];
+    if(rec && !rec.saved){
+      document.querySelectorAll('#scoreGrid input[data-idx]').forEach(inp=>{
+        const i = parseInt(inp.dataset.idx);
+        const v = sbLiveScore(players[i], currentHole-1);
+        if(inp.value === '' && v !== null){ inp.value = v; rec.scores[i] = v; inp.classList.add('from-sb'); }
+      });
+    }
+  }
+  // NASCAR: fill blank boxes on the hole on screen
+  const nvPlay = document.getElementById('nv-play');
+  if(nvPlay && nvPlay.style.display !== 'none' && nvPlayers.length) nvPrefillFromSb();
+}
+function nvPrefillFromSb(){
+  let changed = false;
+  nvPlayers.forEach((name, i)=>{
+    const el = document.getElementById('nv-score-' + i);
+    const v = sbLiveScore(name, nvHole-1);
+    if(el && el.value === '' && v !== null){ el.value = v; el.classList.add('from-sb'); changed = true; }
+  });
+  if(!changed) return;
+  if(nvHole >= 16){ if(typeof nvPreviewCaptainResult === 'function') nvPreviewCaptainResult(); }
+  else if(typeof nvPreviewResult === 'function') nvPreviewResult();
+}
 
 document.getElementById('sbRosterChecks').addEventListener('change', ()=>sbRenderGroupSetup());
 
@@ -3496,6 +3550,7 @@ function nvRenderHole() {
         value="${score}" style="width:60px;text-align:center" oninput="nvPreviewResult()">
     </div>`;
   }).join('');
+  if(!saved) nvPrefillFromSb();
 
   // Holes 16-18: Captain mode
   const banner = document.getElementById('nv-captain-banner');
@@ -3704,6 +3759,7 @@ function nvSaveHole() {
     nvHoles[h] = nvCalcHole(leftTeam, rightTeam, scores, nvPar[h]);
   }
 
+  { const sv = nvHoles[h] && nvHoles[h].scores; if(sv) sbFillBlanks(nvPlayers.map((name,i)=>[name, sv[i]]), h); }
   nvRenderTotals();
   nvFirestoreSaveNow();
 
@@ -3957,6 +4013,7 @@ function nvRenderCaptainScoreGrid() {
         value="${score}" style="width:60px;text-align:center" oninput="nvPreviewCaptainResult()">
     </div>`;
   }).join('');
+  if(!nvHoles[nvHole-1]) nvPrefillFromSb();
 }
 
 function nvPreviewCaptainResult() {
