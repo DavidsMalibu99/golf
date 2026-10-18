@@ -353,6 +353,43 @@
   firebase.initializeApp(firebaseConfig);
   const weekendDb = firebase.firestore();
 </script>
+<script>
+/* ---- Handicap index + tees (shared by the Wednesday scramble and weekend games) ----
+   Saved at wns2/handicaps: { tees: {id:{name,rating,slope,par}}, players: {name:{index,wed,wkd}} }.
+   Course handicap = index × slope ÷ 113 + (rating − par), rounded — the same number GHIN shows.
+   A player with no index keeps the plain handicap he has today. */
+const HC_DEFAULT_TEES = {
+  white:  { name: 'White',  rating: 72.5, slope: 131, par: 71 },
+  gold:   { name: 'Gold',   rating: 69.5, slope: 125, par: 71 },
+  silver: { name: 'Silver', rating: 65.0, slope: 116, par: 71 }
+};
+const HC_SEED = { 'Dave Dawson': { index: 15.6, wed: 'gold', wkd: 'silver' } };
+let hcData = { tees: JSON.parse(JSON.stringify(HC_DEFAULT_TEES)), players: JSON.parse(JSON.stringify(HC_SEED)) };
+let _hcListeners = [];
+function hcCourse(name, which) {
+  const p = hcData.players[name];
+  if (!p || p.index === null || p.index === undefined || p.index === '' || isNaN(Number(p.index))) return null;
+  const tee = hcData.tees[which === 'wkd' ? p.wkd : p.wed];
+  if (!tee || isNaN(Number(tee.rating)) || isNaN(Number(tee.slope))) return null;
+  return Math.round(Number(p.index) * Number(tee.slope) / 113 + (Number(tee.rating) - Number(tee.par || 71)));
+}
+function hcTeeName(id) { return (hcData.tees[id] || {}).name || ''; }
+function hcInit(dbRef, onChange) {
+  if (onChange) _hcListeners.push(onChange);
+  dbRef.collection('wns2').doc('handicaps').onSnapshot(doc => {
+    const d = doc.exists ? doc.data() : {};
+    // Defaults only until the first save; after that the saved list is the whole truth
+    hcData = {
+      tees: doc.exists && d.tees ? d.tees : JSON.parse(JSON.stringify(HC_DEFAULT_TEES)),
+      players: doc.exists && d.players ? d.players : JSON.parse(JSON.stringify(HC_SEED))
+    };
+    _hcListeners.forEach(fn => { try { fn(); } catch (e) { console.log('hc listener', e); } });
+  }, err => console.log('handicaps listener error', err));
+}
+function hcSave(dbRef) {
+  return dbRef.collection('wns2').doc('handicaps').set({ tees: hcData.tees, players: hcData.players });
+}
+</script>
 </head>
 <body>
 <header>
@@ -447,7 +484,10 @@ const ROSTER_HCP = {"Cary Howell":3,"Trey McDaniel":2,"Dale Dugas":6,"Craig Tayl
 // Scramble app (app.html) are saved as overrides to Firestore at wns2/state.hcps.
 // We mirror that here so a handicap change in one app shows up in the other.
 let hcpOverrides = {};
+hcInit(weekendDb);
 function getHcp(name){
+  const c = hcCourse(name, 'wkd'); // index + weekend tee, when set (Index & Tees in the Wednesday admin)
+  if(c !== null) return c;
   return (hcpOverrides[name] !== undefined) ? hcpOverrides[name] : ROSTER_HCP[name];
 }
 weekendDb.collection('wns2').doc('state').onSnapshot(doc=>{
