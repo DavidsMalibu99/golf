@@ -1398,21 +1398,56 @@ function renderHole(){
   // score inputs
   const sg = document.getElementById('scoreGrid');
   sg.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'hint'; hint.style.margin = '0 0 4px';
+  hint.textContent = 'Tap the box for par, or − / + for under or over.';
+  sg.appendChild(hint);
   players.forEach((name,i)=>{
     const row = document.createElement('div');
     row.className = 'score-row' + (i===wIdx?' is-wolf':'');
     row.innerHTML = `<div class="name">${name}${i===wIdx?' 🐺':''}</div>
-      <input type="number" min="1" data-idx="${i}" value="${rec.scores[i]===null?'':rec.scores[i]}">`;
+      <div id="wolfStep${i}">${wolfStepperHtml(i)}</div>`;
     sg.appendChild(row);
-  });
-  sg.querySelectorAll('input').forEach(inp=>{
-    inp.addEventListener('input', e=>{
-      holes[currentHole].scores[parseInt(e.target.dataset.idx)] = parseFloat(e.target.value) || null;
-      wolfFirestoreSaveDebounced();
-    });
   });
 
   document.getElementById('saveMsg').textContent = rec.saved ? 'Saved for this hole. You can still edit and re-save.' : '';
+}
+
+// ---- Wolf score stepper (same as Stableford): empty box shows par; tap for par, or -/+ from par ----
+function wolfHolePar(){
+  const par = sbCourse(wolfCourseId).par;
+  return (par && typeof par[currentHole-1]==='number') ? par[currentHole-1] : 4;
+}
+function wolfStepperHtml(i){
+  const rec = holes[currentHole];
+  const par = wolfHolePar();
+  const v = rec ? rec.scores[i] : null;
+  const has = v !== null && v !== undefined && !isNaN(v);
+  const box = has
+    ? `<div class="sbh-val" onclick="wolfStepScore(${i},0)">${v}<small>${sbScoreWord(v, par)}</small></div>`
+    : `<div class="sbh-val empty" onclick="wolfStepScore(${i},0)">Par ${par}</div>`;
+  return `<div class="sbh-step">
+      <button type="button" aria-label="One less" onclick="wolfStepScore(${i},-1)">−</button>
+      ${box}
+      <button type="button" aria-label="One more" onclick="wolfStepScore(${i},1)">+</button>
+    </div>${has ? `<div style="text-align:center;"><button type="button" class="sbh-clear" onclick="wolfSetScore(${i},null)">clear</button></div>` : ''}`;
+}
+function wolfSetScore(i, val){
+  const rec = holes[currentHole];
+  if(!rec) return;
+  rec.scores[i] = val;
+  const el = document.getElementById('wolfStep'+i);
+  if(el) el.innerHTML = wolfStepperHtml(i);
+  wolfFirestoreSaveDebounced();
+}
+function wolfStepScore(i, d){
+  const rec = holes[currentHole];
+  if(!rec) return;
+  const v = rec.scores[i];
+  const has = v !== null && v !== undefined && !isNaN(v);
+  if(!has){ wolfSetScore(i, Math.max(1, wolfHolePar() + d)); return; }
+  if(d === 0) return;
+  wolfSetScore(i, Math.max(1, Math.min(15, v + d)));
 }
 
 function toggleLone(){
