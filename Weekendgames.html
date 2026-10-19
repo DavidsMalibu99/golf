@@ -249,6 +249,7 @@
   .sbh-name{flex:1; min-width:0; font-weight:600; color:var(--cream); font-size:0.95rem;}
   .sbh-sub{display:block; font-weight:normal; color:var(--text-dim); font-size:0.72rem; margin-top:2px;}
   input[type=number].sbh-input{width:72px; text-align:center; font-size:1.25rem; font-weight:bold; padding:10px 4px;}
+  .hcp-fix{background:none; border:0; padding:0 0 0 4px; margin:0; width:auto; font-size:0.8rem; cursor:pointer; opacity:0.75;}
   .sbh-step{display:flex; align-items:center; gap:6px; flex-shrink:0;}
   .sbh-step button{width:44px; height:44px; border-radius:8px; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:1.5rem; font-weight:700; line-height:1; padding:0; cursor:pointer;}
   .sbh-step .sbh-val{width:58px; height:44px; border-radius:8px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:1.3rem; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05;}
@@ -1003,6 +1004,38 @@ function holePoints(gross, par){
   return -1;
 }
 
+/* ---- Fix a handicap mid-round (organizer PIN, same as the Wednesday app) ---- */
+const WG_ADMIN_PIN = '1990';
+let _wgAdminOk = false;
+function wgAdminCheck(){
+  if(_wgAdminOk) return true;
+  const v = prompt('Organizer PIN to change a handicap:');
+  if(v === null) return false;
+  if(v.trim() === WG_ADMIN_PIN){ _wgAdminOk = true; return true; }
+  alert('Wrong PIN.');
+  return false;
+}
+function wgAskHcp(name, cur){
+  const v = prompt(`Handicap for ${name} in this round (now ${cur}).\nPlus handicap: type +2`, String(cur < 0 ? '+' + Math.abs(cur) : cur));
+  if(v === null) return null;
+  const t = v.trim(); const plus = t.startsWith('+'); const n = parseFloat(t.replace('+',''));
+  if(t === '' || isNaN(n) || n > 54){ alert("That doesn't look like a handicap."); return null; }
+  return plus ? -n : n;
+}
+// After a fix, offer to change his index for future rounds too (optional)
+function wgOfferIndexUpdate(name){
+  const p = hcData.players[name];
+  const cur = p && p.index !== null && p.index !== undefined && p.index !== '' ? p.index : null;
+  const v = prompt(`Also change ${name}'s handicap index for future rounds?${cur !== null ? ' (now ' + (cur < 0 ? '+' + Math.abs(cur) : cur) + ')' : ''}\nType the new index from GHIN, or tap Cancel to leave it.`, '');
+  if(v === null || !v.trim()) return;
+  const t = v.trim(); const plus = t.startsWith('+'); const n = parseFloat(t.replace('+',''));
+  if(isNaN(n) || n > 54){ alert("That doesn't look like an index, so it wasn't changed."); return; }
+  if(!hcData.players[name]) hcData.players[name] = { index: null, wed: '', wkd: '' };
+  hcData.players[name].index = plus ? -n : n;
+  hcSave(weekendDb).then(()=>alert(`Saved. ${name}'s index is now ${t} for future rounds.`))
+    .catch(e=>{ console.error(e); alert('Could not save the index — check signal and try again in Index & Tees.'); });
+}
+
 function sbTarget9(hcp){
   return (36 - hcp) / 2;
 }
@@ -1738,6 +1771,30 @@ const sbRoundDocRef = weekendDb.collection('weekendGames').doc('stableford_activ
 let _sbSnapshotLoaded = false;
 let _skipNextSbSnapshot = false;
 let _sbSaveTimer = null;
+
+// Organizer fix: change one player's handicap in the live round. Only playersJSON is
+// rewritten (inside a transaction), so scores typed on other phones are never touched.
+function sbFixHcp(name){
+  const me = sbPlayers.find(p=>p.name===name);
+  if(!me || !wgAdminCheck()) return;
+  const val = wgAskHcp(name, me.hcp);
+  if(val === null || val === me.hcp) return;
+  weekendDb.runTransaction(tx=>tx.get(sbRoundDocRef).then(doc=>{
+    const data = doc.exists ? doc.data() : null;
+    if(!data || !data.active) return 'ended';
+    let list = []; try{ list = JSON.parse(data.playersJSON || '[]') || []; }catch(e){}
+    const p = list.find(x=>x.name===name);
+    if(!p) return 'missing';
+    p.hcp = val;
+    tx.update(sbRoundDocRef, { playersJSON: JSON.stringify(list), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    return 'ok';
+  })).then(res=>{
+    if(res !== 'ok'){ alert(res === 'ended' ? 'This round has ended.' : name + ' is not in this round.'); return; }
+    me.hcp = val;
+    renderSbBoard();
+    wgOfferIndexUpdate(name);
+  }).catch(e=>{ console.error('hcp fix failed', e); alert('Not saved — check signal and try again.'); });
+}
 
 function sbFirestoreSaveNow(){
   _skipNextSbSnapshot = true;
@@ -2852,7 +2909,7 @@ function renderSbBoardTable(data, tab){
     const payoutCell = sbPayPill(pay, r.name) || '—';
     html += `<tr>
       <td class="name-col">${r.name}</td>
-      <td>${r.hcp}</td>
+      <td style="white-space:nowrap;">${r.hcp}<button type="button" class="hcp-fix" onclick="sbFixHcp(decodeURIComponent('${encodeURIComponent(r.name)}'))" aria-label="Change ${r.name.replace(/"/g,'&quot;')}'s handicap" title="Change handicap">✏️</button></td>
       <td>${nine.thru? nine.pts : '—'}</td>
       <td>${fmtNum(nine.target)}</td>
       <td>${nine.thru? (earned>=0?'+':'')+fmtNum(earned) : '—'}${nine.thru && !nine.complete? ' (thru '+nine.thru+')':''}</td>
@@ -3318,6 +3375,7 @@ function renderSbBoard(){
       <div id="fm-team-scores" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px"></div>
 
       <button class="btn" onclick="fmSaveHole()">💾 Save Hole</button>
+      <div id="fm-hcp-fix-wrap" style="margin-top:10px;"></div>
 
       <div style="margin-top:18px;border-top:1px solid var(--line-green);padding-top:14px">
         <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">RUNNING TOTALS (thru <span id="fm-thru">0</span> holes)</div>
@@ -4979,7 +5037,7 @@ function fmRenderTeamList(repeatCount){
 function fmStartRound(){
   if(fmTeams.length === 0){ alert('Generate teams first.'); return; }
   fmPlayers = [];
-  fmTeams.forEach(t => t.members.forEach(n => fmPlayers.push({name:n, hcp:getHcp(n)})));
+  fmTeams.forEach(t => t.members.forEach(n => fmPlayers.push({name:n, hcp:fmHcpFromPool(n, fmExtras)})));
   fmTeamScores = {};
   fmTeams.forEach(t => { fmTeamScores[t.id] = Array(18).fill(null); });
   fmHole = 1;
@@ -5035,6 +5093,7 @@ function fmPickTeam(teamId){
 /* ---- Play view ---- */
 function fmRenderHole(){
   const h = fmHole - 1;
+  fmRenderHcpFix();
   document.getElementById('fm-hole-num').textContent = fmHole;
   ydsSet('fmYds', fmCourseId);
   document.getElementById('fm-par-display').textContent = fmC().par[h];
@@ -5147,6 +5206,53 @@ function fmRenderTotals(){
 }
 
 /* ---- Scorecard ---- */
+// Organizer fix for net rounds: change one player's handicap; his team's handicap is re-added
+// from its four players and every phone recalculates net.
+let _fmHcpFixOpen = false;
+function fmRenderHcpFix(){
+  const wrap = document.getElementById('fm-hcp-fix-wrap');
+  if(!wrap) return;
+  if(fmFormat !== 'net' || !fmTeams.length){ wrap.innerHTML = ''; return; }
+  if(!_fmHcpFixOpen){
+    wrap.innerHTML = '<button type="button" class="btn secondary" style="width:100%;" onclick="_fmHcpFixOpen=true;fmRenderHcpFix()">✏️ Fix a handicap</button>';
+    return;
+  }
+  const hcpOf = n => { const p = fmPlayers.find(x=>x.name===n); return p ? p.hcp : getHcp(n); };
+  wrap.innerHTML = '<div style="border:1px solid var(--line-green);border-radius:8px;padding:8px 10px;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><b style="font-size:0.85rem;">Fix a handicap</b>' +
+    '<button type="button" class="btn secondary" style="width:auto;margin:0;padding:4px 10px;font-size:0.8rem;" onclick="_fmHcpFixOpen=false;fmRenderHcpFix()">Done</button></div>' +
+    fmTeams.map((t,ti)=>`<div style="font-size:0.75rem;color:var(--text-dim);margin-top:6px;">Team ${ti+1} · combined ${t.hcp}</div>` +
+      t.members.map(n=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:0.85rem;"><span>${n}</span>` +
+        `<button type="button" class="btn secondary" style="width:auto;margin:0;padding:3px 10px;font-size:0.8rem;" onclick="fmFixHcp(decodeURIComponent('${encodeURIComponent(n)}'))">${hcpOf(n)} ✏️</button></div>`).join('')).join('') +
+    '</div>';
+}
+function fmFixHcp(name){
+  if(!wgAdminCheck()) return;
+  const curP = fmPlayers.find(p=>p.name===name);
+  const cur = curP ? curP.hcp : getHcp(name);
+  const val = wgAskHcp(name, cur);
+  if(val === null || val === cur) return;
+  weekendDb.runTransaction(tx=>tx.get(fmRoundDocRef).then(doc=>{
+    const d = doc.exists ? doc.data() : null;
+    if(!d || !d.active) return null;
+    let teams = [], players = [];
+    try{ teams = JSON.parse(d.teamsJSON || '[]') || []; }catch(e){}
+    try{ players = JSON.parse(d.playersJSON || '[]') || []; }catch(e){}
+    let p = players.find(x=>x.name===name);
+    if(!p){ p = {name, hcp: val}; players.push(p); } else p.hcp = val;
+    const team = teams.find(t=>t.members.includes(name));
+    if(!team) return null;
+    team.hcp = team.members.reduce((s,n)=>{ const q = players.find(x=>x.name===n); return s + (q ? Number(q.hcp) || 0 : getHcp(n)); }, 0);
+    tx.update(fmRoundDocRef, { teamsJSON: JSON.stringify(teams), playersJSON: JSON.stringify(players), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    return {teams, players};
+  })).then(res=>{
+    if(!res){ alert('This round has ended or the player is not on a team.'); return; }
+    fmTeams = res.teams; fmPlayers = res.players;
+    fmRenderHole();
+    wgOfferIndexUpdate(name);
+  }).catch(e=>{ console.error('4-Man hcp fix failed', e); alert('Not saved — check signal and try again.'); });
+}
+
 function fmShowPlay(){
   document.getElementById('fm-card').style.display = 'none';
   document.getElementById('fm-payout-confirm').style.display = 'none';
