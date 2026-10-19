@@ -319,6 +319,7 @@
   input.from-sb{outline:2px solid var(--gold-soft); outline-offset:-2px}
   .sb-check-row select.hc-tee{margin-left:auto;background:var(--dark-green,#123);color:var(--cream,#fff);border:1px solid var(--line-green,#3a5);border-radius:6px;padding:3px 4px;font-size:0.8rem}
 </style>
+<script src="/photos/photos.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -1039,6 +1040,9 @@ function wgOfferIndexUpdate(name){
     .catch(e=>{ console.error(e); alert('Could not save the index — check signal and try again in Index & Tees.'); });
 }
 
+// Player head shot from /photos (initials circle if none yet)
+const _av = (name, size) => (window.MSGPhotos ? MSGPhotos.avatar(name, size) : '');
+
 function sbTarget9(hcp){
   return (36 - hcp) / 2;
 }
@@ -1440,7 +1444,7 @@ function renderHole(){
   players.forEach((name,i)=>{
     const row = document.createElement('div');
     row.className = 'score-row' + (i===wIdx?' is-wolf':'');
-    row.innerHTML = `<div class="name">${name}${i===wIdx?' 🐺':''}</div>
+    row.innerHTML = `${_av(name, 32)}<div class="name">${name}${i===wIdx?' 🐺':''}</div>
       <div id="wolfStep${i}">${wolfStepperHtml(i)}</div>`;
     sg.appendChild(row);
   });
@@ -1629,7 +1633,7 @@ function renderPlayMoneySummary(){
     const cls = r.total>0?'money-pos':(r.total<0?'money-neg':'');
     const txt = r.total===0?'$0.00':(r.total>0?'+$'+r.total.toFixed(2):'-$'+Math.abs(r.total).toFixed(2));
     const wolfCls = r.idx===wIdx ? ' pm-wolf' : '';
-    chips += `<span class="play-money-chip${wolfCls}"><span class="pm-name">${r.name}</span><span class="${cls}">${txt}</span></span>`;
+    chips += `<span class="play-money-chip${wolfCls}">${_av(r.name, 20)}<span class="pm-name">${r.name}</span><span class="${cls}">${txt}</span></span>`;
   });
 
   wrap.innerHTML = `<div class="hint" style="margin:0 0 6px;">Thru ${savedCount} hole${savedCount===1?'':'s'}</div>` +
@@ -2015,7 +2019,7 @@ function populateSbRosterChecklist(){
     const safe = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<div class="sb-check-row">
       <input type="checkbox" id="${id}" value="${name}"${keep.has(name)?' checked':''}>
-      <label for="${id}">${name} (hcp <span id="${id}_h">${getHcp(name)}</span>)</label>
+      ${_av(name, 26)}<label for="${id}">${name} (hcp <span id="${id}_h">${getHcp(name)}</span>)</label>
       ${hcTeeSelect(name, 'wkd', `sbPickTee('${safe}', this.value)`)}
     </div>`;
   }).join('');
@@ -2114,7 +2118,7 @@ function sbRenderGroupSetup(){
   const list = '<div class="sbg-list">' + names.map((name,i)=>`
     <div class="sbg-row${sbGroupAssign[name] ? '' : ' unassigned'}">
       <button type="button" onclick="sbUnpick(${i})" aria-label="Remove ${name}" style="width:auto;background:none;border:0;color:var(--rust);font-size:1.1rem;padding:0 6px 0 0;cursor:pointer;">✕</button>
-      <span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')} ${teeHtml(name)}</span></span>
+      ${_av(name, 28)}<span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')} ${teeHtml(name)}</span></span>
       <div class="sbg-btns">${btns(i)}</div>
     </div>`).join('') + '</div>';
 
@@ -2537,7 +2541,7 @@ function renderSbHoleCard(grid, members, gi, groupCount){
     </div>
     <div class="hint" style="margin:0 0 4px;">Tap the box for par, or − / + for under or over.</div>
     ${members.map((name,i)=>`<div class="sbh-row">
-        <div class="sbh-name">${name}<span class="sbh-sub" id="sbhSub${i}">${sbPlayerSubline(name)}</span></div>
+        ${_av(name, 36)}<div class="sbh-name">${name}<span class="sbh-sub" id="sbhSub${i}">${sbPlayerSubline(name)}</span></div>
         <div id="sbhStep${i}">${sbStepperHtml(name, i, idx, par)}</div>
       </div>`).join('')}
     <button class="btn" type="button" onclick="sbStepHole(1)">${nextLabel}</button>
@@ -2911,7 +2915,7 @@ function renderSbBoardTable(data, tab){
     const gross18Cell = r.gross18.complete ? r.gross18.total : '—';
     const payoutCell = sbPayPill(pay, r.name) || '—';
     html += `<tr>
-      <td class="name-col">${r.name}</td>
+      <td class="name-col"><span style="display:inline-flex;align-items:center;">${_av(r.name, 22)}${r.name}</span></td>
       <td style="white-space:nowrap;">${r.hcp}<button type="button" class="hcp-fix" onclick="sbFixHcp(decodeURIComponent('${encodeURIComponent(r.name)}'))" aria-label="Change ${r.name.replace(/"/g,'&quot;')}'s handicap" title="Change handicap">✏️</button></td>
       <td>${nine.thru? nine.pts : '—'}</td>
       <td>${fmtNum(nine.target)}</td>

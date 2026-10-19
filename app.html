@@ -482,6 +482,7 @@ body.yardage-open{overflow:hidden}
   </div>
 </div>
 
+<script src="/photos/photos.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
@@ -832,6 +833,10 @@ function onWeekNumInput() {
   saveAdmin();
 }
 
+// Player head shot from /photos (initials circle if none yet)
+const _av = (name, size) => (window.MSGPhotos ? MSGPhotos.avatar(name, size) : '');
+const _avTeam = (label, size) => String(expandTeamLabel(label) || '').replace(/⛳/g, '').replace(/\(solo\)/g, '')
+  .split(/\s*(?:\+|&)\s*/).map(n => n.trim()).filter(Boolean).map(n => _av(n, size)).join('');
 function renderPlayers() {
   const sorted = [...APP_DATA.roster].sort((a,b)=>getHcp(a.name)-getHcp(b.name));
   document.getElementById('player-grid').innerHTML = sorted.map(p => {
@@ -840,7 +845,7 @@ function renderPlayers() {
     const safe = p.name.replace(/'/g,"\\'");
     return `<div class="player-card${on?' playing':''}" onclick="togglePlayer(\'${safe}\')">
       <div class="toggle">${on?'✓':'+'}</div>
-      <div class="pname">${p.name}</div>
+      ${_av(p.name, 30)}<div class="pname">${p.name}</div>
       ${hcTeeSelect(p.name, 'wed', `wedPickTee('${safe}', this.value)`, !_adminUnlocked)}
       <div class="hcp-badge" onclick="editHcp(event,\'${safe}\')" title="Click to edit HCP">HCP ${h}</div>
     </div>`;
@@ -2527,7 +2532,7 @@ function renderGroupEntry() {
     const cls = d < 0 ? 'under' : d > 0 ? 'over' : 'even';
     const isPosted = _grpPosted(l, h) !== null && _grpPosted(l, h) !== undefined;
     return `<div class="grp-row ${isPosted ? 'is-posted' : ''}">
-      <div class="gr-name"><div class="gr-team">${_grpNames(l)}</div><div class="gr-tot">${_grpToPar(l)}${isPosted ? ' · ✓ posted' : ''}</div></div>
+      <div class="gr-name"><div class="gr-pics" style="display:flex;margin-bottom:3px">${_avTeam(l, 26)}</div><div class="gr-team">${_grpNames(l)}</div><div class="gr-tot">${_grpToPar(l)}${isPosted ? ' · ✓ posted' : ''}</div></div>
       <div class="grp-ctrl">
         <button class="minus" onclick="adjGroupScore(${i},-1)">−</button>
         <span class="gv ${cls}">${v}</span>
