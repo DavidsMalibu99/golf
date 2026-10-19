@@ -32,7 +32,7 @@ tool = '''<script>
 async function copyLiveToDev() {
   if (!confirm('Replace everything in DEV with a fresh copy of the live league data?\\n\\nLive is only read, never changed.')) return;
   const live = firebase.initializeApp(LIVE_CONFIG, 'live').firestore();
-  const docs = ['state', 'results', 'players', 'pairings', 'holes', 'round'];
+  const docs = ['state', 'results', 'players', 'pairings', 'holes', 'round', 'handicaps'];
   try {
     for (const id of docs) {
       const snap = await live.collection('wns2').doc(id).get();
