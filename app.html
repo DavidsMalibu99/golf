@@ -588,6 +588,13 @@ function openHcEditor(focusName) {
         <td style="${cell};text-align:center"><input value="${t.par || 71}" inputmode="numeric" style="width:40px" data-k="par"></td></tr>`; }).join('')}
     </table>
     <button class="btn" style="background:#2d6a4f;margin-bottom:14px" onclick="hcAddTee()">+ Add tee</button>
+    <details style="margin-bottom:12px;border:1px solid #cfe3d6;border-radius:8px;padding:8px 10px;background:#f4faf6">
+      <summary style="font-weight:600;cursor:pointer">📋 Paste from GHIN</summary>
+      <p style="color:#666;margin:6px 0">One player per line, name then index, e.g. <i>Jamie Daspit 13.0</i>. Fills the index boxes below for names it recognizes (Dave/David, Mike/Michael, Jr. and so on). Check them, then tap Save.</p>
+      <textarea id="hc-paste" rows="6" style="width:100%;box-sizing:border-box;font-size:13px" placeholder="Jamie Daspit 13.0&#10;David Dawson 15.6"></textarea>
+      <button class="btn" style="margin-top:6px" onclick="hcFillFromPaste()">Fill index boxes</button>
+      <div id="hc-paste-msg" style="margin-top:6px;font-size:12px"></div>
+    </details>
     <table style="width:100%;border-collapse:collapse" id="hc-players">
       <tr><th style="text-align:left">Player</th><th>Index</th><th>Wed tee</th><th>Wed HCP</th><th>Weekend tee</th><th>Wknd HCP</th></tr>
       ${names.map(n => { const p = hcData.players[n] || {}; const safe = n.replace(/"/g, '&quot;');
@@ -622,6 +629,40 @@ function hcPreviewRow(el) {
     if (idx === undefined) { out.textContent = '⚠'; return; }
     out.textContent = (idx === null || !t || isNaN(t.rating) || isNaN(t.slope)) ? (w === 'wed' ? getHcpPlain(tr.dataset.name) + '*' : '') : Math.round(idx * t.slope / 113 + (t.rating - t.par));
   });
+}
+// Paste from GHIN: match each pasted name to a player row and fill his index (not saved until Save)
+function hcNameKey(n) {
+  const alias = { dave: 'david', mike: 'michael', havey: 'harvey', kelley: 'kelly', tom: 'thomas', jim: 'james', bill: 'william', bob: 'robert', dan: 'daniel', chris: 'christopher', ed: 'edward' };
+  const t = String(n).toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z\s]/g, ' ').split(/\s+/)
+    .filter(w => w && !['jr', 'sr', 'ii', 'iii', 'iv'].includes(w)).map(w => alias[w] || w);
+  return { first: t[0] || '', last: t[t.length - 1] || '', all: t.join(' ') };
+}
+function hcFillFromPaste() {
+  const rows = [...document.querySelectorAll('#hc-players tr[data-name]')];
+  const keys = rows.map(tr => ({ tr, k: hcNameKey(tr.dataset.name) }));
+  const filled = [], missed = [], unsure = [];
+  document.getElementById('hc-paste').value.split(/\n/).map(l => l.trim()).filter(Boolean).forEach(line => {
+    const m = line.match(/^(.*?)[\s,:;=\t-]+(\+?\d{1,2}(?:\.\d)?)\s*$/);
+    if (!m) { missed.push(line + ' (no index found)'); return; }
+    const k = hcNameKey(m[1]);
+    let hit = keys.filter(x => x.k.all === k.all);
+    if (hit.length !== 1) hit = keys.filter(x => x.k.last === k.last && x.k.first === k.first);
+    let guess = false;
+    if (hit.length !== 1) { hit = keys.filter(x => x.k.last === k.last && (x.k.first[0] === k.first[0] || k.all.split(' ').includes(x.k.first))); guess = true; }
+    if (hit.length !== 1) { missed.push(m[1].trim()); return; }
+    const inp = hit[0].tr.querySelector('[data-k="index"]');
+    inp.value = m[2];
+    // GHIN's calculator is on Gold: a blank tee becomes Gold (a tee already picked is kept)
+    ['wed', 'wkd'].forEach(w => { const sel = hit[0].tr.querySelector(`[data-k="${w}"]`); if (sel && !sel.value && sel.querySelector('option[value="gold"]')) sel.value = 'gold'; });
+    hcPreviewRow(inp);
+    hit[0].tr.style.background = guess ? '#fff3cd' : '#e8f5e9';
+    (guess ? unsure : filled).push(guess ? `${m[1].trim()} → ${hit[0].tr.dataset.name}` : hit[0].tr.dataset.name);
+  });
+  document.getElementById('hc-paste-msg').innerHTML =
+    `<b style="color:#1b4332">Filled ${filled.length + unsure.length}.</b>` +
+    (unsure.length ? `<br><span style="color:#8a6d00">Check these matches (yellow): ${unsure.join(', ')}</span>` : '') +
+    (missed.length ? `<br><span style="color:#b3261e">Not on the roster, skipped: ${missed.join(', ')}</span>` : '') +
+    '<br>Nothing is saved until you tap Save.';
 }
 function hcAddTee() {
   const name = prompt('Tee name (as GHIN shows it), e.g. Blue'); if (!name) return;
