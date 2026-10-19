@@ -3264,12 +3264,9 @@ async function loadExtraPlayers() {
 
 async function init() {
   // Load all Firebase data first — fully awaited before touching APP_DATA
-  await loadState();
-  await loadResultsData();
-  await loadExtraPlayers();
-  await loadPairings();
-  await loadHoleHistory();
-  await loadRoundState();
+  // All six reads go out at once (they don't depend on each other), so a phone on cell
+  // signal waits for the slowest one instead of all six back to back. Each catches its own errors.
+  await Promise.all([loadState(), loadResultsData(), loadExtraPlayers(), loadPairings(), loadHoleHistory(), loadRoundState()]);
   if (!roundState.active) {  // no round running: use the nine the admin last picked
     let n = 'front'; try { n = localStorage.getItem('wns-nine') || 'front'; } catch(e) {}
     const sel = document.getElementById('nine-select'); if (sel) sel.value = NINES[n] ? n : 'front';
