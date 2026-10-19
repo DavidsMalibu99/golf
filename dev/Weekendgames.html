@@ -403,12 +403,12 @@ function hcSave(dbRef) {
 <div id="view-home">
   <div class="panel">
     <h2>Choose a Game</h2>
-    <button class="btn" onclick="selectGame('wolf')">🐺 Wolf</button>
-    <button class="btn" onclick="selectGame('stableford')">⛳ Stableford</button>
-    <button class="btn" onclick="selectGame('nascar')">🏁 NASCAR Vegas</button>
-    <button class="btn" onclick="selectGame('fourman')">👥 4-Man Scramble</button>
-    <button class="btn" onclick="selectGame('sweetheart')">💑 Sweetheart Scramble</button>
-    <div class="hint">Both games can run at the same time — start one, then come back here to start the other.</div>
+    <button class="btn" id="home-wolf" onclick="selectGame('wolf')">🐺 Wolf</button>
+    <button class="btn" id="home-stableford" onclick="selectGame('stableford')">⛳ Stableford</button>
+    <button class="btn" id="home-nascar" onclick="selectGame('nascar')">🏁 NASCAR Vegas</button>
+    <button class="btn" id="home-fourman" onclick="selectGame('fourman')">👥 4-Man Scramble</button>
+    <button class="btn" id="home-sweetheart" onclick="selectGame('sweetheart')">💑 Sweetheart Scramble</button>
+    <div class="hint">Any of these games can run at the same time. Start one, tap Switch Game to come back here, and start another. A game marked "round in progress" picks up right where you left off.</div>
   </div>
 </div>
 
@@ -984,11 +984,38 @@ function showHome(){
   document.getElementById('sbNav').style.display = 'none';
   document.getElementById('wolfBadge').style.display = 'none';
   document.getElementById('headerSub').textContent = 'Weekend Games';
+  wgRenderHomeStatus();
+  window.scrollTo(0,0);
 }
 
 function selectGame(game){
   // Replaced by NASCAR Vegas version below
 }
+
+// Game list: mark each game that has a live round (on this phone or synced from another)
+function wgRenderHomeStatus(){
+  const live = {
+    wolf: typeof players !== 'undefined' && players.length > 0,
+    stableford: typeof sbPlayers !== 'undefined' && sbPlayers.length > 0,
+    nascar: typeof nvPlayers !== 'undefined' && nvPlayers.length > 0,
+    fourman: typeof fmTeams !== 'undefined' && fmTeams.length > 0,
+    sweetheart: typeof swTeams !== 'undefined' && swTeams.length > 0
+  };
+  Object.keys(live).forEach(g=>{
+    const btn = document.getElementById('home-'+g);
+    if(!btn) return;
+    if(!btn.dataset.label) btn.dataset.label = btn.textContent;
+    if(live[g]){
+      btn.innerHTML = btn.dataset.label + '<br><span style="font-size:0.75rem;font-weight:600;opacity:0.85;">● round in progress — tap to rejoin</span>';
+    } else {
+      btn.textContent = btn.dataset.label;
+    }
+  });
+}
+setInterval(()=>{
+  const home = document.getElementById('view-home');
+  if(home && home.style.display !== 'none') wgRenderHomeStatus();
+}, 1500);
 
 function populateRosterDropdowns(){
   for(let i=0;i<5;i++){
@@ -2951,6 +2978,7 @@ function renderSbBoard(){
   <!-- PLAY VIEW -->
   <div id="nv-play" style="display:none;">
     <div class="panel">
+      <button class="btn secondary" style="width:100%;margin:0 0 12px" onclick="showHome()">← Switch Game</button>
       <!-- Hole nav -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="nvPrevHole()" id="nv-prev-btn">◀ Prev</button>
@@ -3122,6 +3150,7 @@ function renderSbBoard(){
 
   <div id="fm-play" style="display:none;">
     <div class="panel">
+      <button class="btn secondary" style="width:100%;margin:0 0 12px" onclick="showHome()">← Switch Game</button>
       <div id="fm-scoring-for" style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:10px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="fmPrevHole()" id="fm-prev-btn">◀ Prev</button>
@@ -3254,6 +3283,7 @@ function renderSbBoard(){
 
   <div id="sw-play" style="display:none;">
     <div class="panel">
+      <button class="btn secondary" style="width:100%;margin:0 0 12px" onclick="showHome()">← Switch Game</button>
       <div id="sw-scoring-for" style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:10px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="swPrevHole()" id="sw-prev-btn">◀ Prev</button>
