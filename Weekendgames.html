@@ -249,6 +249,12 @@
   .sbh-name{flex:1; min-width:0; font-weight:600; color:var(--cream); font-size:0.95rem;}
   .sbh-sub{display:block; font-weight:normal; color:var(--text-dim); font-size:0.72rem; margin-top:2px;}
   input[type=number].sbh-input{width:72px; text-align:center; font-size:1.25rem; font-weight:bold; padding:10px 4px;}
+  .sbh-step{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .sbh-step button{width:44px; height:44px; border-radius:8px; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:1.5rem; font-weight:700; line-height:1; padding:0; cursor:pointer;}
+  .sbh-step .sbh-val{width:58px; height:44px; border-radius:8px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:1.3rem; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05;}
+  .sbh-step .sbh-val small{font-size:0.58rem; font-weight:600; color:var(--text-dim); letter-spacing:0.02em;}
+  .sbh-step .sbh-val.empty{color:var(--text-dim); font-size:0.8rem; border-style:dashed;}
+  .sbh-clear{font-size:0.7rem; color:var(--text-dim); background:none; border:0; text-decoration:underline; padding:2px 0 0; cursor:pointer;}
   .sbh-totals{margin-top:14px;}
   .sbh-totals td.name-col{font-size:0.82rem;}
   .sbh-status{min-height:1em;}
@@ -401,12 +407,12 @@ function hcSave(dbRef) {
 <div id="view-home">
   <div class="panel">
     <h2>Choose a Game</h2>
-    <button class="btn" onclick="selectGame('wolf')">🐺 Wolf</button>
-    <button class="btn" onclick="selectGame('stableford')">⛳ Stableford</button>
-    <button class="btn" onclick="selectGame('nascar')">🏁 NASCAR Vegas</button>
-    <button class="btn" onclick="selectGame('fourman')">👥 4-Man Scramble</button>
-    <button class="btn" onclick="selectGame('sweetheart')">💑 Sweetheart Scramble</button>
-    <div class="hint">Both games can run at the same time — start one, then come back here to start the other.</div>
+    <button class="btn" id="home-wolf" onclick="selectGame('wolf')">🐺 Wolf</button>
+    <button class="btn" id="home-stableford" onclick="selectGame('stableford')">⛳ Stableford</button>
+    <button class="btn" id="home-nascar" onclick="selectGame('nascar')">🏁 NASCAR Vegas</button>
+    <button class="btn" id="home-fourman" onclick="selectGame('fourman')">👥 4-Man Scramble</button>
+    <button class="btn" id="home-sweetheart" onclick="selectGame('sweetheart')">💑 Sweetheart Scramble</button>
+    <div class="hint">Any of these games can run at the same time. Start one, tap Switch Game to come back here, and start another. A game marked "round in progress" picks up right where you left off.</div>
   </div>
 </div>
 
@@ -457,6 +463,7 @@ function hcSave(dbRef) {
           <div class="hole-num">Hole <span id="playHoleNum"></span> / 18</div>
           <div id="playHoleInfo" class="hint" style="margin-top:2px;"></div>
           <button type="button" id="wolfYds" class="yds-btn" onclick="openYardages(currentHole)" hidden>📍 Yardages</button>
+          <div><button type="button" class="btn secondary" style="width:auto; margin:6px auto 0; padding:6px 12px; font-size:0.8rem;" onclick="showHome()">← Switch Game</button></div>
         </div>
         <button onclick="nextHoleNav()">Next →</button>
       </div>
@@ -568,8 +575,9 @@ function hcSave(dbRef) {
       </div>
       <div class="hint" style="margin-top:-2px;">Leave unchecked for winner take all. Applies to Front 9, Back 9 and the Par 3 / 4 / 5 pots. Blind Draw always pays only the winning team.</div>
 
-      <label>Who's playing today?</label>
+      <label>Who's playing today? <span id="sbPickCount" style="float:right; color:var(--gold); font-weight:700;">0 selected</span></label>
       <div id="sbRosterChecks" class="sb-checklist"></div>
+      <div id="sbPickCountBottom" class="hint" style="text-align:right; color:var(--gold); font-weight:700; margin-top:4px;">0 selected</div>
 
       <label>Add a name not on the roster</label>
       <div style="display:flex; gap:8px;">
@@ -596,7 +604,10 @@ function hcSave(dbRef) {
   <!-- SB SCORE ENTRY VIEW -->
   <div id="view-sb-entry" style="display:none;">
     <div class="panel">
-      <h2>Enter Scores</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <h2 style="margin:0;">Enter Scores</h2>
+        <button class="btn secondary" style="width:auto; margin:0; padding:7px 12px; font-size:0.85rem;" onclick="showHome()">← Switch Game</button>
+      </div>
       <div id="sbEntryGrid"></div>
     </div>
   </div>
@@ -698,6 +709,31 @@ weekendDb.collection('wns2').doc('players').onSnapshot(doc=>{
   }
 }, err=>console.error('WNS extra-players sync error:', err));
 
+// Player dropdowns (Wolf, NASCAR): a name picked in one box drops out of the others.
+// Rebuilds each box from ROSTER, keeping its own pick and its first/last ("Select" / "+ Add") options.
+const WG_WOLF_SELECTS = ['p0Select','p1Select','p2Select','p3Select','p4Select'];
+const WG_NV_SELECTS = ['nv-p1','nv-p2','nv-p3','nv-p4'];
+function wgFilterPicked(ids){
+  const sels = ids.map(id=>document.getElementById(id)).filter(Boolean);
+  if(!sels.length || sels.some(sel=>sel.options.length < 2)) return;
+  const picked = sels.map(sel=>sel.value);
+  sels.forEach((sel, k)=>{
+    const mine = picked[k];
+    const taken = new Set(picked.filter((v,j)=>j!==k && v && v!=='__custom__'));
+    const first = sel.options[0], last = sel.options[sel.options.length-1];
+    const head = {value:first.value, text:first.textContent};
+    const tail = {value:last.value, text:last.textContent};
+    const names = ROSTER.filter(n=>!taken.has(n));
+    if(mine && mine!=='__custom__' && !names.includes(mine)) names.push(mine);
+    sel.innerHTML = '';
+    const add = (v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); };
+    add(head.value, head.text);
+    names.forEach(n=>add(n,n));
+    add(tail.value, tail.text);
+    sel.value = mine;
+  });
+}
+
 // Non-destructively insert newly-synced names, in alphabetical position, into whatever roster
 // pickers are currently in the DOM — so an in-progress selection isn't reset or thrown out of order.
 function syncAppendNewRosterNames(names){
@@ -717,6 +753,9 @@ function syncAppendNewRosterNames(names){
       sel.insertBefore(opt, insertBefore);
     });
   });
+
+  wgFilterPicked(WG_WOLF_SELECTS);
+  wgFilterPicked(WG_NV_SELECTS);
 
   // Stableford checklist — insert alphabetically among existing rows
   const sbWrap = document.getElementById('sbRosterChecks');
@@ -981,11 +1020,38 @@ function showHome(){
   document.getElementById('sbNav').style.display = 'none';
   document.getElementById('wolfBadge').style.display = 'none';
   document.getElementById('headerSub').textContent = 'Weekend Games';
+  wgRenderHomeStatus();
+  window.scrollTo(0,0);
 }
 
 function selectGame(game){
   // Replaced by NASCAR Vegas version below
 }
+
+// Game list: mark each game that has a live round (on this phone or synced from another)
+function wgRenderHomeStatus(){
+  const live = {
+    wolf: typeof players !== 'undefined' && players.length > 0,
+    stableford: typeof sbPlayers !== 'undefined' && sbPlayers.length > 0,
+    nascar: typeof nvPlayers !== 'undefined' && nvPlayers.length > 0,
+    fourman: typeof fmTeams !== 'undefined' && fmTeams.length > 0,
+    sweetheart: typeof swTeams !== 'undefined' && swTeams.length > 0
+  };
+  Object.keys(live).forEach(g=>{
+    const btn = document.getElementById('home-'+g);
+    if(!btn) return;
+    if(!btn.dataset.label) btn.dataset.label = btn.textContent;
+    if(live[g]){
+      btn.innerHTML = btn.dataset.label + '<br><span style="font-size:0.75rem;font-weight:600;opacity:0.85;">● round in progress — tap to rejoin</span>';
+    } else {
+      btn.textContent = btn.dataset.label;
+    }
+  });
+}
+setInterval(()=>{
+  const home = document.getElementById('view-home');
+  if(home && home.style.display !== 'none') wgRenderHomeStatus();
+}, 1500);
 
 function populateRosterDropdowns(){
   for(let i=0;i<5;i++){
@@ -998,6 +1064,7 @@ function populateRosterDropdowns(){
 populateRosterDropdowns();
 
 function onRosterChange(i){
+  wgFilterPicked(WG_WOLF_SELECTS);
   const sel = document.getElementById('p'+i+'Select');
   const custom = document.getElementById('p'+i+'Custom');
   if(sel.value === '__custom__'){
@@ -1330,21 +1397,56 @@ function renderHole(){
   // score inputs
   const sg = document.getElementById('scoreGrid');
   sg.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'hint'; hint.style.margin = '0 0 4px';
+  hint.textContent = 'Tap the box for par, or − / + for under or over.';
+  sg.appendChild(hint);
   players.forEach((name,i)=>{
     const row = document.createElement('div');
     row.className = 'score-row' + (i===wIdx?' is-wolf':'');
     row.innerHTML = `<div class="name">${name}${i===wIdx?' 🐺':''}</div>
-      <input type="number" min="1" data-idx="${i}" value="${rec.scores[i]===null?'':rec.scores[i]}">`;
+      <div id="wolfStep${i}">${wolfStepperHtml(i)}</div>`;
     sg.appendChild(row);
-  });
-  sg.querySelectorAll('input').forEach(inp=>{
-    inp.addEventListener('input', e=>{
-      holes[currentHole].scores[parseInt(e.target.dataset.idx)] = parseFloat(e.target.value) || null;
-      wolfFirestoreSaveDebounced();
-    });
   });
 
   document.getElementById('saveMsg').textContent = rec.saved ? 'Saved for this hole. You can still edit and re-save.' : '';
+}
+
+// ---- Wolf score stepper (same as Stableford): empty box shows par; tap for par, or -/+ from par ----
+function wolfHolePar(){
+  const par = sbCourse(wolfCourseId).par;
+  return (par && typeof par[currentHole-1]==='number') ? par[currentHole-1] : 4;
+}
+function wolfStepperHtml(i){
+  const rec = holes[currentHole];
+  const par = wolfHolePar();
+  const v = rec ? rec.scores[i] : null;
+  const has = v !== null && v !== undefined && !isNaN(v);
+  const box = has
+    ? `<div class="sbh-val" onclick="wolfStepScore(${i},0)">${v}<small>${sbScoreWord(v, par)}</small></div>`
+    : `<div class="sbh-val empty" onclick="wolfStepScore(${i},0)">Par ${par}</div>`;
+  return `<div class="sbh-step">
+      <button type="button" aria-label="One less" onclick="wolfStepScore(${i},-1)">−</button>
+      ${box}
+      <button type="button" aria-label="One more" onclick="wolfStepScore(${i},1)">+</button>
+    </div>${has ? `<div style="text-align:center;"><button type="button" class="sbh-clear" onclick="wolfSetScore(${i},null)">clear</button></div>` : ''}`;
+}
+function wolfSetScore(i, val){
+  const rec = holes[currentHole];
+  if(!rec) return;
+  rec.scores[i] = val;
+  const el = document.getElementById('wolfStep'+i);
+  if(el) el.innerHTML = wolfStepperHtml(i);
+  wolfFirestoreSaveDebounced();
+}
+function wolfStepScore(i, d){
+  const rec = holes[currentHole];
+  if(!rec) return;
+  const v = rec.scores[i];
+  const has = v !== null && v !== undefined && !isNaN(v);
+  if(!has){ wolfSetScore(i, Math.max(1, wolfHolePar() + d)); return; }
+  if(d === 0) return;
+  wolfSetScore(i, Math.max(1, Math.min(15, v + d)));
 }
 
 function toggleLone(){
@@ -1495,6 +1597,35 @@ function renderPlayMoneySummary(){
   });
 
   wrap.innerHTML = `<div class="hint" style="margin:0 0 6px;">Thru ${savedCount} hole${savedCount===1?'':'s'}</div>` +
+    `<div class="play-money-summary">${chips}</div>` + wolfHolePayoutHtml();
+}
+
+// Payout for one hole: this hole if it's saved, otherwise the last saved hole before it
+function wolfHolePayoutHtml(){
+  let h = null;
+  if(holes[currentHole] && holes[currentHole].saved && holes[currentHole].money) h = currentHole;
+  else {
+    for(let k=currentHole-1; k>=1; k--){ if(holes[k] && holes[k].saved && holes[k].money){ h = k; break; } }
+  }
+  if(h === null) return '';
+  const rec = holes[h];
+  const fmt = m => m===0 ? '$0' : (m>0 ? '+$'+m.toFixed(2) : '−$'+Math.abs(m).toFixed(2));
+  const who = rec.decision==='lone' ? players[rec.wolfIdx] + ' went Lone Wolf' : players[rec.wolfIdx] + ' & ' + players[rec.decision];
+  let what;
+  if(rec.money.every(m=>m===0)) what = 'tied — no blood';
+  else {
+    const wolfWon = rec.money[rec.wolfIdx] > 0;
+    what = rec.decision==='lone' ? (wolfWon ? 'and won' : 'and lost') : (wolfWon ? 'won' : 'lost');
+    if(rec.bonus==='birdie') what += ' · 🐦 birdie ' + rec.mult + 'x';
+    else if(rec.bonus==='eagle') what += ' · 🦅 eagle ' + rec.mult + 'x';
+    else if(rec.mult > 1) what += ' · ' + rec.mult + 'x';
+  }
+  const chips = players.map((name,i)=>{
+    const m = rec.money[i];
+    const cls = m>0?'money-pos':(m<0?'money-neg':'');
+    return `<span class="play-money-chip"><span class="pm-name">${name}</span><span class="${cls}">${fmt(m)}</span></span>`;
+  }).join('');
+  return `<div class="hint" style="margin:10px 0 6px;">${h===currentHole ? 'This hole' : 'Last hole'} (Hole ${h}): ${who} ${what}</div>` +
     `<div class="play-money-summary">${chips}</div>`;
 }
 
@@ -1890,6 +2021,14 @@ function sbRenderGroupSetup(){
   if(cnt) cnt.textContent = sbGroupCount;
   const names = sbCheckedNames();
   _sbSetupNames = names;
+  // Checked names drop out of the "Who's playing" list; they're managed in the groups list below
+  document.querySelectorAll('#sbRosterChecks .sb-check-row').forEach(row=>{
+    const chk = row.querySelector('input[type=checkbox]');
+    row.style.display = (chk && chk.checked) ? 'none' : '';
+  });
+  // Player counter (checked roster names + added names)
+  const pickTxt = names.length + ' selected';
+  ['sbPickCount','sbPickCountBottom'].forEach(id=>{ const el = document.getElementById(id); if(el) el.textContent = pickTxt; });
   // Forget assignments for players unchecked or groups removed
   Object.keys(sbGroupAssign).forEach(n=>{
     if(!names.includes(n) || sbGroupAssign[n] > sbGroupCount) delete sbGroupAssign[n];
@@ -1906,9 +2045,16 @@ function sbRenderGroupSetup(){
     }
     return h;
   };
+  const isRoster = n => !!document.querySelector('#sbRosterChecks input[type=checkbox][value="'+n.replace(/"/g,'\\"')+'"]');
+  const teeHtml = n => {
+    if(!isRoster(n) || typeof hcTeeSelect !== 'function') return '';
+    const safe = n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return hcTeeSelect(n, 'wkd', `sbPickTee('${safe}', this.value)`);
+  };
   const list = '<div class="sbg-list">' + names.map((name,i)=>`
     <div class="sbg-row${sbGroupAssign[name] ? '' : ' unassigned'}">
-      <span class="sbg-name">${name}</span>
+      <button type="button" onclick="sbUnpick(${i})" aria-label="Remove ${name}" style="width:auto;background:none;border:0;color:var(--rust);font-size:1.1rem;padding:0 6px 0 0;cursor:pointer;">✕</button>
+      <span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')} ${teeHtml(name)}</span></span>
       <div class="sbg-btns">${btns(i)}</div>
     </div>`).join('') + '</div>';
 
@@ -1923,6 +2069,22 @@ function sbRenderGroupSetup(){
     cards += `<div class="sbg-card warn">Not in a group yet: ${open.join(', ')}</div>`;
   }
   wrap.innerHTML = list + '<div class="sbg-summary">' + cards + '</div>';
+}
+
+// ✕ in the groups list: take the player out of today's round and put him back in the checklist
+function sbUnpick(i){
+  const name = _sbSetupNames[i];
+  if(name === undefined) return;
+  let found = false;
+  document.querySelectorAll('#sbRosterChecks input[type=checkbox]').forEach(chk=>{
+    if(chk.value === name){ chk.checked = false; found = true; }
+  });
+  if(!found){
+    sbExtras = sbExtras.filter(p=>p.name !== name);
+    renderSbExtraList();
+  }
+  delete sbGroupAssign[name];
+  sbRenderGroupSetup();
 }
 
 function addExtraSbPlayer(){
@@ -2313,38 +2475,62 @@ function renderSbHoleCard(grid, members, gi, groupCount){
       <div class="sbh-title"><div class="sbh-hole">Hole ${idx+1}</div><div class="sbh-par">Par ${par}</div>${ydsBtn(sbCourse(sbCourseId).id, idx+1)}</div>
       <button type="button" class="sbh-nav" onclick="sbStepHole(1)" aria-label="Next hole">▶</button>
     </div>
-    ${members.map((name,i)=>{
-      const v = (sbScores[name] || [])[idx];
-      return `<div class="sbh-row">
+    <div class="hint" style="margin:0 0 4px;">Tap the box for par, or − / + for under or over.</div>
+    ${members.map((name,i)=>`<div class="sbh-row">
         <div class="sbh-name">${name}<span class="sbh-sub" id="sbhSub${i}">${sbPlayerSubline(name)}</span></div>
-        <input type="number" min="1" inputmode="numeric" enterkeyhint="next" class="sbh-input"
-          data-pi="${i}" value="${v===null||v===undefined?'':v}">
-      </div>`;
-    }).join('')}
+        <div id="sbhStep${i}">${sbStepperHtml(name, i, idx, par)}</div>
+      </div>`).join('')}
     <button class="btn" type="button" onclick="sbStepHole(1)">${nextLabel}</button>
     <div id="sbSaveMsg" class="hint sbh-status"></div>
     <div class="sbh-totals" id="sbhTotals">${sbTotalsHtml(members)}</div>`;
 
-  const inputs = Array.from(grid.querySelectorAll('.sbh-input'));
-  inputs.forEach((inp, k)=>{
-    inp.addEventListener('input', e=>{
-      const name = members[+e.target.dataset.pi];
-      const v = parseFloat(e.target.value);
-      const val = isNaN(v) ? null : v;
-      if(!sbScores[name]) sbScores[name] = new Array(18).fill(null);
-      sbScores[name][idx] = val;
-      sbMarkDirty(name, idx, val);
-      sbRefreshHoleStatus(members);
-      sbScoreSaveDebounced();
-    });
-    inp.addEventListener('keydown', e=>{
-      if(e.key !== 'Enter') return;
-      e.preventDefault();
-      if(inputs[k+1]) inputs[k+1].focus();
-      else { inp.blur(); sbStepHole(1); }
-    });
-  });
+  _sbHoleMembers = members;
 }
+
+// ---- Score stepper: empty box shows par; tap it for par, or -/+ from par ----
+let _sbHoleMembers = [];
+function sbScoreWord(v, par){
+  const d = v - par;
+  if(v === 1) return 'Ace';
+  if(d <= -3) return 'Albatross';
+  return ({'-2':'Eagle','-1':'Birdie','0':'Par','1':'Bogey','2':'Double','3':'Triple'})[d] || ('+' + d);
+}
+function sbStepperHtml(name, i, idx, par){
+  const v = (sbScores[name] || [])[idx];
+  const has = v !== null && v !== undefined && !isNaN(v);
+  const box = has
+    ? `<div class="sbh-val" onclick="sbStepScore(${i},0)">${v}<small>${sbScoreWord(v, par)}</small></div>`
+    : `<div class="sbh-val empty" onclick="sbStepScore(${i},0)">Par ${par}</div>`;
+  return `<div class="sbh-step">
+      <button type="button" aria-label="One less" onclick="sbStepScore(${i},-1)">−</button>
+      ${box}
+      <button type="button" aria-label="One more" onclick="sbStepScore(${i},1)">+</button>
+    </div>${has ? `<div style="text-align:center;"><button type="button" class="sbh-clear" onclick="sbClearScore(${i})">clear</button></div>` : ''}`;
+}
+function sbSetHoleScore(i, val){
+  const name = _sbHoleMembers[i];
+  if(name === undefined) return;
+  const idx = sbCurHole;
+  if(!sbScores[name]) sbScores[name] = new Array(18).fill(null);
+  sbScores[name][idx] = val;
+  sbMarkDirty(name, idx, val);
+  const par = sbCourse(sbCourseId).par[idx];
+  const el = document.getElementById('sbhStep'+i);
+  if(el) el.innerHTML = sbStepperHtml(name, i, idx, par);
+  sbRefreshHoleStatus(_sbHoleMembers);
+  sbScoreSaveDebounced();
+}
+function sbStepScore(i, d){
+  const name = _sbHoleMembers[i];
+  if(name === undefined) return;
+  const par = sbCourse(sbCourseId).par[sbCurHole];
+  const v = (sbScores[name] || [])[sbCurHole];
+  const has = v !== null && v !== undefined && !isNaN(v);
+  if(!has){ sbSetHoleScore(i, Math.max(1, par + d)); return; }  // first tap starts from par
+  if(d === 0) return;                                           // box tap on a set score does nothing
+  sbSetHoleScore(i, Math.max(1, Math.min(15, v + d)));
+}
+function sbClearScore(i){ sbSetHoleScore(i, null); }
 
 // Updates the strip, per-player lines and totals without rebuilding the inputs
 function sbRefreshHoleStatus(members){
@@ -2362,7 +2548,7 @@ function sbRefreshHoleStatus(members){
 // just refresh the other boxes; otherwise redraw the screen.
 function sbRefreshEntryFromRemote(){
   const grid = document.getElementById('sbEntryGrid');
-  const focused = grid ? grid.querySelector('.sbh-input:focus') : null;
+  const focused = grid ? grid.querySelector('.sbh-input:focus') : null;  // legacy; steppers have no focus
   if(!focused){ renderSbEntry(); return; }
   const groups = sbEffectiveGroups();
   const gi = sbMyGroupIndex(groups);
@@ -2945,6 +3131,7 @@ function renderSbBoard(){
   <!-- PLAY VIEW -->
   <div id="nv-play" style="display:none;">
     <div class="panel">
+      <button class="btn secondary" style="width:100%;margin:0 0 12px" onclick="showHome()">← Switch Game</button>
       <!-- Hole nav -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="nvPrevHole()" id="nv-prev-btn">◀ Prev</button>
@@ -3116,6 +3303,7 @@ function renderSbBoard(){
 
   <div id="fm-play" style="display:none;">
     <div class="panel">
+      <button class="btn secondary" style="width:100%;margin:0 0 12px" onclick="showHome()">← Switch Game</button>
       <div id="fm-scoring-for" style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:10px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="fmPrevHole()" id="fm-prev-btn">◀ Prev</button>
@@ -3248,6 +3436,7 @@ function renderSbBoard(){
 
   <div id="sw-play" style="display:none;">
     <div class="panel">
+      <button class="btn secondary" style="width:100%;margin:0 0 12px" onclick="showHome()">← Switch Game</button>
       <div id="sw-scoring-for" style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:10px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="swPrevHole()" id="sw-prev-btn">◀ Prev</button>
@@ -3416,6 +3605,7 @@ function nvPopulateSetup() {
 }
 
 function nvCheckCustom(idx) {
+  wgFilterPicked(WG_NV_SELECTS);
   const sel = document.getElementById(['nv-p1','nv-p2','nv-p3','nv-p4'][idx]);
   const inp = document.getElementById('nv-custom-' + idx);
   if (sel.value === '__custom__') {
