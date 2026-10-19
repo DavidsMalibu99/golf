@@ -444,7 +444,7 @@ function hcSave(dbRef) {
 
       <button class="btn" onclick="startRound()">Start Round</button>
       <button class="btn secondary" style="margin-top:10px" onclick="showView('history')">📋 View Past Rounds</button>
-      <div class="hint">Wolf rotates automatically in tee order for holes 1-15 — each Wolf can't repeat a partner they've already picked. On holes 16-18, the Wolf is whoever is down the most money, with no partner restriction. Team score = best ball. Each player on the losing side pays the hole value to each player on the winning side — so Wolf + partner beating the other 3 collects $3 each at a $1 hole value. Lone Wolf pays/collects double. Birdie bonus: if the winning side's best ball is a birdie, the hole pays double; an eagle or better pays 4x. The bonus doesn't stack with Lone Wolf (a Lone Wolf birdie is still 2x, a Lone Wolf eagle is 4x). If both sides birdie it's a tie — no blood. Ties push.</div>
+      <div class="hint">Wolf rotates automatically in tee order for holes 1-15 — each Wolf can't repeat a partner they've already picked. On holes 16-18, the Wolf is whoever is down the most money, with no partner restriction. Team score = best ball. Each player on the losing side pays the hole value to each player on the winning side — so Wolf + partner beating the other 3 collects $3 each at a $1 hole value. Lone Wolf pays/collects double. Birdie bonus: if the winning side's best ball is a birdie or better (eagle too), the hole pays double — one double, it doesn't double again for an eagle. The bonus doesn't stack with Lone Wolf (a Lone Wolf birdie or eagle is still 2x). If both sides birdie it's a tie — no blood. Ties push.</div>
     </div>
   </div>
 
@@ -1390,7 +1390,7 @@ function computeHoleMoney(rec){
   //   each winner = val * (# losers)
   //   each loser  = -val * (# winners)
   // Lone Wolf doubles the per-person value. Always zero-sum. Ties push.
-  // Birdie bonus: winning side's best ball 1 under par = 2x, 2+ under = 4x.
+  // Birdie bonus: winning side's best ball 1 or more under par = 2x (an eagle is still 2x, per Cary Oct 18).
   // Doesn't stack with Lone Wolf — the hole uses the bigger multiplier.
   // Both sides birdie = equal best balls = push. Holes saved before par was
   // stored (rec.par missing) get no bonus.
@@ -1412,7 +1412,7 @@ function computeHoleMoney(rec){
   rec.bonus = null;
   if(winners && typeof rec.par === 'number'){
     const under = rec.par - (winners===teamA ? bestA : bestB);
-    if(under >= 2){ rec.bonus = 'eagle'; mult = Math.max(mult, 4); }
+    if(under >= 2){ rec.bonus = 'eagle'; mult = Math.max(mult, 2); }
     else if(under === 1){ rec.bonus = 'birdie'; mult = Math.max(mult, 2); }
   }
   rec.mult = mult;
