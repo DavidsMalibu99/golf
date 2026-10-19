@@ -13,7 +13,7 @@
     --gold:#d4af37;
     --gold-soft:#e8cf7a;
     --cream:#f4efe3;
-    --rust:#b3392c;
+    --rust:#ff8a80; /* was dark red #b3392c; coral reads far better on the green */
     --loss:#ff8a80; /* money owed: coral, readable on the dark green */
     --win:#3f9d5d;
     --text-dim:#9db8a8;
@@ -130,7 +130,7 @@
     border:1px solid var(--gold);
     color:var(--gold-soft);
   }
-  .btn.danger{background:var(--rust); color:var(--cream);}
+  .btn.danger{background:var(--rust); color:var(--dark-green);}
   .nv-pos-btn.active, .nv-par-btn.active, .fm-format-btn.active{
     background:var(--gold);
     border-color:var(--gold);
@@ -153,7 +153,7 @@
   }
   .partner-grid button.sel{background:var(--gold); color:var(--dark-green); border-color:var(--gold); font-weight:bold;}
   .lone-btn{margin-top:8px;}
-  .lone-btn.sel{background:var(--rust); color:var(--cream); border-color:var(--rust);}
+  .lone-btn.sel{background:var(--rust); color:var(--dark-green); border-color:var(--rust);}
 
   .score-grid{margin-top:12px;}
   .score-row{display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line-green);}
@@ -3214,7 +3214,7 @@ function renderSbBoard(){
       </div>
 
       <!-- Captain banner for holes 16-18 -->
-      <div id="nv-captain-banner" style="display:none;background:rgba(179,57,44,0.15);border:1px solid var(--rust);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+      <div id="nv-captain-banner" style="display:none;background:rgba(255,138,128,0.12);border:1px solid var(--rust);border-radius:10px;padding:10px 14px;margin-bottom:12px">
         <div style="font-size:11px;color:var(--rust);letter-spacing:1px;font-weight:700">⚑ HOLES 16–18 — CAPTAIN'S PICK</div>
         <div id="nv-captain-label" style="font-size:0.95rem;color:var(--cream);margin-top:4px"></div>
         <div id="nv-captain-pick-ui" style="display:none;margin-top:10px">
@@ -4332,7 +4332,7 @@ function nvRenderCaptainScoreGrid() {
     const isPartner = playerIdx === nvCaptainPartner;
     const otherTeam = nvCaptainPartner !== null && !isCaptain && !isPartner;
     let badge = '';
-    if (isCaptain) badge = `<span style="font-size:10px;background:var(--rust);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">Captain</span>`;
+    if (isCaptain) badge = `<span style="font-size:10px;background:var(--rust);color:var(--dark-green);font-weight:700;border-radius:8px;padding:1px 6px;margin-left:4px">Captain</span>`;
     if (isPartner) badge = `<span style="font-size:10px;background:var(--win);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">Partner</span>`;
     if (otherTeam) badge = `<span style="font-size:10px;background:var(--mid-green);color:var(--text-dim);border-radius:8px;padding:1px 6px;margin-left:4px">vs</span>`;
 
