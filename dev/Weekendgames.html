@@ -710,6 +710,31 @@ weekendDb.collection('wns2').doc('players').onSnapshot(doc=>{
   }
 }, err=>console.error('WNS extra-players sync error:', err));
 
+// Player dropdowns (Wolf, NASCAR): a name picked in one box drops out of the others.
+// Rebuilds each box from ROSTER, keeping its own pick and its first/last ("Select" / "+ Add") options.
+const WG_WOLF_SELECTS = ['p0Select','p1Select','p2Select','p3Select','p4Select'];
+const WG_NV_SELECTS = ['nv-p1','nv-p2','nv-p3','nv-p4'];
+function wgFilterPicked(ids){
+  const sels = ids.map(id=>document.getElementById(id)).filter(Boolean);
+  if(!sels.length || sels.some(sel=>sel.options.length < 2)) return;
+  const picked = sels.map(sel=>sel.value);
+  sels.forEach((sel, k)=>{
+    const mine = picked[k];
+    const taken = new Set(picked.filter((v,j)=>j!==k && v && v!=='__custom__'));
+    const first = sel.options[0], last = sel.options[sel.options.length-1];
+    const head = {value:first.value, text:first.textContent};
+    const tail = {value:last.value, text:last.textContent};
+    const names = ROSTER.filter(n=>!taken.has(n));
+    if(mine && mine!=='__custom__' && !names.includes(mine)) names.push(mine);
+    sel.innerHTML = '';
+    const add = (v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); };
+    add(head.value, head.text);
+    names.forEach(n=>add(n,n));
+    add(tail.value, tail.text);
+    sel.value = mine;
+  });
+}
+
 // Non-destructively insert newly-synced names, in alphabetical position, into whatever roster
 // pickers are currently in the DOM — so an in-progress selection isn't reset or thrown out of order.
 function syncAppendNewRosterNames(names){
@@ -729,6 +754,9 @@ function syncAppendNewRosterNames(names){
       sel.insertBefore(opt, insertBefore);
     });
   });
+
+  wgFilterPicked(WG_WOLF_SELECTS);
+  wgFilterPicked(WG_NV_SELECTS);
 
   // Stableford checklist — insert alphabetically among existing rows
   const sbWrap = document.getElementById('sbRosterChecks');
@@ -1037,6 +1065,7 @@ function populateRosterDropdowns(){
 populateRosterDropdowns();
 
 function onRosterChange(i){
+  wgFilterPicked(WG_WOLF_SELECTS);
   const sel = document.getElementById('p'+i+'Select');
   const custom = document.getElementById('p'+i+'Custom');
   if(sel.value === '__custom__'){
@@ -3513,6 +3542,7 @@ function nvPopulateSetup() {
 }
 
 function nvCheckCustom(idx) {
+  wgFilterPicked(WG_NV_SELECTS);
   const sel = document.getElementById(['nv-p1','nv-p2','nv-p3','nv-p4'][idx]);
   const inp = document.getElementById('nv-custom-' + idx);
   if (sel.value === '__custom__') {
