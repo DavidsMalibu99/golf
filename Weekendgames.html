@@ -443,6 +443,7 @@ function hcSave(dbRef) {
       <input type="number" id="customValue" placeholder="e.g. 0.25, 0.50, 1.00" step="0.01" value="1.00">
 
       <button class="btn" onclick="startRound()">Start Round</button>
+      <button class="btn secondary" style="margin-top:10px" onclick="showView('history')">📋 View Past Rounds</button>
       <div class="hint">Wolf rotates automatically in tee order for holes 1-15 — each Wolf can't repeat a partner they've already picked. On holes 16-18, the Wolf is whoever is down the most money, with no partner restriction. Team score = best ball. Each player on the losing side pays the hole value to each player on the winning side — so Wolf + partner beating the other 3 collects $3 each at a $1 hole value. Lone Wolf pays/collects double. Birdie bonus: if the winning side's best ball is a birdie, the hole pays double; an eagle or better pays 4x. The bonus doesn't stack with Lone Wolf (a Lone Wolf birdie is still 2x, a Lone Wolf eagle is 4x). If both sides birdie it's a tie — no blood. Ties push.</div>
     </div>
   </div>
@@ -495,6 +496,7 @@ function hcSave(dbRef) {
 
   <div id="view-history" style="display:none;">
     <div class="panel" id="wolfHistoryListPanel">
+      <button class="btn secondary" id="wolfHistBackSetup" onclick="showView('setup')" style="display:none;margin-bottom:10px">← Back to Setup</button>
       <h2>Past Rounds</h2>
       <div id="wolfHistoryList"><div class="hint">Loading...</div></div>
     </div>
@@ -1266,6 +1268,7 @@ function showView(name){
   if(name==='history'){
     document.getElementById('wolfHistoryListPanel').style.display = 'block';
     document.getElementById('wolfHistoryDetailPanel').style.display = 'none';
+    document.getElementById('wolfHistBackSetup').style.display = players.length ? 'none' : ''; // no round running: no bottom menu
     loadWolfHistoryList();
   }
 }
