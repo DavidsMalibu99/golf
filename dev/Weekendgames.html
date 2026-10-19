@@ -14,6 +14,7 @@
     --gold-soft:#e8cf7a;
     --cream:#f4efe3;
     --rust:#b3392c;
+    --loss:#ff8a80; /* money owed: coral, readable on the dark green */
     --win:#3f9d5d;
     --text-dim:#9db8a8;
   }
@@ -165,7 +166,7 @@
   th{color:var(--text-dim); font-weight:normal; font-size:0.72rem; text-transform:uppercase;}
   td.name-col, th.name-col{text-align:left;}
   .money-pos{color:var(--win); font-weight:bold;}
-  .money-neg{color:var(--rust); font-weight:bold;}
+  .money-neg{color:var(--loss); font-weight:bold;}
   .play-money-summary{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 16px;}
   .play-money-chip{display:flex; align-items:center; gap:5px; background:var(--mid-green); border-radius:20px; padding:5px 10px; font-size:0.78rem;}
   .play-money-chip .pm-name{color:var(--cream);}
@@ -4134,7 +4135,7 @@ function nvRenderTotals() {
   grid.innerHTML = nvPlayers.map((name, i) => {
     const p = pts[i];
     const dollars = (Math.abs(p) * nvDollarVal).toFixed(2);
-    const color = p > 0 ? 'var(--win)' : p < 0 ? 'var(--rust)' : 'var(--cream)';
+    const color = p > 0 ? 'var(--win)' : p < 0 ? 'var(--loss)' : 'var(--cream)';
     const sign = p > 0 ? '+' : '';
     return `<div style="background:var(--mid-green);border-radius:8px;padding:8px 10px">
       <div style="font-size:11px;color:var(--text-dim)">${name}</div>
@@ -4200,7 +4201,7 @@ function nvBuildScorecardHtml(playersArr, holesArr, dollarVal) {
   const totalsRow = playersArr.map((name, i) => {
     const p = pts[i];
     const dollars = (Math.abs(p) * dollarVal).toFixed(2);
-    const color = p > 0 ? 'var(--win)' : p < 0 ? 'var(--rust)' : 'var(--cream)';
+    const color = p > 0 ? 'var(--win)' : p < 0 ? 'var(--loss)' : 'var(--cream)';
     return `<div style="text-align:center;padding:8px;background:var(--mid-green);border-radius:8px">
       <div style="font-size:11px;color:var(--text-dim)">${name}</div>
       <div style="font-weight:700;color:${color}">${p>0?'+':''}${p} pts</div>
