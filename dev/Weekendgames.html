@@ -570,8 +570,9 @@ function hcSave(dbRef) {
       </div>
       <div class="hint" style="margin-top:-2px;">Leave unchecked for winner take all. Applies to Front 9, Back 9 and the Par 3 / 4 / 5 pots. Blind Draw always pays only the winning team.</div>
 
-      <label>Who's playing today?</label>
+      <label>Who's playing today? <span id="sbPickCount" style="float:right; color:var(--gold); font-weight:700;">0 selected</span></label>
       <div id="sbRosterChecks" class="sb-checklist"></div>
+      <div id="sbPickCountBottom" class="hint" style="text-align:right; color:var(--gold); font-weight:700; margin-top:4px;">0 selected</div>
 
       <label>Add a name not on the roster</label>
       <div style="display:flex; gap:8px;">
@@ -1892,6 +1893,9 @@ function sbRenderGroupSetup(){
   if(cnt) cnt.textContent = sbGroupCount;
   const names = sbCheckedNames();
   _sbSetupNames = names;
+  // Player counter (checked roster names + added names)
+  const pickTxt = names.length + ' selected';
+  ['sbPickCount','sbPickCountBottom'].forEach(id=>{ const el = document.getElementById(id); if(el) el.textContent = pickTxt; });
   // Forget assignments for players unchecked or groups removed
   Object.keys(sbGroupAssign).forEach(n=>{
     if(!names.includes(n) || sbGroupAssign[n] > sbGroupCount) delete sbGroupAssign[n];
