@@ -1598,6 +1598,35 @@ function renderPlayMoneySummary(){
   });
 
   wrap.innerHTML = `<div class="hint" style="margin:0 0 6px;">Thru ${savedCount} hole${savedCount===1?'':'s'}</div>` +
+    `<div class="play-money-summary">${chips}</div>` + wolfHolePayoutHtml();
+}
+
+// Payout for one hole: this hole if it's saved, otherwise the last saved hole before it
+function wolfHolePayoutHtml(){
+  let h = null;
+  if(holes[currentHole] && holes[currentHole].saved && holes[currentHole].money) h = currentHole;
+  else {
+    for(let k=currentHole-1; k>=1; k--){ if(holes[k] && holes[k].saved && holes[k].money){ h = k; break; } }
+  }
+  if(h === null) return '';
+  const rec = holes[h];
+  const fmt = m => m===0 ? '$0' : (m>0 ? '+$'+m.toFixed(2) : '−$'+Math.abs(m).toFixed(2));
+  const who = rec.decision==='lone' ? players[rec.wolfIdx] + ' went Lone Wolf' : players[rec.wolfIdx] + ' & ' + players[rec.decision];
+  let what;
+  if(rec.money.every(m=>m===0)) what = 'tied — no blood';
+  else {
+    const wolfWon = rec.money[rec.wolfIdx] > 0;
+    what = rec.decision==='lone' ? (wolfWon ? 'and won' : 'and lost') : (wolfWon ? 'won' : 'lost');
+    if(rec.bonus==='birdie') what += ' · 🐦 birdie ' + rec.mult + 'x';
+    else if(rec.bonus==='eagle') what += ' · 🦅 eagle ' + rec.mult + 'x';
+    else if(rec.mult > 1) what += ' · ' + rec.mult + 'x';
+  }
+  const chips = players.map((name,i)=>{
+    const m = rec.money[i];
+    const cls = m>0?'money-pos':(m<0?'money-neg':'');
+    return `<span class="play-money-chip"><span class="pm-name">${name}</span><span class="${cls}">${fmt(m)}</span></span>`;
+  }).join('');
+  return `<div class="hint" style="margin:10px 0 6px;">${h===currentHole ? 'This hole' : 'Last hole'} (Hole ${h}): ${who} ${what}</div>` +
     `<div class="play-money-summary">${chips}</div>`;
 }
 
