@@ -250,6 +250,12 @@
   .sbh-name{flex:1; min-width:0; font-weight:600; color:var(--cream); font-size:0.95rem;}
   .sbh-sub{display:block; font-weight:normal; color:var(--text-dim); font-size:0.72rem; margin-top:2px;}
   input[type=number].sbh-input{width:72px; text-align:center; font-size:1.25rem; font-weight:bold; padding:10px 4px;}
+  .sbh-step{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .sbh-step button{width:44px; height:44px; border-radius:8px; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:1.5rem; font-weight:700; line-height:1; padding:0; cursor:pointer;}
+  .sbh-step .sbh-val{width:58px; height:44px; border-radius:8px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:1.3rem; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05;}
+  .sbh-step .sbh-val small{font-size:0.58rem; font-weight:600; color:var(--text-dim); letter-spacing:0.02em;}
+  .sbh-step .sbh-val.empty{color:var(--text-dim); font-size:0.8rem; border-style:dashed;}
+  .sbh-clear{font-size:0.7rem; color:var(--text-dim); background:none; border:0; text-decoration:underline; padding:2px 0 0; cursor:pointer;}
   .sbh-totals{margin-top:14px;}
   .sbh-totals td.name-col{font-size:0.82rem;}
   .sbh-status{min-height:1em;}
@@ -599,7 +605,10 @@ function hcSave(dbRef) {
   <!-- SB SCORE ENTRY VIEW -->
   <div id="view-sb-entry" style="display:none;">
     <div class="panel">
-      <h2>Enter Scores</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <h2 style="margin:0;">Enter Scores</h2>
+        <button class="btn secondary" style="width:auto; margin:0; padding:7px 12px; font-size:0.85rem;" onclick="showHome()">← Switch Game</button>
+      </div>
       <div id="sbEntryGrid"></div>
     </div>
   </div>
@@ -1920,6 +1929,11 @@ function sbRenderGroupSetup(){
   if(cnt) cnt.textContent = sbGroupCount;
   const names = sbCheckedNames();
   _sbSetupNames = names;
+  // Checked names drop out of the "Who's playing" list; they're managed in the groups list below
+  document.querySelectorAll('#sbRosterChecks .sb-check-row').forEach(row=>{
+    const chk = row.querySelector('input[type=checkbox]');
+    row.style.display = (chk && chk.checked) ? 'none' : '';
+  });
   // Player counter (checked roster names + added names)
   const pickTxt = names.length + ' selected';
   ['sbPickCount','sbPickCountBottom'].forEach(id=>{ const el = document.getElementById(id); if(el) el.textContent = pickTxt; });
@@ -1939,9 +1953,16 @@ function sbRenderGroupSetup(){
     }
     return h;
   };
+  const isRoster = n => !!document.querySelector('#sbRosterChecks input[type=checkbox][value="'+n.replace(/"/g,'\\"')+'"]');
+  const teeHtml = n => {
+    if(!isRoster(n) || typeof hcTeeSelect !== 'function') return '';
+    const safe = n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return hcTeeSelect(n, 'wkd', `sbPickTee('${safe}', this.value)`);
+  };
   const list = '<div class="sbg-list">' + names.map((name,i)=>`
     <div class="sbg-row${sbGroupAssign[name] ? '' : ' unassigned'}">
-      <span class="sbg-name">${name}</span>
+      <button type="button" onclick="sbUnpick(${i})" aria-label="Remove ${name}" style="width:auto;background:none;border:0;color:var(--rust);font-size:1.1rem;padding:0 6px 0 0;cursor:pointer;">✕</button>
+      <span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')} ${teeHtml(name)}</span></span>
       <div class="sbg-btns">${btns(i)}</div>
     </div>`).join('') + '</div>';
 
@@ -1956,6 +1977,22 @@ function sbRenderGroupSetup(){
     cards += `<div class="sbg-card warn">Not in a group yet: ${open.join(', ')}</div>`;
   }
   wrap.innerHTML = list + '<div class="sbg-summary">' + cards + '</div>';
+}
+
+// ✕ in the groups list: take the player out of today's round and put him back in the checklist
+function sbUnpick(i){
+  const name = _sbSetupNames[i];
+  if(name === undefined) return;
+  let found = false;
+  document.querySelectorAll('#sbRosterChecks input[type=checkbox]').forEach(chk=>{
+    if(chk.value === name){ chk.checked = false; found = true; }
+  });
+  if(!found){
+    sbExtras = sbExtras.filter(p=>p.name !== name);
+    renderSbExtraList();
+  }
+  delete sbGroupAssign[name];
+  sbRenderGroupSetup();
 }
 
 function addExtraSbPlayer(){
@@ -2346,38 +2383,62 @@ function renderSbHoleCard(grid, members, gi, groupCount){
       <div class="sbh-title"><div class="sbh-hole">Hole ${idx+1}</div><div class="sbh-par">Par ${par}</div>${ydsBtn(sbCourse(sbCourseId).id, idx+1)}</div>
       <button type="button" class="sbh-nav" onclick="sbStepHole(1)" aria-label="Next hole">▶</button>
     </div>
-    ${members.map((name,i)=>{
-      const v = (sbScores[name] || [])[idx];
-      return `<div class="sbh-row">
+    <div class="hint" style="margin:0 0 4px;">Tap the box for par, or − / + for under or over.</div>
+    ${members.map((name,i)=>`<div class="sbh-row">
         <div class="sbh-name">${name}<span class="sbh-sub" id="sbhSub${i}">${sbPlayerSubline(name)}</span></div>
-        <input type="number" min="1" inputmode="numeric" enterkeyhint="next" class="sbh-input"
-          data-pi="${i}" value="${v===null||v===undefined?'':v}">
-      </div>`;
-    }).join('')}
+        <div id="sbhStep${i}">${sbStepperHtml(name, i, idx, par)}</div>
+      </div>`).join('')}
     <button class="btn" type="button" onclick="sbStepHole(1)">${nextLabel}</button>
     <div id="sbSaveMsg" class="hint sbh-status"></div>
     <div class="sbh-totals" id="sbhTotals">${sbTotalsHtml(members)}</div>`;
 
-  const inputs = Array.from(grid.querySelectorAll('.sbh-input'));
-  inputs.forEach((inp, k)=>{
-    inp.addEventListener('input', e=>{
-      const name = members[+e.target.dataset.pi];
-      const v = parseFloat(e.target.value);
-      const val = isNaN(v) ? null : v;
-      if(!sbScores[name]) sbScores[name] = new Array(18).fill(null);
-      sbScores[name][idx] = val;
-      sbMarkDirty(name, idx, val);
-      sbRefreshHoleStatus(members);
-      sbScoreSaveDebounced();
-    });
-    inp.addEventListener('keydown', e=>{
-      if(e.key !== 'Enter') return;
-      e.preventDefault();
-      if(inputs[k+1]) inputs[k+1].focus();
-      else { inp.blur(); sbStepHole(1); }
-    });
-  });
+  _sbHoleMembers = members;
 }
+
+// ---- Score stepper: empty box shows par; tap it for par, or -/+ from par ----
+let _sbHoleMembers = [];
+function sbScoreWord(v, par){
+  const d = v - par;
+  if(v === 1) return 'Ace';
+  if(d <= -3) return 'Albatross';
+  return ({'-2':'Eagle','-1':'Birdie','0':'Par','1':'Bogey','2':'Double','3':'Triple'})[d] || ('+' + d);
+}
+function sbStepperHtml(name, i, idx, par){
+  const v = (sbScores[name] || [])[idx];
+  const has = v !== null && v !== undefined && !isNaN(v);
+  const box = has
+    ? `<div class="sbh-val" onclick="sbStepScore(${i},0)">${v}<small>${sbScoreWord(v, par)}</small></div>`
+    : `<div class="sbh-val empty" onclick="sbStepScore(${i},0)">Par ${par}</div>`;
+  return `<div class="sbh-step">
+      <button type="button" aria-label="One less" onclick="sbStepScore(${i},-1)">−</button>
+      ${box}
+      <button type="button" aria-label="One more" onclick="sbStepScore(${i},1)">+</button>
+    </div>${has ? `<div style="text-align:center;"><button type="button" class="sbh-clear" onclick="sbClearScore(${i})">clear</button></div>` : ''}`;
+}
+function sbSetHoleScore(i, val){
+  const name = _sbHoleMembers[i];
+  if(name === undefined) return;
+  const idx = sbCurHole;
+  if(!sbScores[name]) sbScores[name] = new Array(18).fill(null);
+  sbScores[name][idx] = val;
+  sbMarkDirty(name, idx, val);
+  const par = sbCourse(sbCourseId).par[idx];
+  const el = document.getElementById('sbhStep'+i);
+  if(el) el.innerHTML = sbStepperHtml(name, i, idx, par);
+  sbRefreshHoleStatus(_sbHoleMembers);
+  sbScoreSaveDebounced();
+}
+function sbStepScore(i, d){
+  const name = _sbHoleMembers[i];
+  if(name === undefined) return;
+  const par = sbCourse(sbCourseId).par[sbCurHole];
+  const v = (sbScores[name] || [])[sbCurHole];
+  const has = v !== null && v !== undefined && !isNaN(v);
+  if(!has){ sbSetHoleScore(i, Math.max(1, par + d)); return; }  // first tap starts from par
+  if(d === 0) return;                                           // box tap on a set score does nothing
+  sbSetHoleScore(i, Math.max(1, Math.min(15, v + d)));
+}
+function sbClearScore(i){ sbSetHoleScore(i, null); }
 
 // Updates the strip, per-player lines and totals without rebuilding the inputs
 function sbRefreshHoleStatus(members){
@@ -2395,7 +2456,7 @@ function sbRefreshHoleStatus(members){
 // just refresh the other boxes; otherwise redraw the screen.
 function sbRefreshEntryFromRemote(){
   const grid = document.getElementById('sbEntryGrid');
-  const focused = grid ? grid.querySelector('.sbh-input:focus') : null;
+  const focused = grid ? grid.querySelector('.sbh-input:focus') : null;  // legacy; steppers have no focus
   if(!focused){ renderSbEntry(); return; }
   const groups = sbEffectiveGroups();
   const gi = sbMyGroupIndex(groups);
