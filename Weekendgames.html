@@ -5938,7 +5938,138 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
   if(!window.MSGVoice) return;
   const shown = id => { const e = document.getElementById(id); return !!e && e.style.display !== 'none'; };
   const game = id => () => selectGame(id);
+  const V = MSGVoice;
+  const has = (said, list) => { const t = ' ' + V.norm(said) + ' '; return list.some(w => t.includes(' ' + V.norm(w) + ' ')); };
+  const OUT = ['remove','take off','take out','drop','scratch','not playing','is out','are out','out','delete','uncheck'];
+  // Which game's setup screen is showing (null when none)
+  const setupOf = () => shown('stableford-app') && shown('view-sb-setup') ? 'stableford'
+    : shown('wolf-app') && shown('view-setup') ? 'wolf' : shown('nascar-app') && shown('nv-setup') ? 'nascar'
+    : shown('fourman-app') && shown('fm-setup') ? 'fourman' : shown('sweetheart-app') && shown('sw-setup') ? 'sweetheart' : null;
+  const boxes = { wolf: [0,1,2,3,4].map(i => 'p' + i + 'Select'), nascar: ['nv-p1','nv-p2','nv-p3','nv-p4'] };
+  const fillBox = (game, id, name) => { const el = document.getElementById(id); el.value = name;
+    if(game === 'wolf') onRosterChange(boxes.wolf.indexOf(id)); else nvCheckCustom(boxes.nascar.indexOf(id)); };
+  // The names this setup screen can pick from
+  function setupNames(game){
+    if(game === 'stableford') return [...document.querySelectorAll('#sbRosterChecks input[type=checkbox]')].map(c => c.value).concat(sbExtras.map(x => x.name));
+    if(game === 'fourman') return [...document.querySelectorAll('#fmRosterChecks input[type=checkbox]')].map(c => c.value).filter(Boolean);
+    return ROSTER.slice();
+  }
+  function setupPlayers(said){
+    const game = setupOf(); if(!game) return null;
+    const pool = setupNames(game); const idx = V.findNames(said, pool); if(!idx.length) return null;
+    const gm = V.norm(said).match(/\bgroup (\d{1,2})\b/);
+    return { game, names: idx.map(i => pool[i]), off: has(said, OUT), group: gm ? +gm[1] : null };
+  }
+  function applySetup(r){
+    const done = [];
+    if(r.game === 'stableford'){
+      r.names.forEach(n => {
+        const chk = [...document.querySelectorAll('#sbRosterChecks input[type=checkbox]')].find(c => c.value === n);
+        if(r.off){ const i = _sbSetupNames.indexOf(n); if(i >= 0){ sbUnpick(i); done.push(n); } return; }
+        if(chk && !chk.checked){ chk.checked = true; done.push(n); }
+        if(r.group){ sbGroupAssign[n] = r.group; if(!done.includes(n)) done.push(n); }
+      });
+      if(r.group && r.group > sbGroupCount) sbChangeGroupCount(r.group - sbGroupCount);
+      sbRenderGroupSetup();
+    } else if(r.game === 'wolf' || r.game === 'nascar'){
+      const ids = boxes[r.game];
+      r.names.forEach(n => {
+        const at = ids.find(id => document.getElementById(id).value === n);
+        if(r.off){ if(at){ fillBox(r.game, at, ''); done.push(n); } return; }
+        if(at) return;
+        const free = ids.find(id => !document.getElementById(id).value);
+        if(free){ fillBox(r.game, free, n); done.push(n); }
+      });
+    } else if(r.game === 'fourman'){
+      r.names.forEach(n => { const c = [...document.querySelectorAll('#fmRosterChecks input[type=checkbox]')].find(x => x.value === n);
+        if(c && c.checked === r.off){ c.checked = !r.off; done.push(n); } });
+    } else if(r.game === 'sweetheart'){
+      if(r.off || r.names.length !== 2) return 'For a Sweetheart team, say two names: “Cary and Karey are a team.”';
+      let row = -1;
+      for(let i = 0; i < swPairRows; i++){ const a = document.getElementById('swPairA'+i), b = document.getElementById('swPairB'+i); if(a && b && !a.value && !b.value){ row = i; break; } }
+      if(row < 0){ swAddPairRow(); row = swPairRows - 1; }
+      document.getElementById('swPairA'+row).value = r.names[0]; document.getElementById('swPairB'+row).value = r.names[1];
+      done.push(r.names[0] + ' + ' + r.names[1] + ' (team ' + (row+1) + ')');
+    }
+    return done;
+  }
+  // "$1", "50 cents", "a dollar", "2 dollars", "dollar fifty"
+  function moneyIn(said){
+    const TENS = { twenty:20, thirty:30, forty:40, fourty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90 };
+    let t = ' ' + V.norm(String(said).replace(/-/g, ' ')) + ' ';
+    t = t.replace(/ (twenty|thirty|forty|fourty|fifty|sixty|seventy|eighty|ninety)(?: ([1-9]))? /g, (x, a, b) => ' ' + (TENS[a] + (b ? +b : 0)) + ' ');
+    t = t.replace(/ (\d+) (\d) cents? /, (x, a, b) => (+a % 10 === 0 && +a >= 20) ? ' ' + (+a + +b) + ' cents ' : x);
+    if(/ (a )?quarter /.test(t)) return 0.25;
+    if(/ half (a )?dollar /.test(t)) return 0.5;
+    let m = t.match(/ (\d+) cents? /); if(m) return +m[1] / 100;
+    m = t.match(/ (\d+) dollars? (?:and )?(\d+)(?: cents?)? /); if(m) return +m[1] + (+m[2]) / 100;
+    m = t.match(/ (\d+) dollars? /); if(m) return +m[1];
+    if(/ (a|one) dollar /.test(t)) return 1;
+    m = t.match(/ dollar (\d+) /); if(m) return 1 + (+m[1]) / 100;
+    m = t.match(/ (?:value|bet|per hole|per point|per player) (\d+(?:\.\d+)?) /); if(m) return +m[1];
+    return null;
+  }
   MSGVoice.setup({ bottom: 78, commands: [
+    // ---- Setting up a game ----
+    { label:'Add players', example:'Add Cary and Jake', test: said => setupPlayers(said), run: r => {
+        const what = r.game === 'sweetheart' ? 'Make this team?' : r.off ? 'Take off?' : r.group ? 'Put in Group ' + r.group + '?' : 'Add to this round?';
+        V.confirm(what, r.names, r.off ? '✓ Remove' : '✓ OK', () => {
+          const done = applySetup(r);
+          if(typeof done === 'string'){ V.say('Not quite', done); return; }
+          V.flash('✓ ' + (done.length ? done.length + ' done' : 'Nothing to change'), done.join(', ') || ((r.game==='wolf'||r.game==='nascar') ? 'All player boxes may be full, or they are already in.' : ''), 2200); });
+        return 'asked'; } },
+    { label:'Groups', example:'Three groups', re:/\b(\d{1,2}) (?:groups|group)\b/, run: m => {
+        if(setupOf() !== 'stableford') return 'Number of groups is on the Stableford setup screen.';
+        const n = +m[1]; if(n < 1 || n > 12) return 'Pick 1 to 12 groups.';
+        sbChangeGroupCount(n - sbGroupCount); } },
+    { label:'Value', example:'Fifty cents', test: said => (setupOf() && ['wolf','nascar','fourman'].includes(setupOf()) && moneyIn(said) !== null) ? { v: moneyIn(said) } : null, run: r => {
+        const g = setupOf(), id = g === 'wolf' ? 'customValue' : g === 'nascar' ? 'nv-dollar-inp' : 'fmDollarInp';
+        const el = document.getElementById(id); el.value = String(r.v); el.dispatchEvent(new Event('input', { bubbles: true }));
+        V.flash('✓ $' + (r.v % 1 ? r.v.toFixed(2) : r.v) + (g === 'wolf' ? ' a hole' : g === 'nascar' ? ' a point' : ' per player'), ''); return 'asked'; } },
+    { label:'Generate teams', say:['generate teams','make teams','create teams','make the teams','generate'], run: ()=>{
+        const g = setupOf(); if(g === 'fourman'){ fmGenerateTeams(); return; } if(g === 'sweetheart'){ swCreateTeams(); return; }
+        return 'Generate teams is for 4-Man or Sweetheart setup.'; } },
+    { label:'Start round', say:['start round','start the round','start game','start the game','tee off','lets play','let s play'], run: ()=>{
+        const g = setupOf();
+        if(g === 'stableford') return startStableford();
+        if(g === 'wolf') return startRound();
+        if(g === 'nascar') return nvStartRound();
+        if(g === 'fourman') return fmStartRound();
+        if(g === 'sweetheart'){ swCreateTeams(); if(swTeams.length) swStartRound(); return; }
+        return 'Open a game’s setup screen first, like “Stableford”.'; } },
+    // ---- Wolf, during the round: partner, Lone Wolf, save ----
+    { label:'Wolf partner', example:'Partner Cary', test: said => {
+        if(!(shown('wolf-app') && players.length && shown('view-play'))) return null;
+        if(!has(said, ['partner','pick','picks','take','takes','with','choose','chooses','going with'])) return null;
+        const idx = V.findNames(said, players).filter(i => i !== holes[currentHole]?.wolfIdx);
+        return idx.length === 1 ? { i: idx[0] } : null; }, run: r => {
+        const btn = [...document.querySelectorAll('#partnerGrid button')].find(b => b.textContent.startsWith(players[r.i]));
+        if(!btn) return 'Couldn’t find ' + players[r.i] + ' on this hole.';
+        if(btn.disabled) return players[r.i] + ' was already picked on hole ' + (btn.textContent.match(/#(\d+)/)||[])[1] + '.';
+        btn.click(); V.flash('✓ Partner: ' + players[r.i], 'Hole ' + currentHole); return 'asked'; } },
+    { label:'Lone Wolf', say:['lone wolf','go lone','going lone','lone','alone','by myself','go alone'], run: ()=>{
+        if(!(shown('wolf-app') && players.length)) return 'Lone Wolf is for a Wolf round in progress.';
+        showView('play'); if(holes[currentHole]?.decision !== 'lone') toggleLone(); } },
+    // ---- 4-Man / Sweetheart: "we had a four", "score par", then save ----
+    { label:'Team score', example:'We had a four', test: said => {
+        const fm = shown('fourman-app') && fmTeams.length && shown('fm-play') && fmTeams.find(t=>t.id===fmMyTeamId);
+        const sw = shown('sweetheart-app') && swTeams.length && shown('sw-play') && swTeams.find(t=>t.id===swMyTeamId);
+        if(!fm && !sw) return null;
+        const par = fm ? fmC().par[fmHole-1] : swC().par[swHole-1];
+        const r = V.parseScores('team ' + V.norm(said).replace(/\b(we|us|our|score|scored|had|made|got|a|an)\b/g,' '), ['Team'], par);
+        return r ? { game: fm ? 'fm' : 'sw', team: fm || sw, val: r[0].val, par } : null; }, run: r => {
+        V.confirmScores([{ i:0, name: r.team.members.join(' + '), val: r.val }], r.par, 'Hole ' + (r.game==='fm' ? fmHole : swHole) + ' · Par ' + r.par, () => {
+          const el = document.getElementById((r.game==='fm' ? 'fm-score-' : 'sw-score-') + r.team.id); if(el) el.value = r.val;
+          if(r.game === 'fm') fmSaveHole(); else swSaveHole(); });
+        return 'asked'; } },
+    { label:'Save hole', say:['save hole','save the hole','save','post hole','post','submit'], run: ()=>{
+        if(shown('wolf-app') && players.length) return saveHole();
+        if(shown('nascar-app') && nvPlayers.length) return nvSaveHole();
+        if(shown('fourman-app') && fmTeams.length) return fmSaveHole();
+        if(shown('sweetheart-app') && swTeams.length) return swSaveHole();
+        if(shown('stableford-app') && sbPlayers.length) return 'Stableford saves each score as you enter it.';
+        return 'Start or open a round first.'; } },
+
     { label:'Stableford', say:['stableford','stable ford','stapleford','stable for'], run: game('stableford') },
     { label:'Wolf', say:['wolf','wolfe','woolf','wolves'], run: game('wolf') },
     { label:'NASCAR', say:['nascar','nascar vegas','vegas'], run: game('nascar') },
