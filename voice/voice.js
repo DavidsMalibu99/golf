@@ -25,7 +25,7 @@
   function hide() { panel.style.display = 'none'; }
   // Spoken numbers become digits ("group one" -> "group 1"), including the usual mishearings
   // after "group"/"hole" ("hole to" -> "hole 2", "group won" -> "group 1").
-  const NUM = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12,
+  const NUM = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12,
     thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, first:1, second:2, third:3, fourth:4, fifth:5 };
   const SOUND = { won:1, to:2, too:2, tree:3, for:4, fore:4, ate:8 };
   const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
@@ -47,8 +47,10 @@
     });
     return best;
   }
-  function examples() { return cfg.commands.filter(c => c.label).map(c => '“' + (c.example || c.label) + '”').join(', '); }
+  function examples() { return cfg.commands.filter(c => c.label).slice(0, 8).map(c => '“' + (c.example || c.label) + '”').join(', ') + '…'; }
 
+  let followUp = null; // when set, the next thing heard goes to this callback instead of the commands
+  function listenFor(title, body, cb) { followUp = cb; show(title, body); setTimeout(listen, 350); }
   function listen() {
     if (busy) { try { rec && rec.stop(); } catch (e) {} return; }
     if (!SR) {
@@ -62,6 +64,7 @@
     rec.onresult = e => {
       got = true;
       const alts = [...e.results[0]].map(a => a.transcript);
+      if (followUp) { const cb = followUp; followUp = null; try { cb(alts); } catch (err) { show('Something went wrong', String(err && err.message || err)); } return; }
       const m = match(alts);
       if (!m) { show('Didn’t catch a command', 'Heard: “' + alts[0] + '”', 'Try: ' + examples()); return; }
       try {
@@ -82,14 +85,15 @@
         'network': 'Voice needs a signal. Try again.' }[e.error];
       show('Voice didn’t work', why || ('Error: ' + e.error), 'Tapping still works for everything.');
     };
-    rec.onend = () => { busy = false; btn.classList.remove('on'); if (!got) hide(); };
+    rec.onend = () => { busy = false; btn.classList.remove('on'); if (!got) { followUp = null; hide(); } };
     try { rec.start(); } catch (err) { busy = false; show('Voice didn’t start', String(err && err.message || err)); }
   }
 
   // ---- Spoken scores: "Adam par, Alan bogey, Bart double bogey" / "Cary 4" / "everyone par" ----
   const lev = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
     for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)); return d[a.length][b.length]; };
-  const NICK = { dave: 'david', mike: 'michael', allen: 'alan', allan: 'alan', bert: 'bart', jim: 'james', tom: 'thomas', dan: 'daniel', chris: 'christopher', bill: 'william', bob: 'robert', ed: 'edward', harvey: 'havey' };
+  const NICK = { dave: 'david', mike: 'michael', allen: 'alan', allan: 'alan', bert: 'bart', jim: 'james', tom: 'thomas', dan: 'daniel', chris: 'christopher', bill: 'william', bob: 'robert', ed: 'edward', harvey: 'havey', carey: 'cary', carrie: 'cary', kari: 'karey', kelley: 'kelly' };
+  const nk = w => NICK[w] || w; // nicknames and spellings count the same on both sides
   const SCORE_WORDS = [
     [/^(albatross)$/, p => p - 3], [/^(eagle|eagles|eagled)$/, p => p - 2], [/^(birdie|birdy|birdies|bertie|birdied|berdie)$/, p => p - 1],
     [/^(par|parr|pars|parred)$/, p => p], [/^(bogey|bogie|bogy|bogeys|bogeyed|boogie|bogi)$/, p => p + 1],
@@ -101,16 +105,16 @@
     names.forEach((n, i) => {
       const nick = (String(n).match(/\(([^)]+)\)/) || [])[1];
       const parts = String(n).toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w && !['jr', 'sr'].includes(w));
-      if (parts[0]) words.push({ i, w: parts[0] });
-      if (parts.length > 1) words.push({ i, w: parts[parts.length - 1] });
-      if (nick) words.push({ i, w: nick.toLowerCase().trim() });
+      if (parts[0]) words.push({ i, w: nk(parts[0]) });
+      if (parts.length > 1) words.push({ i, w: nk(parts[parts.length - 1]) });
+      if (nick) words.push({ i, w: nk(nick.toLowerCase().trim()) });
     });
     const count = {}; words.forEach(x => { count[x.w] = (count[x.w] || new Set()).add(x.i); });
     const uniq = words.filter(x => count[x.w].size === 1);
     const who = t => {
-      const t2 = NICK[t] || t;
+      const t2 = nk(t);
       let hit = uniq.find(x => x.w === t2);
-      if (!hit && t2.length >= 4) { const close = uniq.filter(x => x.w.length >= 4 && lev(x.w, t2) <= 1); if (close.length === 1 || (close.length && close.every(c => c.i === close[0].i))) hit = close[0]; }
+      if (!hit && t2.length >= 4 && !count[t2]) { const close = uniq.filter(x => x.w.length >= 4 && lev(x.w, t2) <= 1); if (close.length === 1 || (close.length && close.every(c => c.i === close[0].i))) hit = close[0]; }
       return hit ? hit.i : -1;
     };
     const marks = []; toks.forEach((t, j) => { const i = who(t); if (i >= 0 && !(marks.length && marks[marks.length - 1].j === j - 1 && marks[marks.length - 1].i === i)) marks.push({ i, j }); });
@@ -128,6 +132,32 @@
     const list = Object.keys(out).map(i => ({ i: +i, name: names[+i], val: out[i] }));
     return list.length ? list : null;
   }
+  // Which players were named: "add Cary, Jake and Mike" -> their indexes (first, last or nickname;
+  // close mishearings; a first name two players share needs the last name)
+  function findNames(said, names) {
+    const toks = norm(said).split(' ').filter(Boolean);
+    const words = [];
+    names.forEach((n, i) => {
+      const nick = (String(n).match(/\(([^)]+)\)/) || [])[1];
+      const parts = String(n).toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w && !['jr', 'sr'].includes(w));
+      if (parts[0]) words.push({ i, w: nk(parts[0]), first: true });
+      if (parts.length > 1) words.push({ i, w: nk(parts[parts.length - 1]) });
+      if (nick) words.push({ i, w: nk(nick.toLowerCase().trim()) });
+    });
+    const count = {}; words.forEach(x => { count[x.w] = (count[x.w] || new Set()).add(x.i); });
+    const found = new Set();
+    for (let j = 0; j < toks.length; j++) {
+      const t = nk(toks[j]), nx = toks[j + 1] && nk(toks[j + 1]);
+      // "first last" together picks one player even when the first name is shared
+      const both = words.filter(x => x.first && x.w === t).map(x => x.i).filter(i => nx && words.some(y => y.i === i && !y.first && (y.w === nx || (nx.length >= 4 && lev(y.w, nx) <= 1))));
+      if (both.length === 1) { found.add(both[0]); j++; continue; }
+      let hit = words.filter(x => x.w === t && count[x.w].size === 1);
+      if (!hit.length && t.length >= 4 && !count[t]) hit = words.filter(x => count[x.w].size === 1 && x.w.length >= 4 && lev(x.w, t) <= 1);
+      const ids = [...new Set(hit.map(x => x.i))];
+      if (ids.length === 1) found.add(ids[0]);
+    }
+    return [...found];
+  }
   const word = (v, par) => { const d = v - par; return v === 1 ? 'Ace' : d <= -3 ? 'Albatross' : ({ '-2': 'Eagle', '-1': 'Birdie', '0': 'Par', '1': 'Bogey', '2': 'Double', '3': 'Triple' })[d] || ('+' + d); };
   // Show what was heard and let the player save or cancel
   function confirmScores(list, par, title, onSave) {
@@ -140,7 +170,16 @@
 
   window.MSGVoice = {
     supported: !!SR,
-    parseScores, confirmScores, word,
+    parseScores, confirmScores, word, findNames, listenFor, norm,
+    // Simple confirm box: title, list of lines, OK label, what to do
+    confirm(title, lines, okLabel, onOk) {
+      show(title, '<div style="margin:4px 0 10px">' + lines.map(l => '<div style="padding:3px 0;border-bottom:1px solid #eee">' + l + '</div>').join('') + '</div>' +
+        '<div style="display:flex;gap:8px"><button class="msgv-ok" style="flex:1;background:#1b4332;color:#fff;border:0;border-radius:10px;padding:11px;font-weight:700;font-size:15px">' + (okLabel || '✓ OK') + '</button>' +
+        '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>');
+      panel.querySelector('.msgv-ok').onclick = () => { hide(); onOk(); };
+      panel.querySelector('.msgv-no').onclick = hide;
+    },
+    say(title, body) { show(title, body); },
     setup(opts) {
       cfg = Object.assign(cfg, opts || {});
       if (!btn) {
