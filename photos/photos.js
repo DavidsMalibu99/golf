@@ -20,6 +20,7 @@
     'Jerry Rains': 'jerry-rains.jpg',
     'Karey Carter': 'karey-carter.jpg',
     'Mike Cross': 'mike-cross.jpg',
+    'Ronnie Dartez': 'ronnie-dartez.jpg',
     'Trey McDaniel': 'trey-mcdaniel.jpg'
   };
   const BASE = '/photos/';
