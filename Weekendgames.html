@@ -5900,5 +5900,109 @@ function ydsBtn(courseId, hole) {
 }
 function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.hidden = courseId !== YDS_COURSE; }
 </script>
+<script>
+/* Direct links to a game, e.g. mvwns.com/Weekendgames.html#stableford — for home-screen
+   shortcuts and "Hey Siri, open Stableford" (iPhone Shortcuts → Open URL).
+   Links: #wolf  #stableford  #nascar  #fourman  #sweetheart */
+(function(){
+  const GAMES = ['wolf','stableford','nascar','fourman','sweetheart'];
+  const el = id => document.getElementById(id);
+  const shown = id => el(id) && el(id).style.display !== 'none';
+  const live = g => ({ wolf:()=>players.length, stableford:()=>sbPlayers.length, nascar:()=>nvPlayers.length,
+                       fourman:()=>fmTeams.length, sweetheart:()=>swTeams.length })[g]() > 0;
+  const inSetup = g => ({ wolf:'view-setup', stableford:'view-sb-setup', nascar:'nv-setup', fourman:'fm-setup', sweetheart:'sw-setup' })[g];
+  let timer = null;
+  function openFromLink(){
+    const g = (location.hash || '').slice(1).toLowerCase();
+    if(!GAMES.includes(g)) return;
+    selectGame(g);
+    // The live round may arrive a moment after the page opens: jump into it when it does
+    clearInterval(timer); let n = 0;
+    timer = setInterval(()=>{
+      n++;
+      if(live(g)){ if(shown(inSetup(g))) selectGame(g); clearInterval(timer); }
+      else if(n > 25) clearInterval(timer);
+    }, 300);
+  }
+  window.addEventListener('load', openFromLink);
+  window.addEventListener('hashchange', openFromLink);
+  // Switch Game drops the link, so a refresh lands on the game list
+  const _home = window.showHome;
+  window.showHome = function(){ if(location.hash) history.replaceState(null, '', location.pathname + location.search); return _home.apply(this, arguments); };
+})();
+</script>
+<script src="/voice/voice.js"></script>
+<script>
+// 🎤 Talk to the app: open a game or a screen by voice (test)
+(function(){
+  if(!window.MSGVoice) return;
+  const shown = id => { const e = document.getElementById(id); return !!e && e.style.display !== 'none'; };
+  const game = id => () => selectGame(id);
+  MSGVoice.setup({ bottom: 78, commands: [
+    { label:'Stableford', say:['stableford','stable ford','stapleford','stable for'], run: game('stableford') },
+    { label:'Wolf', say:['wolf','wolfe','woolf','wolves'], run: game('wolf') },
+    { label:'NASCAR', say:['nascar','nascar vegas','vegas'], run: game('nascar') },
+    { label:'Four-man', say:['four man','four man scramble','foursome','for man'], run: game('fourman') },
+    { label:'Sweetheart', say:['sweetheart','sweet heart'], run: game('sweetheart') },
+    { label:'Leaderboard', say:['leaderboard','leader board','standings','money'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length) showSbView('board');
+        else if(shown('wolf-app') && players.length) showView('money'); } },
+    { label:'Scores', say:['enter scores','scores','score'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length) showSbView('entry');
+        else if(shown('wolf-app') && players.length) showView('play'); } },
+    { label:'Switch game', say:['switch game','switch games','game list','games','home','menu'], run: ()=>showHome() },
+    // Spoken scores on the score screen: "Adam par, Alan bogey, Bart double bogey"
+    { label:'Scores', example:'Adam par, Alan bogey', test: said => {
+        if(shown('stableford-app') && sbPlayers.length && shown('view-sb-entry') && sbMyGroupIndex(sbEffectiveGroups()) >= 0 && _sbHoleMembers.length)
+          return MSGVoice.parseScores(said, _sbHoleMembers, sbCourse(sbCourseId).par[sbCurHole]);
+        if(shown('wolf-app') && players.length && shown('view-play'))
+          return MSGVoice.parseScores(said, players, wolfHolePar());
+        return null; },
+      run: list => {
+        if(shown('stableford-app')){
+          const par = sbCourse(sbCourseId).par[sbCurHole];
+          MSGVoice.confirmScores(list, par, 'Hole ' + (sbCurHole+1) + ' · Par ' + par, l => l.forEach(x => sbSetHoleScore(x.i, x.val)));
+        } else {
+          const par = wolfHolePar();
+          MSGVoice.confirmScores(list, par, 'Hole ' + currentHole + ' · Par ' + par, l => l.forEach(x => wolfSetScore(x.i, x.val)));
+        }
+        return 'asked'; } },
+    // In a round: groups and holes
+    { label:'Group', example:'Group 1', re:/\b(?:group|groups|grip|groop) (\d{1,2})\b/, run: m=>{
+        if(!(shown('stableford-app') && sbPlayers.length)) return 'Groups are for a Stableford round in progress.';
+        const n = +m[1], gs = sbEffectiveGroups();
+        if(n < 1 || n > gs.length) return 'This round has ' + gs.length + ' group' + (gs.length===1?'':'s') + '.';
+        showSbView('entry'); sbPickGroup(n-1); } },
+    { label:'Change group', say:['change group','switch group','other group','pick group'], run: ()=>{
+        if(!(shown('stableford-app') && sbPlayers.length)) return 'Groups are for a Stableford round in progress.';
+        showSbView('entry'); sbChangeGroup(); } },
+    { label:'Hole', example:'Hole 5', re:/\b(?:hole|whole|holes) (\d{1,2})\b/, run: m=>{
+        const n = +m[1]; if(n < 1 || n > 18) return 'Holes go from 1 to 18.';
+        if(shown('stableford-app') && sbPlayers.length){
+          if(sbMyGroupIndex(sbEffectiveGroups()) < 0) return 'Pick your group first: say “group 1”.';
+          showSbView('entry'); sbGoHole(n-1); return; }
+        if(shown('wolf-app') && players.length){ showView('play'); currentHole = n; renderHole(); return; }
+        if(shown('nascar-app') && nvPlayers.length){ nvHole = n; nvRenderHole(); return; }
+        if(shown('fourman-app') && fmTeams.length){ fmHole = n; fmRenderHole(); return; }
+        if(shown('sweetheart-app') && swTeams.length){ swHole = n; swRenderHole(); return; }
+        return 'Start or open a round first.'; } },
+    { label:'Next hole', say:['next hole','next','forward'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length){ if(sbMyGroupIndex(sbEffectiveGroups()) < 0) return 'Pick your group first: say “group 1”.'; sbStepHole(1); return; }
+        if(shown('wolf-app') && players.length){ nextHoleNav(); return; }
+        if(shown('nascar-app') && nvPlayers.length){ nvNextHole(); return; }
+        if(shown('fourman-app') && fmTeams.length){ fmNextHole(); return; }
+        if(shown('sweetheart-app') && swTeams.length){ swNextHole(); return; }
+        return 'Start or open a round first.'; } },
+    { label:'Previous hole', say:['previous hole','last hole','back a hole','go back','previous'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length){ if(sbMyGroupIndex(sbEffectiveGroups()) < 0) return 'Pick your group first: say “group 1”.'; sbStepHole(-1); return; }
+        if(shown('wolf-app') && players.length){ prevHole(); return; }
+        if(shown('nascar-app') && nvPlayers.length){ nvPrevHole(); return; }
+        if(shown('fourman-app') && fmTeams.length){ fmPrevHole(); return; }
+        if(shown('sweetheart-app') && swTeams.length){ swPrevHole(); return; }
+        return 'Start or open a round first.'; } },
+    { label:'Wednesday', say:['wednesday','wednesday night','wednesday scramble'], run: ()=>{ location.href = 'app.html'; } }
+  ]});
+})();
+</script>
 </body>
 </html>
