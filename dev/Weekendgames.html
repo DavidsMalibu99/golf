@@ -189,18 +189,21 @@
   .empty{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:20px 0;}
   .hint{font-size:0.72rem; color:var(--text-dim); margin-top:8px; line-height:1.4;}
 
+  /* "Who's playing today?" as photo tiles: tap a tile to add him (he moves to the groups list) */
   .sb-checklist{
-    max-height:260px;
-    overflow-y:auto;
-    border:1px solid var(--line-green);
-    border-radius:8px;
-    padding:4px 10px;
-    margin-top:4px;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(98px,1fr)); gap:6px;
+    max-height:340px; overflow-y:auto;
+    border:1px solid var(--line-green); border-radius:8px;
+    padding:6px; margin-top:4px;
   }
-  .sb-check-row{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line-green);}
-  .sb-check-row:last-child{border-bottom:none;}
-  .sb-check-row input{width:auto;}
-  .sb-check-row label{margin:0; color:var(--cream); font-size:0.9rem;}
+  .sb-check-row{position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
+    padding:8px 4px 7px; margin:0; border:1px solid var(--line-green); border-radius:8px; background:var(--mid-green);
+    cursor:pointer; color:var(--cream); text-transform:none; letter-spacing:normal; font-weight:400;}
+  .sb-check-row:active{border-color:var(--gold);}
+  .sb-check-row input{position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;}
+  .sb-check-row .msg-av{margin-right:0;}
+  .sbt-name{font-size:0.8rem; font-weight:600; line-height:1.15; overflow-wrap:anywhere;}
+  .sbt-hcp{font-size:0.7rem; color:var(--text-dim);}
   .sb-hole-table{width:100%; margin-top:10px;}
   .sb-hole-table th,.sb-hole-table td{padding:5px 3px; font-size:0.78rem;}
   .sb-hole-table input{width:44px; text-align:center; padding:5px 2px;}
@@ -768,13 +771,13 @@ function syncAppendNewRosterNames(names){
     names.forEach(name=>{
       const safeId = 'sbchk_' + name.replace(/[^a-zA-Z0-9]/g,'');
       if(document.getElementById(safeId)) return;
-      const row = document.createElement('div');
-      row.className = 'sb-check-row';
-      row.innerHTML = `<input type="checkbox" id="${safeId}" value="${name}"><label for="${safeId}">${name} (hcp ${getHcp(name)})</label>`;
+      const row = document.createElement('label');
+      row.className = 'sb-check-row'; row.htmlFor = safeId;
+      row.innerHTML = `<input type="checkbox" id="${safeId}" value="${name}">${_av(name, 46)}<span class="sbt-name">${name}</span><span class="sbt-hcp">hcp <span id="${safeId}_h">${getHcp(name)}</span></span>`;
       const rows = Array.from(sbWrap.children);
       const target = rows.find(r => {
-        const lbl = r.querySelector('label');
-        return lbl && lbl.textContent.localeCompare(name) > 0;
+        const nm = r.querySelector('input');
+        return nm && nm.value.localeCompare(name) > 0;
       });
       if(target) sbWrap.insertBefore(row, target); else sbWrap.appendChild(row);
     });
@@ -2017,11 +2020,10 @@ function populateSbRosterChecklist(){
   wrap.innerHTML = ROSTER.map(name => {
     const id = 'sbchk_'+name.replace(/[^a-zA-Z0-9]/g,'');
     const safe = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return `<div class="sb-check-row">
+    return `<label class="sb-check-row" for="${id}">
       <input type="checkbox" id="${id}" value="${name}"${keep.has(name)?' checked':''}>
-      ${_av(name, 26)}<label for="${id}">${name} (hcp <span id="${id}_h">${getHcp(name)}</span>)</label>
-      ${hcTeeSelect(name, 'wkd', `sbPickTee('${safe}', this.value)`)}
-    </div>`;
+      ${_av(name, 46)}<span class="sbt-name">${name}</span><span class="sbt-hcp">hcp <span id="${id}_h">${getHcp(name)}</span></span>
+    </label>`;
   }).join('');
   sbRenderGroupSetup();
   sbRenderCourseSelect();
@@ -2098,7 +2100,7 @@ function sbRenderGroupSetup(){
     if(!names.includes(n) || sbGroupAssign[n] > sbGroupCount) delete sbGroupAssign[n];
   });
   if(!names.length){
-    wrap.innerHTML = '<div class="hint">Check off who\'s playing and they\'ll show up here.</div>';
+    wrap.innerHTML = '<div class="hint">Tap who\'s playing above and they\'ll show up here.</div>';
     return;
   }
   const btns = i => {
