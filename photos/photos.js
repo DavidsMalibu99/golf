@@ -7,6 +7,8 @@
     'Adam Denison': 'adam-denison.jpg',
     'Alan Sonnefeld': 'alan-sonnefeld.jpg',
     'Andy Rodriguez': 'andy-rodriguez.jpg',
+    'Brian Patrossi': 'brian-patrossi.jpg',
+    'Brian Petrossi': 'brian-patrossi.jpg', // same person, other spelling
     'Bryson Nail': 'bryson-nail.jpg',
     'Cary Howell': 'cary-howell.jpg',
     'Craig Taylor': 'craig-taylor.jpg',
