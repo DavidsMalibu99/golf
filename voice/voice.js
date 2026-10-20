@@ -36,6 +36,8 @@
     let best = null;
     alts.forEach(said => {
       const t = ' ' + norm(said) + ' ';
+      // Commands that read the whole sentence (spoken scores) win over everything else
+      cfg.commands.forEach(c => { if (!c.test || (best && best.len >= 2000)) return; const r = c.test(said); if (r) best = { cmd: c, len: 2000, said, m: r }; });
       // Commands with a number ("group 1", "hole 7") win over plain words
       cfg.commands.forEach(c => { if (!c.re || (best && best.len >= 1000)) return; const m = t.match(c.re); if (m) best = { cmd: c, len: 1000, said, m }; });
       cfg.commands.forEach(c => (c.say || []).forEach(w => {
@@ -65,6 +67,7 @@
       try {
         const r = m.cmd.run(m.m || m.said);
         // A command can answer with a short reason when it doesn't apply on this screen
+        if (r === 'asked') return; // the command opened its own confirm box
         if (typeof r === 'string') { show('Not on this screen', r, 'Heard: “' + m.said + '”'); return; }
         show('✓ ' + (m.cmd.label || 'OK') + (m.m && m.m[1] ? ' ' + m.m[1] : ''), 'Heard: “' + m.said + '”');
         setTimeout(hide, 1600);
@@ -74,15 +77,70 @@
       got = true;
       const why = { 'not-allowed': 'The microphone isn’t allowed. Tap Allow when the phone asks, or turn it on in Settings › Safari › Microphone.',
         'service-not-allowed': 'Voice isn’t allowed for this page on this phone. Try opening mvwns.com in Safari itself.',
-        'no-speech': 'Didn’t hear anything. Tap 🎤 and speak right away.', 'audio-capture': 'No microphone found.', 'network': 'Voice needs a signal. Try again.' }[e.error];
+        'no-speech': 'Didn’t hear anything. Tap 🎤 and speak right away.',
+        'audio-capture': 'The microphone is off for this page. In Safari, tap the microphone with a slash at the top of the screen to turn it on (or close any app or call using the mic), then tap 🎤 again.',
+        'network': 'Voice needs a signal. Try again.' }[e.error];
       show('Voice didn’t work', why || ('Error: ' + e.error), 'Tapping still works for everything.');
     };
     rec.onend = () => { busy = false; btn.classList.remove('on'); if (!got) hide(); };
     try { rec.start(); } catch (err) { busy = false; show('Voice didn’t start', String(err && err.message || err)); }
   }
 
+  // ---- Spoken scores: "Adam par, Alan bogey, Bart double bogey" / "Cary 4" / "everyone par" ----
+  const lev = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)); return d[a.length][b.length]; };
+  const NICK = { dave: 'david', mike: 'michael', allen: 'alan', allan: 'alan', bert: 'bart', jim: 'james', tom: 'thomas', dan: 'daniel', chris: 'christopher', bill: 'william', bob: 'robert', ed: 'edward', harvey: 'havey' };
+  const SCORE_WORDS = [
+    [/^(albatross)$/, p => p - 3], [/^(eagle|eagles|eagled)$/, p => p - 2], [/^(birdie|birdy|birdies|bertie|birdied|berdie)$/, p => p - 1],
+    [/^(par|parr|pars|parred)$/, p => p], [/^(bogey|bogie|bogy|bogeys|bogeyed|boogie|bogi)$/, p => p + 1],
+    [/^(double|dub|doubles)$/, p => p + 2], [/^(triple|triples)$/, p => p + 3], [/^(quad|quadruple)$/, p => p + 4], [/^(ace)$/, () => 1]];
+  function parseScores(said, names, par) {
+    const toks = norm(said).replace(/\bhole in 1\b/g, 'ace').split(' ').filter(Boolean);
+    // name words: first, last and nickname; a first name two players share needs the last name
+    const words = [];
+    names.forEach((n, i) => {
+      const nick = (String(n).match(/\(([^)]+)\)/) || [])[1];
+      const parts = String(n).toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w && !['jr', 'sr'].includes(w));
+      if (parts[0]) words.push({ i, w: parts[0] });
+      if (parts.length > 1) words.push({ i, w: parts[parts.length - 1] });
+      if (nick) words.push({ i, w: nick.toLowerCase().trim() });
+    });
+    const count = {}; words.forEach(x => { count[x.w] = (count[x.w] || new Set()).add(x.i); });
+    const uniq = words.filter(x => count[x.w].size === 1);
+    const who = t => {
+      const t2 = NICK[t] || t;
+      let hit = uniq.find(x => x.w === t2);
+      if (!hit && t2.length >= 4) { const close = uniq.filter(x => x.w.length >= 4 && lev(x.w, t2) <= 1); if (close.length === 1 || (close.length && close.every(c => c.i === close[0].i))) hit = close[0]; }
+      return hit ? hit.i : -1;
+    };
+    const marks = []; toks.forEach((t, j) => { const i = who(t); if (i >= 0 && !(marks.length && marks[marks.length - 1].j === j - 1 && marks[marks.length - 1].i === i)) marks.push({ i, j }); });
+    const scoreIn = seg => {
+      for (const t of seg) {
+        if (/^\d{1,2}$/.test(t) && +t >= 1 && +t <= 15) return { val: +t };
+        for (const [rx, f] of SCORE_WORDS) if (rx.test(t)) return { val: Math.max(1, f(par)) };
+      }
+      return null;
+    };
+    const out = {};
+    const everyone = toks.findIndex(t => /^(everyone|everybody|all|everybodys|everyones)$/.test(t));
+    if (everyone >= 0) { const sc = scoreIn(toks.slice(everyone + 1, marks.length ? marks[0].j : undefined)); if (sc) names.forEach((_, i) => { out[i] = sc.val; }); }
+    marks.forEach((mk, k) => { const end = k + 1 < marks.length ? marks[k + 1].j : toks.length; const sc = scoreIn(toks.slice(mk.j + 1, end)); if (sc) out[mk.i] = sc.val; });
+    const list = Object.keys(out).map(i => ({ i: +i, name: names[+i], val: out[i] }));
+    return list.length ? list : null;
+  }
+  const word = (v, par) => { const d = v - par; return v === 1 ? 'Ace' : d <= -3 ? 'Albatross' : ({ '-2': 'Eagle', '-1': 'Birdie', '0': 'Par', '1': 'Bogey', '2': 'Double', '3': 'Triple' })[d] || ('+' + d); };
+  // Show what was heard and let the player save or cancel
+  function confirmScores(list, par, title, onSave) {
+    show(title, '<div style="margin:4px 0 10px">' + list.map(x => '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>' + x.name + '</span><b>' + x.val + ' <span style="font-weight:500;color:#666">' + word(x.val, par) + '</span></b></div>').join('') + '</div>' +
+      '<div style="display:flex;gap:8px"><button class="msgv-ok" style="flex:1;background:#1b4332;color:#fff;border:0;border-radius:10px;padding:11px;font-weight:700;font-size:15px">✓ Save</button>' +
+      '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>', 'Wrong? Tap Cancel and say it again.');
+    panel.querySelector('.msgv-ok').onclick = () => { onSave(list); show('✓ Saved', list.map(x => x.name.split(' ')[0] + ' ' + x.val).join(', ')); setTimeout(hide, 1400); };
+    panel.querySelector('.msgv-no').onclick = hide;
+  }
+
   window.MSGVoice = {
     supported: !!SR,
+    parseScores, confirmScores, word,
     setup(opts) {
       cfg = Object.assign(cfg, opts || {});
       if (!btn) {
