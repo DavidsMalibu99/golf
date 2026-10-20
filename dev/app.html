@@ -3446,5 +3446,31 @@ async function copyLiveToDev() {
 // Keep the app on the phone so the home-screen icon opens fast (see sw.js)
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.log('sw', e)));
 </script>
+<script src="/voice/voice.js"></script>
+<script>
+// 🎤 Talk to the app: open a tab or a weekend game by voice (test)
+(function(){
+  if(!window.MSGVoice) return;
+  const tab = id => () => {
+    const b = [...document.querySelectorAll('nav button')].find(x => (x.getAttribute('onclick') || '').includes("'" + id + "'"));
+    showPage(id, b); window.scrollTo(0, 0);
+  };
+  const weekend = g => () => { location.href = 'Weekendgames.html' + (g ? '#' + g : ''); };
+  MSGVoice.setup({ bottom: 16, commands: [
+    { label:'Roster', say:['roster','rsvp','who is playing','players','sign up'], run: tab('teams') },
+    { label:'Live scorecard', say:['scorecard','score card','live scorecard','scores','enter scores','score'], run: tab('scorecard') },
+    { label:'Leaderboard', say:['leaderboard','leader board','standings'], run: tab('leaderboard') },
+    { label:'Yearly points', say:['yearly','yearly points','points'], run: tab('yearly') },
+    { label:'Payout', say:['payout','weekly payout','payouts','money'], run: tab('payout') },
+    { label:'Pairing history', say:['pairing history','history','pairings'], run: tab('history') },
+    { label:'Results', say:['results','enter results'], run: tab('results') },
+    { label:'Admin', say:['admin','administrator'], run: ()=>{ if(!state.adminVisible) toggleAdmin(); } },
+    { label:'Weekend games', say:['weekend','weekend games'], run: weekend('') },
+    { label:'Stableford', say:['stableford','stable ford','stapleford'], run: weekend('stableford') },
+    { label:'Wolf', say:['wolf','wolfe','woolf'], run: weekend('wolf') },
+    { label:'NASCAR', say:['nascar','vegas'], run: weekend('nascar') }
+  ]});
+})();
+</script>
 </body>
 </html>

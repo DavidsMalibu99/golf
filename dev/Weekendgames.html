@@ -5933,5 +5933,29 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
   window.showHome = function(){ if(location.hash) history.replaceState(null, '', location.pathname + location.search); return _home.apply(this, arguments); };
 })();
 </script>
+<script src="/voice/voice.js"></script>
+<script>
+// 🎤 Talk to the app: open a game or a screen by voice (test)
+(function(){
+  if(!window.MSGVoice) return;
+  const shown = id => { const e = document.getElementById(id); return !!e && e.style.display !== 'none'; };
+  const game = id => () => selectGame(id);
+  MSGVoice.setup({ bottom: 78, commands: [
+    { label:'Stableford', say:['stableford','stable ford','stapleford','stable for'], run: game('stableford') },
+    { label:'Wolf', say:['wolf','wolfe','woolf','wolves'], run: game('wolf') },
+    { label:'NASCAR', say:['nascar','nascar vegas','vegas'], run: game('nascar') },
+    { label:'Four-man', say:['four man','four man scramble','foursome','for man'], run: game('fourman') },
+    { label:'Sweetheart', say:['sweetheart','sweet heart'], run: game('sweetheart') },
+    { label:'Leaderboard', say:['leaderboard','leader board','standings','money'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length) showSbView('board');
+        else if(shown('wolf-app') && players.length) showView('money'); } },
+    { label:'Scores', say:['enter scores','scores','score'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length) showSbView('entry');
+        else if(shown('wolf-app') && players.length) showView('play'); } },
+    { label:'Switch game', say:['switch game','switch games','game list','games','home','menu'], run: ()=>showHome() },
+    { label:'Wednesday', say:['wednesday','wednesday night','wednesday scramble'], run: ()=>{ location.href = 'app.html'; } }
+  ]});
+})();
+</script>
 </body>
 </html>
