@@ -17,6 +17,7 @@
     'David Sauceda': 'david-sauceda.jpg',
     'Jake Kelley': 'jake-kelley.jpg',
     'Jamie Daspit': 'jamie-daspit.jpg',
+    'Jerry Rains': 'jerry-rains.jpg',
     'Karey Carter': 'karey-carter.jpg',
     'Mike Cross': 'mike-cross.jpg',
     'Trey McDaniel': 'trey-mcdaniel.jpg'
