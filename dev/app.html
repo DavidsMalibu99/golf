@@ -3459,6 +3459,11 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
   };
   const weekend = g => () => { location.href = 'Weekendgames.html' + (g ? '#' + g : ''); };
   const names = () => APP_DATA.roster.map(p => p.name);
+  // Live Scorecard helpers: the group on screen, and the two players behind a team label
+  const scGroup = () => { const pg = document.getElementById('page-scorecard');
+    if(!pg || !pg.classList.contains('active') || _grp.groupHole === null || _grp.curHole === null) return null;
+    return getGroupForStart(_grp.groupHole) || null; };
+  const scPlayers = l => String(expandTeamLabel(l) || '').replace(/⛳/g,'').replace(/\(solo\)/g,'').split(/\s*(?:\+|&)\s*/).map(x => x.trim()).filter(Boolean);
   const needAdmin = () => _adminUnlocked ? null : 'Unlock Admin first: say “admin”.';
   const has = (said, list) => { const t = ' ' + V.norm(said) + ' '; return list.some(w => t.includes(' ' + V.norm(w) + ' ')); };
   function unlockAdmin(){
@@ -3471,7 +3476,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
   // Spoken PIN, for now (David's ask, Oct 20): "admin one nine nine zero", or "admin" then the PIN
   const pinIn = said => V.norm(said).replace(/[^0-9]/g, '');
   function checkPin(alts){
-    if(alts.some(a => pinIn(a) === ADMIN_PIN || pinIn(a).endsWith(ADMIN_PIN))){ unlockAdmin(); V.say('✓ Admin unlocked', ''); setTimeout(()=>{ const pnl=document.querySelector('.msgv-panel'); if(pnl) pnl.style.display='none'; }, 1400); }
+    if(alts.some(a => pinIn(a) === ADMIN_PIN || pinIn(a).endsWith(ADMIN_PIN))){ unlockAdmin(); V.flash('✓ Admin unlocked', ''); }
     else V.say('Wrong PIN', 'Heard: “' + alts[0] + '”. Say “admin” to try again, or tap 🔒 Admin.');
   }
   const OUT = ['remove','take off','take out','drop','scratch','not playing','is out','are out','out','delete','uncheck'];
@@ -3483,7 +3488,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
   }
   V.setup({ bottom: 16, commands: [
     // RSVPs (anyone): "add Cary, Jake and Mike" / "Cary and Jake are playing" / "remove Jake"
-    { label:'Add players', example:'Add Cary and Jake', test: said => (has(said, ['week','hole','group']) ? null : rsvp(said)), run: r => {
+    { label:'Add players', example:'Add Cary and Jake', test: said => (scGroup() || has(said, ['week','hole','group']) ? null : rsvp(said)), run: r => {
         const list = r.idx.map(i => names()[i]);
         V.confirm(r.off ? 'Take off the list?' : 'Add to this week?', list, r.off ? '✓ Remove' : '✓ Add', () => {
           list.forEach(n => { state.playing[n] = !r.off; }); saveState(); renderPlayers(); tab('teams');
@@ -3512,6 +3517,34 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
     { label:'Start round', say:['start round','start the round','start scoring','start the scorecard'], run: ()=>{ const w=needAdmin(); if(w) return w; startRound(); } },
     { label:'Index and tees', say:['index and tees','index','tees','handicaps','handicap'], run: ()=>{ const w=needAdmin(); if(w) return w; openHcEditor(); } },
     { label:'New player', say:['new player','add a player','add player','add new player'], run: ()=>{ const w=needAdmin(); if(w) return w; showAddPlayer(); } },
+    // Live Scorecard: groups, holes and spoken team scores
+    { label:'Team scores', example:'Howell four, Meyer par', test: said => {
+        const g = scGroup(); if(!g) return null;
+        const people = [], teamOf = [];
+        g.teams.forEach((l, ti) => scPlayers(l).forEach(nm => { people.push(nm); teamOf.push(ti); }));
+        const h = _grp.curHole, par = HOLE_PARS[h - 1];
+        const r = V.parseScores(said, people, par); if(!r) return null;
+        const byTeam = {}; r.forEach(x => { byTeam[teamOf[x.i]] = x.val; });
+        return { g, h, par, list: Object.keys(byTeam).map(ti => ({ i: +ti, name: _grpNames(g.teams[+ti]), val: byTeam[ti] })) }; },
+      run: r => {
+        V.confirmScores(r.list, r.par, 'Hole ' + (r.h + HOLE_OFFSET) + ' · Par ' + r.par, list => {
+          list.forEach(x => { const l = r.g.teams[x.i]; (_grp.pending[l] = _grp.pending[l] || {})[r.h] = x.val; });
+          renderGroupEntry(); });
+        return 'asked'; } },
+    { label:'Group', example:'Group 1', re:/\b(?:group|groups|grip|groop) (\d{1,2})\b/, run: m=>{
+        const gs = getScoreGroups(); tab('scorecard');
+        if(!gs) return 'Groups show once the round is started and holes are assigned.';
+        const n = +m[1]; if(n < 1 || n > gs.length) return 'This round has ' + gs.length + ' group' + (gs.length===1?'':'s') + '.';
+        pickScoreGroup(String(gs[n-1].startHole === null ? 'null' : gs[n-1].startHole)); } },
+    { label:'Change group', say:['change group','switch group','other group','pick group'], run: ()=>{ tab('scorecard'); changeScoreGroup(); } },
+    { label:'Hole', example:'Hole 5', re:/\b(?:hole|whole|holes) (\d{1,2})\b/, run: m=>{
+        if(!scGroup()) return 'Open the Live Scorecard and pick your group first: say “group 1”.';
+        let n = +m[1]; if(HOLE_OFFSET && n > 9) n -= HOLE_OFFSET;
+        if(n < 1 || n > 9) return 'This round is holes ' + (1 + HOLE_OFFSET) + '–' + (9 + HOLE_OFFSET) + '.';
+        gotoGroupHole(n); } },
+    { label:'Next hole', say:['next hole','next','forward'], run: ()=>{ if(!scGroup()) return 'Pick your group first: say “group 1”.'; stepGroupHole(1); } },
+    { label:'Previous hole', say:['previous hole','last hole','go back','previous'], run: ()=>{ if(!scGroup()) return 'Pick your group first: say “group 1”.'; stepGroupHole(-1); } },
+    { label:'Post hole', say:['post hole','post the hole','post','post scores','save hole','submit'], run: ()=>{ if(!scGroup()) return 'Pick your group first: say “group 1”.'; postGroupHole(); } },
     // Tabs and weekend games
     { label:'Roster', say:['roster','rsvp list','sign up','players'], run: ()=>tab('teams') },
     { label:'Live scorecard', say:['scorecard','score card','live scorecard','scores','enter scores','score'], run: ()=>tab('scorecard') },

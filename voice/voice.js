@@ -17,7 +17,10 @@
       '.msgv-panel .x{float:right;background:none;border:0;font-size:20px;color:#999;cursor:pointer;padding:0 0 0 8px}';
     document.head.appendChild(s);
   }
+  let hideTimer = null;
+  const hideSoon = ms => { clearTimeout(hideTimer); hideTimer = setTimeout(hide, ms); };
   function show(title, body, small) {
+    clearTimeout(hideTimer); // a new message is never closed by an older one's timer
     panel.style.display = 'block';
     panel.innerHTML = '<button class="x" aria-label="Close">×</button><b>' + title + '</b>' + (body ? '<div>' + body + '</div>' : '') + (small ? '<small>' + small + '</small>' : '');
     panel.querySelector('.x').onclick = hide;
@@ -73,7 +76,7 @@
         if (r === 'asked') return; // the command opened its own confirm box
         if (typeof r === 'string') { show('Not on this screen', r, 'Heard: “' + m.said + '”'); return; }
         show('✓ ' + (m.cmd.label || 'OK') + (m.m && m.m[1] ? ' ' + m.m[1] : ''), 'Heard: “' + m.said + '”');
-        setTimeout(hide, 1600);
+        hideSoon(1600);
       } catch (err) { show('Something went wrong', String(err && err.message || err)); }
     };
     rec.onerror = e => {
@@ -164,7 +167,7 @@
     show(title, '<div style="margin:4px 0 10px">' + list.map(x => '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>' + x.name + '</span><b>' + x.val + ' <span style="font-weight:500;color:#666">' + word(x.val, par) + '</span></b></div>').join('') + '</div>' +
       '<div style="display:flex;gap:8px"><button class="msgv-ok" style="flex:1;background:#1b4332;color:#fff;border:0;border-radius:10px;padding:11px;font-weight:700;font-size:15px">✓ Save</button>' +
       '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>', 'Wrong? Tap Cancel and say it again.');
-    panel.querySelector('.msgv-ok').onclick = () => { onSave(list); show('✓ Saved', list.map(x => x.name.split(' ')[0] + ' ' + x.val).join(', ')); setTimeout(hide, 1400); };
+    panel.querySelector('.msgv-ok').onclick = () => { onSave(list); show('✓ Saved', list.map(x => x.name.split(' ')[0] + ' ' + x.val).join(', ')); hideSoon(1400); };
     panel.querySelector('.msgv-no').onclick = hide;
   }
 
@@ -180,6 +183,7 @@
       panel.querySelector('.msgv-no').onclick = hide;
     },
     say(title, body) { show(title, body); },
+    flash(title, body, ms) { show(title, body); hideSoon(ms || 1400); },
     setup(opts) {
       cfg = Object.assign(cfg, opts || {});
       if (!btn) {
