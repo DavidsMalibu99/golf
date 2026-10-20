@@ -23,12 +23,21 @@
     panel.querySelector('.x').onclick = hide;
   }
   function hide() { panel.style.display = 'none'; }
-  const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\b4\b/g, 'four').replace(/\s+/g, ' ').trim();
+  // Spoken numbers become digits ("group one" -> "group 1"), including the usual mishearings
+  // after "group"/"hole" ("hole to" -> "hole 2", "group won" -> "group 1").
+  const NUM = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12,
+    thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, first:1, second:2, third:3, fourth:4, fifth:5 };
+  const SOUND = { won:1, to:2, too:2, tree:3, for:4, fore:4, ate:8 };
+  const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
+    .map((w, i, a) => NUM[w] !== undefined ? String(NUM[w]) : (SOUND[w] !== undefined && /^(group|groups|grip|groop|hole|whole|holes)$/.test(a[i - 1] || '') ? String(SOUND[w]) : w))
+    .join(' ');
   function match(alts) {
     // Longest matching phrase wins, so "four man scramble" beats "scramble"
     let best = null;
     alts.forEach(said => {
       const t = ' ' + norm(said) + ' ';
+      // Commands with a number ("group 1", "hole 7") win over plain words
+      cfg.commands.forEach(c => { if (!c.re || (best && best.len >= 1000)) return; const m = t.match(c.re); if (m) best = { cmd: c, len: 1000, said, m }; });
       cfg.commands.forEach(c => (c.say || []).forEach(w => {
         const p = ' ' + norm(w) + ' ';
         if (t.includes(p) && (!best || p.length > best.len)) best = { cmd: c, len: p.length, said };
@@ -36,7 +45,7 @@
     });
     return best;
   }
-  function examples() { return cfg.commands.filter(c => c.label).map(c => '“' + c.label + '”').join(', '); }
+  function examples() { return cfg.commands.filter(c => c.label).map(c => '“' + (c.example || c.label) + '”').join(', '); }
 
   function listen() {
     if (busy) { try { rec && rec.stop(); } catch (e) {} return; }
@@ -53,9 +62,13 @@
       const alts = [...e.results[0]].map(a => a.transcript);
       const m = match(alts);
       if (!m) { show('Didn’t catch a command', 'Heard: “' + alts[0] + '”', 'Try: ' + examples()); return; }
-      show('✓ ' + (m.cmd.label || 'OK'), 'Heard: “' + m.said + '”');
-      setTimeout(hide, 1600);
-      try { m.cmd.run(m.said); } catch (err) { show('Something went wrong', String(err && err.message || err)); }
+      try {
+        const r = m.cmd.run(m.m || m.said);
+        // A command can answer with a short reason when it doesn't apply on this screen
+        if (typeof r === 'string') { show('Not on this screen', r, 'Heard: “' + m.said + '”'); return; }
+        show('✓ ' + (m.cmd.label || 'OK') + (m.m && m.m[1] ? ' ' + m.m[1] : ''), 'Heard: “' + m.said + '”');
+        setTimeout(hide, 1600);
+      } catch (err) { show('Something went wrong', String(err && err.message || err)); }
     };
     rec.onerror = e => {
       got = true;

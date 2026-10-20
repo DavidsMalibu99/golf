@@ -5953,6 +5953,39 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
         if(shown('stableford-app') && sbPlayers.length) showSbView('entry');
         else if(shown('wolf-app') && players.length) showView('play'); } },
     { label:'Switch game', say:['switch game','switch games','game list','games','home','menu'], run: ()=>showHome() },
+    // In a round: groups and holes
+    { label:'Group', example:'Group 1', re:/\b(?:group|groups|grip|groop) (\d{1,2})\b/, run: m=>{
+        if(!(shown('stableford-app') && sbPlayers.length)) return 'Groups are for a Stableford round in progress.';
+        const n = +m[1], gs = sbEffectiveGroups();
+        if(n < 1 || n > gs.length) return 'This round has ' + gs.length + ' group' + (gs.length===1?'':'s') + '.';
+        showSbView('entry'); sbPickGroup(n-1); } },
+    { label:'Change group', say:['change group','switch group','other group','pick group'], run: ()=>{
+        if(!(shown('stableford-app') && sbPlayers.length)) return 'Groups are for a Stableford round in progress.';
+        showSbView('entry'); sbChangeGroup(); } },
+    { label:'Hole', example:'Hole 5', re:/\b(?:hole|whole|holes) (\d{1,2})\b/, run: m=>{
+        const n = +m[1]; if(n < 1 || n > 18) return 'Holes go from 1 to 18.';
+        if(shown('stableford-app') && sbPlayers.length){
+          if(sbMyGroupIndex(sbEffectiveGroups()) < 0) return 'Pick your group first: say “group 1”.';
+          showSbView('entry'); sbGoHole(n-1); return; }
+        if(shown('wolf-app') && players.length){ showView('play'); currentHole = n; renderHole(); return; }
+        if(shown('nascar-app') && nvPlayers.length){ nvHole = n; nvRenderHole(); return; }
+        if(shown('fourman-app') && fmTeams.length){ fmHole = n; fmRenderHole(); return; }
+        if(shown('sweetheart-app') && swTeams.length){ swHole = n; swRenderHole(); return; }
+        return 'Start or open a round first.'; } },
+    { label:'Next hole', say:['next hole','next','forward'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length){ if(sbMyGroupIndex(sbEffectiveGroups()) < 0) return 'Pick your group first: say “group 1”.'; sbStepHole(1); return; }
+        if(shown('wolf-app') && players.length){ nextHoleNav(); return; }
+        if(shown('nascar-app') && nvPlayers.length){ nvNextHole(); return; }
+        if(shown('fourman-app') && fmTeams.length){ fmNextHole(); return; }
+        if(shown('sweetheart-app') && swTeams.length){ swNextHole(); return; }
+        return 'Start or open a round first.'; } },
+    { label:'Previous hole', say:['previous hole','last hole','back a hole','go back','previous'], run: ()=>{
+        if(shown('stableford-app') && sbPlayers.length){ if(sbMyGroupIndex(sbEffectiveGroups()) < 0) return 'Pick your group first: say “group 1”.'; sbStepHole(-1); return; }
+        if(shown('wolf-app') && players.length){ prevHole(); return; }
+        if(shown('nascar-app') && nvPlayers.length){ nvPrevHole(); return; }
+        if(shown('fourman-app') && fmTeams.length){ fmPrevHole(); return; }
+        if(shown('sweetheart-app') && swTeams.length){ swPrevHole(); return; }
+        return 'Start or open a round first.'; } },
     { label:'Wednesday', say:['wednesday','wednesday night','wednesday scramble'], run: ()=>{ location.href = 'app.html'; } }
   ]});
 })();
