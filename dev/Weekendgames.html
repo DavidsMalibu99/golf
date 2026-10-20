@@ -5902,5 +5902,36 @@ function ydsBtn(courseId, hole) {
 }
 function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.hidden = courseId !== YDS_COURSE; }
 </script>
+<script>
+/* Direct links to a game, e.g. mvwns.com/Weekendgames.html#stableford — for home-screen
+   shortcuts and "Hey Siri, open Stableford" (iPhone Shortcuts → Open URL).
+   Links: #wolf  #stableford  #nascar  #fourman  #sweetheart */
+(function(){
+  const GAMES = ['wolf','stableford','nascar','fourman','sweetheart'];
+  const el = id => document.getElementById(id);
+  const shown = id => el(id) && el(id).style.display !== 'none';
+  const live = g => ({ wolf:()=>players.length, stableford:()=>sbPlayers.length, nascar:()=>nvPlayers.length,
+                       fourman:()=>fmTeams.length, sweetheart:()=>swTeams.length })[g]() > 0;
+  const inSetup = g => ({ wolf:'view-setup', stableford:'view-sb-setup', nascar:'nv-setup', fourman:'fm-setup', sweetheart:'sw-setup' })[g];
+  let timer = null;
+  function openFromLink(){
+    const g = (location.hash || '').slice(1).toLowerCase();
+    if(!GAMES.includes(g)) return;
+    selectGame(g);
+    // The live round may arrive a moment after the page opens: jump into it when it does
+    clearInterval(timer); let n = 0;
+    timer = setInterval(()=>{
+      n++;
+      if(live(g)){ if(shown(inSetup(g))) selectGame(g); clearInterval(timer); }
+      else if(n > 25) clearInterval(timer);
+    }, 300);
+  }
+  window.addEventListener('load', openFromLink);
+  window.addEventListener('hashchange', openFromLink);
+  // Switch Game drops the link, so a refresh lands on the game list
+  const _home = window.showHome;
+  window.showHome = function(){ if(location.hash) history.replaceState(null, '', location.pathname + location.search); return _home.apply(this, arguments); };
+})();
+</script>
 </body>
 </html>
