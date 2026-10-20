@@ -6,7 +6,10 @@
    To turn this off, replace this file with one that only calls self.registration.unregister(). */
 const CACHE = '__CACHE__';
 const PAGES = __PAGES__;
-const SAVED_FIRST = [/^https:\/\/www\.gstatic\.com\/firebasejs\//, /\/photos\/[^?]*$/];
+// The photo list is checked fresh each time (tiny file), so new head shots show on the next open;
+// the pictures themselves and the Firebase code come from the saved copy.
+const FRESH = ['/photos/photos.js'];
+const SAVED_FIRST = [/^https:\/\/www\.gstatic\.com\/firebasejs\//, /\/photos\/[^?]+\.jpg$/];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all([
@@ -41,6 +44,6 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin === self.location.origin && PAGES.includes(url.pathname)) { e.respondWith(networkFirst(req)); return; }
+  if (url.origin === self.location.origin && (PAGES.includes(url.pathname) || FRESH.includes(url.pathname))) { e.respondWith(networkFirst(req)); return; }
   if (SAVED_FIRST.some(rx => rx.test(req.url))) { e.respondWith(savedFirst(req)); return; }
 });

@@ -31,6 +31,10 @@ nav button:hover:not(.active){background:#ebebE6}
 .toggle{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:#e0e0da;flex-shrink:0;font-weight:700;transition:all .15s;color:#888}
 .player-card.playing .toggle{background:#1b4332;color:#fff}
 .pname{font-size:12px;font-weight:500;flex:1;line-height:1.2}
+/* Roster tile: name on top, tee + HCP on a second line, so nothing runs off the tile */
+.pinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pinfo .pname{flex:none;overflow-wrap:anywhere}
+.pmeta{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .hc-tee{font-size:11px;border:1px solid #cfe3d6;border-radius:8px;padding:1px 2px;background:#fff;color:#1b4332;margin-right:4px;flex-shrink:0}
 .hc-tee:disabled{opacity:1;color:#1b4332;-webkit-appearance:none;appearance:none;border-color:transparent;background:#f3f7f4;padding:2px 5px}
 .hcp-badge{font-size:11px;background:#e4f0e8;color:#1b4332;padding:2px 5px;border-radius:8px;font-weight:600;cursor:text;flex-shrink:0}
@@ -858,9 +862,8 @@ function renderPlayers() {
     const safe = p.name.replace(/'/g,"\\'");
     return `<div class="player-card${on?' playing':''}" onclick="togglePlayer(\'${safe}\')">
       <div class="toggle">${on?'✓':'+'}</div>
-      ${_av(p.name, 30)}<div class="pname">${p.name}</div>
-      ${hcTeeSelect(p.name, 'wed', `wedPickTee('${safe}', this.value)`, !_adminUnlocked)}
-      <div class="hcp-badge" onclick="editHcp(event,\'${safe}\')" title="Click to edit HCP">HCP ${h}</div>
+      ${_av(p.name, 30)}<div class="pinfo"><div class="pname">${p.name}</div>
+        <div class="pmeta">${hcTeeSelect(p.name, 'wed', `wedPickTee('${safe}', this.value)`, !_adminUnlocked)}<div class="hcp-badge" onclick="editHcp(event,\'${safe}\')" title="Click to edit HCP">HCP ${h}</div></div></div>
     </div>`;
   }).join('');
   updateCount();
