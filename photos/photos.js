@@ -15,6 +15,7 @@
     'Dave Dawson': 'dave-dawson.jpg',
     'David Meyer': 'david-meyer.jpg',
     'David Sauceda': 'david-sauceda.jpg',
+    'Harvey Duke': 'harvey-duke.jpg',
     'Jake Kelley': 'jake-kelley.jpg',
     'Jamie Daspit': 'jamie-daspit.jpg',
     'Jerry Rains': 'jerry-rains.jpg',
