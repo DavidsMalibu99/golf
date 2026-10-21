@@ -3558,7 +3558,7 @@ async function copyLiveToDev() {
 // Keep the app on the phone so the home-screen icon opens fast (see sw.js)
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.log('sw', e)));
 </script>
-<script src="/voice/voice.js"></script>
+<script src="/voice/voice-dev.js"></script>
 <script>
 // 🎤 Talk to the app: tabs, RSVPs, and (after Admin is unlocked) the admin buttons.
 // Never by voice: End Round & Post Results, Clear Round, Reset Firebase DB, Archive Hole Scores.
