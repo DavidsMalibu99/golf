@@ -15,7 +15,7 @@
     'Curtis Newstrom': 'curtis-newstrom.jpg',
     'Dale Dugas': 'dale-dugas.jpg',
     'Dale Vasek': 'dale-vasek.jpg',
-    'Dave Dawson': 'dave-dawson.jpg',
+    'Dave Dawson': 'dave-dawson-2.jpg',
     'Ed Menville': 'ed-menville.jpg',
     'David Meyer': 'david-meyer.jpg',
     'David Sauceda': 'david-sauceda-2.jpg',
