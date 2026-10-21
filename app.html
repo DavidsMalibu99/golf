@@ -296,10 +296,12 @@ body.yardage-open{overflow:hidden}
 
   <div class="card" id="teams-card" style="display:none">
     <div class="card-title">Generated Teams — Week <span id="teams-wk-label">?</span></div>
+    <div id="teams-note" style="font-size:12px;color:#7a5c00;background:#fff8e1;border-radius:6px;padding:6px 8px;margin-bottom:8px">Not saved yet. Late arrivals? Tick their name and tap Generate Teams again.</div>
     <div id="team-list"></div>
     <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="btn" onclick="savePairings()" id="save-pairings-btn" style="background:#2d6a4f">💾 Save Pairings to History</button>
       <button class="btn" onclick="assignHoles()" id="assign-holes-btn" style="background:#1a6b8a">⛳ Assign Holes</button>
+      <button class="btn gray" onclick="clearTeams()" id="clear-teams-btn">↺ Clear Teams</button>
       <span id="save-pairings-msg" style="font-size:12px;color:#1b4332;font-weight:600"></span>
     </div>
   </div>
@@ -840,6 +842,7 @@ function onWeekNumInput() {
     // Switching to a different week - last week's "who's playing" checkboxes don't carry over
     state.playing = {};
     renderPlayers();
+    clearLockRequests();
   }
   saveAdmin();
 }
@@ -1174,12 +1177,28 @@ function generateTeams() {
       </div>`).join('');
 
   document.getElementById('teams-card').style.display = '';
+  document.getElementById('teams-note').style.display = '';
+  // Locked pairs and same-hole requests stay put, so re-generating for late arrivals keeps them
+  // (and Assign Holes can still use the same-hole requests). They clear when the week changes.
+}
 
-  // Clear locks after successful generation
+function clearLockRequests() {
   lockedPairs = [];
   sameHoleRequests = [];
   document.getElementById('lock-pairs-list').innerHTML = '';
   document.getElementById('same-hole-list').innerHTML = '';
+}
+
+// Hide the generated teams (and any hole groups) so the admin can wait for the full field.
+// Nothing is saved by generating, so this only clears the screen. Locks stay.
+function clearTeams() {
+  const holesShown = document.getElementById('holes-card').style.display !== 'none';
+  if (holesShown && !confirm('Holes were already assigned and sent to phones. Clear the teams anyway? Assign Holes again after you re-generate to replace them.')) return false;
+  document.getElementById('team-list').innerHTML = '';
+  document.getElementById('teams-card').style.display = 'none';
+  document.getElementById('holes-card').style.display = 'none';
+  const m = document.getElementById('save-pairings-msg'); if (m) m.textContent = '';
+  return true;
 }
 
 function autoRotate(pool, wk, reroll) {
@@ -1604,6 +1623,7 @@ async function savePairings() {
   const teamCount = pairs.filter(p => p.length === 2).length;
   const soloCount = pairs.filter(p => p.length === 1).length;
   const msg = document.getElementById('save-pairings-msg');
+  document.getElementById('teams-note').style.display = 'none';
   msg.textContent = `✓ Week ${wk} pairings saved — ${teamCount} team${teamCount!==1?'s':''}${soloCount ? ', 1 solo' : ''}!`;
   setTimeout(() => msg.textContent = '', 4000);
   renderHistory();
@@ -3475,6 +3495,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
     { say:['end round','end the round','post results','clear round','clear the round','reset','reset firebase','archive','archive hole scores'], run: ()=>
         'For safety, End Round & Post Results, Clear Round, Reset and Archive are tap-only. Use the buttons in Admin.' },
     { label:'Generate teams', say:['generate teams','generate','make teams','create teams','make the teams','generate the teams'], run: ()=>{ const w=needAdmin(); if(w) return w; tab('teams'); generateTeams(); } },
+    { label:'Clear teams', say:['clear teams','clear the teams','un generate','ungenerate','un generate teams','ungenerate teams','un generate the teams','ungenerate the teams','undo teams','undo the teams','reset teams','reset the teams'], run: ()=>{ const w=needAdmin(); if(w) return w; tab('teams'); if(clearTeams()) MSGVoice.flash('✓ Teams cleared', 'Tap Generate Teams when everyone is here'); return 'asked'; } },
     { label:'Assign holes', say:['assign holes','assign the holes','hole assignments','assign'], run: ()=>{ const w=needAdmin(); if(w) return w; tab('teams'); assignHoles(); } },
     { label:'Save pairings', say:['save pairings','save the pairings','save teams','save pairing'], run: ()=>{ const w=needAdmin(); if(w) return w; tab('teams'); savePairings(); } },
     { label:'Start round', say:['start round','start the round','start scoring','start the scorecard'], run: ()=>{ const w=needAdmin(); if(w) return w; startRound(); } },
