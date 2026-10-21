@@ -1168,7 +1168,7 @@ function generateTeams() {
   }
 
   // Auto-rotate remaining pool
-  const generatedTeams = pool.length >= 2 ? autoRotate(pool, wk, rr) : [];
+  const generatedTeams = pool.length >= 2 ? (PAIRING_MODE === 'classic' ? autoRotate(pool, wk, rr) : balancedPairs(pool, wk, rr)) : [];
 
   // Combine: locked pairs first, then generated, then solo (as its own team-of-one row)
   const teams = [...prebuiltTeams, ...generatedTeams, ...(solo ? [{p1: solo, solo: true}] : [])];
@@ -1220,6 +1220,60 @@ function clearTeams() {
   document.getElementById('holes-card').style.display = 'none';
   const m = document.getElementById('save-pairings-msg'); if (m) m.textContent = '';
   return true;
+}
+
+// Team pairing method.
+//   'balanced' (Oct 21 2026): every rotation of the highs is a starting point, then partners are swapped
+//               between any two teams while it means fewer repeats, then a smaller gap between the
+//               highest and lowest combined HCP. Re-Roll # picks the next-best distinct set.
+//   'classic'  : the original method - slide the highs list, keep the best rotation (autoRotate below).
+// To go back to the original pairing, change 'balanced' to 'classic'.
+const PAIRING_MODE = 'balanced';
+
+function pairScore(teams) {
+  const sums = teams.map(t => t.p1.hcp + t.p2.hcp);
+  const mean = sums.reduce((a, b) => a + b, 0) / sums.length;
+  return {
+    repeats: teams.filter(t => t.repeat).length,
+    spread: Math.max(...sums) - Math.min(...sums),
+    dev: sums.reduce((a, x) => a + (x - mean) * (x - mean), 0)
+  };
+}
+const pairBetter = (a, b) => a.repeats !== b.repeats ? a.repeats < b.repeats
+  : a.spread !== b.spread ? a.spread < b.spread : a.dev < b.dev - 1e-9;
+
+function balanceSwaps(teams, wk) {
+  let cur = teams.slice(), score = pairScore(cur), improved = true, guard = 0;
+  while (improved && guard++ < 500) {
+    improved = false;
+    for (let i = 0; i < cur.length && !improved; i++) {
+      for (let j = i + 1; j < cur.length && !improved; j++) {
+        const next = cur.slice();
+        next[i] = {p1: cur[i].p1, p2: cur[j].p2, repeat: checkRepeat(cur[i].p1.name, cur[j].p2.name, wk)};
+        next[j] = {p1: cur[j].p1, p2: cur[i].p2, repeat: checkRepeat(cur[j].p1.name, cur[i].p2.name, wk)};
+        const sc = pairScore(next);
+        if (pairBetter(sc, score)) { cur = next; score = sc; improved = true; }
+      }
+    }
+  }
+  return cur;
+}
+
+function balancedPairs(pool, wk, reroll) {
+  const n = pool.length;
+  const lows = pool.slice(0, n/2);
+  const highs = pool.slice(n/2).reverse(); // highest HCP starts next to the lowest
+  const seen = new Set(), results = [];
+  for (let offset = 0; offset < highs.length; offset++) {
+    const rotated = [...highs.slice(offset), ...highs.slice(0, offset)];
+    const start = lows.map((p1, i) => ({p1, p2: rotated[i], repeat: checkRepeat(p1.name, rotated[i].name, wk)}));
+    const teams = balanceSwaps(start, wk);
+    const key = teams.map(t => t.p1.name + '|' + t.p2.name).sort().join(',');
+    if (seen.has(key)) continue;
+    seen.add(key); results.push({teams, score: pairScore(teams)});
+  }
+  results.sort((a, b) => pairBetter(a.score, b.score) ? -1 : pairBetter(b.score, a.score) ? 1 : 0);
+  return results[(Math.max(1, reroll) - 1) % results.length].teams;
 }
 
 function autoRotate(pool, wk, reroll) {
