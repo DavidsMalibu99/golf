@@ -1151,14 +1151,15 @@ function generateTeams() {
   const WEEK_PAIRS = { 33: [['David Meyer', 'Jamie Daspit']] };
   (WEEK_PAIRS[wk] || []).forEach(([x, y]) => {
     if (state.playing[x] && state.playing[y] && !activeLocks.some(lp => [lp.p1, lp.p2].some(n => n === x || n === y)))
-      activeLocks.push({p1: x, p2: y});
+      activeLocks.push({p1: x, p2: y, quiet: true}); // shown as a normal team, not as Locked
   });
   const lockedNames = new Set(activeLocks.flatMap(lp => [lp.p1, lp.p2]));
   const prebuiltTeams = activeLocks.map(lp => ({
     p1: playing.find(p => p.name === lp.p1) || {name: lp.p1, hcp: getHcp(lp.p1)},
     p2: playing.find(p => p.name === lp.p2) || {name: lp.p2, hcp: getHcp(lp.p2)},
     repeat: checkRepeat(lp.p1, lp.p2, wk),
-    locked: true
+    locked: !lp.quiet,
+    quiet: !!lp.quiet
   }));
 
   // Remaining pool excludes locked players
@@ -1178,10 +1179,13 @@ function generateTeams() {
   const generatedTeams = pool.length >= 2 ? (PAIRING_MODE === 'classic' ? autoRotate(pool, wk, rr) : balancedPairs(pool, wk, rr)) : [];
 
   // Combine: locked pairs first, then generated, then solo (as its own team-of-one row)
-  const teams = [...prebuiltTeams, ...generatedTeams, ...(solo ? [{p1: solo, solo: true}] : [])];
+  // Week requested pairs sit in among the generated teams, looking like any other team
+  const quietTeams = prebuiltTeams.filter(t => t.quiet), mid = Math.floor(generatedTeams.length / 2);
+  const mixed = [...generatedTeams.slice(0, mid), ...quietTeams, ...generatedTeams.slice(mid)];
+  const teams = [...prebuiltTeams.filter(t => !t.quiet), ...mixed, ...(solo ? [{p1: solo, solo: true}] : [])];
 
   const repeatCount = teams.filter(t=>t.repeat).length;
-  const lockCount = prebuiltTeams.length;
+  const lockCount = prebuiltTeams.filter(t => !t.quiet).length;
   let statusMsg = '';
   if (lockCount) statusMsg += `<div style="color:#1b4332;font-size:12px;font-weight:600;margin-bottom:4px">🔒 ${lockCount} locked pair${lockCount>1?'s':''} honored.</div>`;
   const recentCount = teams.filter(t=>t.recent).length, olderCount = teams.filter(t=>t.older).length;
