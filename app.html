@@ -1163,7 +1163,7 @@ function generateTeams() {
   }
 
   // Auto-rotate remaining pool
-  const generatedTeams = pool.length >= 2 ? autoRotate(pool, wk, rr) : [];
+  const generatedTeams = pool.length >= 2 ? (PAIRING_MODE === 'classic' ? autoRotate(pool, wk, rr) : balancedPairs(pool, wk, rr)) : [];
 
   // Combine: locked pairs first, then generated, then solo (as its own team-of-one row)
   // Week requested pairs sit in among the generated teams, looking like any other team
@@ -1175,7 +1175,12 @@ function generateTeams() {
   const lockCount = prebuiltTeams.filter(t => !t.quiet).length;
   let statusMsg = '';
   if (lockCount) statusMsg += `<div style="color:#1b4332;font-size:12px;font-weight:600;margin-bottom:4px">🔒 ${lockCount} locked pair${lockCount>1?'s':''} honored.</div>`;
-  statusMsg += repeatCount === 0
+  const recentCount = teams.filter(t=>t.recent).length, olderCount = teams.filter(t=>t.older).length;
+  if (PAIRING_MODE !== 'classic') {
+    if (recentCount) statusMsg += `<div style="color:#856404;font-size:12px;font-weight:600;margin-bottom:4px">⚠️ ${recentCount} team${recentCount>1?'s were':' was'} partners LAST week — not enough players to avoid it. Try Re-Roll # and generating again.</div>`;
+    if (olderCount) statusMsg += `<div style="color:#1a6b8a;font-size:12px;font-weight:600;margin-bottom:4px">↺ ${olderCount} team${olderCount>1?'s were':' was'} partners 2–4 weeks ago (allowed to keep teams even).</div>`;
+    if (!recentCount) statusMsg += `<div style="color:#1b4332;font-size:12px;font-weight:600;margin-bottom:8px">✅ No back-to-back partners${olderCount ? '' : ' — all pairings are fresh'}!</div>`;
+  } else statusMsg += repeatCount === 0
     ? '<div style="color:#1b4332;font-size:12px;font-weight:600;margin-bottom:8px">✅ No repeats found — all pairings are fresh!</div>'
     : `<div style="color:#856404;font-size:12px;font-weight:600;margin-bottom:8px">⚠️ ${repeatCount} repeat${repeatCount>1?'s':''} could not be avoided — try incrementing Re-Roll # and generating again.</div>`;
   if (solo) statusMsg += `<div style="color:#1a6b8a;font-size:12px;font-weight:600;margin-bottom:8px">⛳ ${solo.name} (HCP ${solo.hcp}) auto-assigned solo this week.</div>`;
@@ -1192,7 +1197,7 @@ function generateTeams() {
         <div class="team-num">${i+1}</div>
         <div class="team-players">${t.p1.name} <span style="color:#aaa">+</span> ${t.p2.name}</div>
         <div class="team-hcp">Combined HCP: ${t.p1.hcp+t.p2.hcp}</div>
-        <div class="badge ${t.locked?'':''}${t.repeat?'warn':'ok'}">${t.locked?'🔒 Locked':t.repeat?'⚠ Repeat':'✓ OK'}</div>
+        <div class="badge ${t.recent||(t.repeat&&!t.older)?'warn':'ok'}" ${t.older&&!t.locked?'style="background:#e3f2fd;color:#1a6b8a"':''}>${t.locked?'🔒 Locked':t.recent?'⚠ Last week':t.older?'↺ 2–4 wks':t.repeat?'⚠ Repeat':'✓ OK'}</div>
       </div>`).join('');
 
   document.getElementById('teams-card').style.display = '';
@@ -1218,6 +1223,74 @@ function clearTeams() {
   document.getElementById('holes-card').style.display = 'none';
   const m = document.getElementById('save-pairings-msg'); if (m) m.textContent = '';
   return true;
+}
+
+// Team pairing method.
+//   'balanced' (Oct 21 2026): every rotation of the highs is a starting point, then partners are swapped
+//               between any two teams while it means fewer repeats, then a smaller gap between the
+//               highest and lowest combined HCP. Re-Roll # picks the next-best distinct set.
+//   'classic'  : the original method - slide the highs list, keep the best rotation (autoRotate below).
+// To go back to the original pairing, change 'balanced' to 'classic'.
+const PAIRING_MODE = 'balanced';
+
+// Two levels of repeat:
+//   recent = partners LAST week (back-to-back) - avoided above everything else
+//   older  = partners 2-4 weeks ago - avoided when possible, but allowed when it narrows the
+//            combined-HCP gap by more than OLDER_REPEAT_COST strokes
+const OLDER_REPEAT_COST = 4;
+function mkPair(p1, p2, wk) {
+  const recent = checkRepeat(p1.name, p2.name, wk, 1, 1);
+  const older = !recent && checkRepeat(p1.name, p2.name, wk, 2, 4);
+  return {p1, p2, recent, older, repeat: recent || older};
+}
+function pairScore(teams) {
+  const sums = teams.map(t => t.p1.hcp + t.p2.hcp);
+  const mean = sums.reduce((a, b) => a + b, 0) / sums.length;
+  const spread = Math.max(...sums) - Math.min(...sums);
+  const older = teams.filter(t => t.older).length;
+  return {
+    recent: teams.filter(t => t.recent).length,
+    cost: older * OLDER_REPEAT_COST + spread,
+    older, spread,
+    dev: sums.reduce((a, x) => a + (x - mean) * (x - mean), 0)
+  };
+}
+const pairBetter = (a, b) => a.recent !== b.recent ? a.recent < b.recent
+  : a.cost !== b.cost ? a.cost < b.cost
+  : a.older !== b.older ? a.older < b.older : a.dev < b.dev - 1e-9;
+
+function balanceSwaps(teams, wk) {
+  let cur = teams.slice(), score = pairScore(cur), improved = true, guard = 0;
+  while (improved && guard++ < 500) {
+    improved = false;
+    for (let i = 0; i < cur.length && !improved; i++) {
+      for (let j = i + 1; j < cur.length && !improved; j++) {
+        const next = cur.slice();
+        next[i] = mkPair(cur[i].p1, cur[j].p2, wk);
+        next[j] = mkPair(cur[j].p1, cur[i].p2, wk);
+        const sc = pairScore(next);
+        if (pairBetter(sc, score)) { cur = next; score = sc; improved = true; }
+      }
+    }
+  }
+  return cur;
+}
+
+function balancedPairs(pool, wk, reroll) {
+  const n = pool.length;
+  const lows = pool.slice(0, n/2);
+  const highs = pool.slice(n/2).reverse(); // highest HCP starts next to the lowest
+  const seen = new Set(), results = [];
+  for (let offset = 0; offset < highs.length; offset++) {
+    const rotated = [...highs.slice(offset), ...highs.slice(0, offset)];
+    const start = lows.map((p1, i) => mkPair(p1, rotated[i], wk));
+    const teams = balanceSwaps(start, wk);
+    const key = teams.map(t => t.p1.name + '|' + t.p2.name).sort().join(',');
+    if (seen.has(key)) continue;
+    seen.add(key); results.push({teams, score: pairScore(teams)});
+  }
+  results.sort((a, b) => pairBetter(a.score, b.score) ? -1 : pairBetter(b.score, a.score) ? 1 : 0);
+  return results[(Math.max(1, reroll) - 1) % results.length].teams;
 }
 
 function autoRotate(pool, wk, reroll) {
@@ -1298,8 +1371,8 @@ function trySwaps(teams, wk) {
   return current;
 }
 
-function checkRepeat(n1, n2, wk) {
-  for (let k=1; k<=4; k++) {
+function checkRepeat(n1, n2, wk, fromK = 1, toK = 4) {
+  for (let k=fromK; k<=toK; k++) {
     const w = wk-k;
     if (w<1) continue;
 
