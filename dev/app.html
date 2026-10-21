@@ -1146,6 +1146,13 @@ function generateTeams() {
 
   // Pull out locked pairs from the pool
   const activeLocks = lockedPairs.filter(lp => lp.p1 && lp.p2);
+  // Requested pairings for one week only (each is treated like a locked pair when both players are in)
+  // TEMPORARY - remove after Week 33 (Oct 21 2026)
+  const WEEK_PAIRS = { 33: [['David Meyer', 'Jamie Daspit']] };
+  (WEEK_PAIRS[wk] || []).forEach(([x, y]) => {
+    if (state.playing[x] && state.playing[y] && !activeLocks.some(lp => [lp.p1, lp.p2].some(n => n === x || n === y)))
+      activeLocks.push({p1: x, p2: y});
+  });
   const lockedNames = new Set(activeLocks.flatMap(lp => [lp.p1, lp.p2]));
   const prebuiltTeams = activeLocks.map(lp => ({
     p1: playing.find(p => p.name === lp.p1) || {name: lp.p1, hcp: getHcp(lp.p1)},
