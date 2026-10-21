@@ -25,7 +25,18 @@
     panel.innerHTML = '<button class="x" aria-label="Close">×</button><b>' + title + '</b>' + (body ? '<div>' + body + '</div>' : '') + (small ? '<small>' + small + '</small>' : '');
     panel.querySelector('.x').onclick = hide;
   }
-  function hide() { panel.style.display = 'none'; }
+  function hide() { panel.style.display = 'none'; pending = null; }
+  // A confirm box on screen listens for a spoken answer: "Save" / "Yes" / "OK" or "Cancel" / "No".
+  let pending = null; // {ok, no} while a confirm box is waiting
+  const YES = /^(save|save it|saved|yes|yeah|yep|ok|okay|confirm|correct|that s right|right|do it|go|good|post it|enter|enter it|submit)$/;
+  const NO = /^(cancel|no|nope|wrong|stop|never mind|nevermind|cancel it|that s wrong|undo)$/;
+  function hint(text) { const h = panel.querySelector('.msgv-hint'); if (h) h.textContent = text; }
+  function stopRec() { try { rec && rec.stop(); } catch (e) {} }
+  function askYesNo(ok, no) {
+    pending = { ok, no, auto: true };
+    // listen for "Save" right away (or as soon as the current listen finishes)
+    setTimeout(() => { if (pending && pending.auto && !busy) { pending.auto = false; listen(); } }, 450);
+  }
   // Spoken numbers become digits ("group one" -> "group 1"), including the usual mishearings
   // after "group"/"hole" ("hole to" -> "hole 2", "group won" -> "group 1").
   const NUM = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12,
@@ -63,11 +74,17 @@
     rec = new SR();
     rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 4; rec.continuous = false;
     let got = false;
-    rec.onstart = () => { busy = true; btn.classList.add('on'); show('Listening…', 'Say a command.', 'Try: ' + examples()); };
+    rec.onstart = () => { busy = true; btn.classList.add('on'); if (pending) hint('🎤 Listening… say “Save” or “Cancel”'); else show('Listening…', 'Say a command.', 'Try: ' + examples()); };
     rec.onresult = e => {
       got = true;
       const alts = [...e.results[0]].map(a => a.transcript);
       if (followUp) { const cb = followUp; followUp = null; try { cb(alts); } catch (err) { show('Something went wrong', String(err && err.message || err)); } return; }
+      if (pending) {
+        const p = pending, said = alts.map(a => norm(a).trim());
+        if (said.some(a => YES.test(a))) { pending = null; p.ok(); return; }
+        if (said.some(a => NO.test(a))) { pending = null; p.no(); return; }
+        pending = null; // anything else (say, the scores again) is a new command
+      }
       const m = match(alts);
       if (!m) { show('Didn’t catch a command', 'Heard: “' + alts[0] + '”', 'Try: ' + examples()); return; }
       try {
@@ -81,6 +98,7 @@
     };
     rec.onerror = e => {
       got = true;
+      if (pending && (e.error === 'no-speech' || e.error === 'aborted')) { hint('Tap Save, or tap 🎤 and say “Save”.'); return; }
       const why = { 'not-allowed': 'The microphone isn’t allowed. Tap Allow when the phone asks, or turn it on in Settings › Safari › Microphone.',
         'service-not-allowed': 'Voice isn’t allowed for this page on this phone. Try opening mvwns.com in Safari itself.',
         'no-speech': 'Didn’t hear anything. Tap 🎤 and speak right away.',
@@ -88,7 +106,9 @@
         'network': 'Voice needs a signal. Try again.' }[e.error];
       show('Voice didn’t work', why || ('Error: ' + e.error), 'Tapping still works for everything.');
     };
-    rec.onend = () => { busy = false; btn.classList.remove('on'); if (!got) { followUp = null; hide(); } };
+    rec.onend = () => { busy = false; btn.classList.remove('on');
+      if (pending && pending.auto) { pending.auto = false; setTimeout(() => { if (pending && !busy) listen(); }, 250); return; }
+      if (!got) { followUp = null; if (pending) hint('Tap Save, or tap 🎤 and say “Save”.'); else hide(); } };
     try { rec.start(); } catch (err) { busy = false; show('Voice didn’t start', String(err && err.message || err)); }
   }
 
@@ -166,9 +186,13 @@
   function confirmScores(list, par, title, onSave) {
     show(title, '<div style="margin:4px 0 10px">' + list.map(x => '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span>' + x.name + '</span><b>' + x.val + ' <span style="font-weight:500;color:#666">' + word(x.val, par) + '</span></b></div>').join('') + '</div>' +
       '<div style="display:flex;gap:8px"><button class="msgv-ok" style="flex:1;background:#1b4332;color:#fff;border:0;border-radius:10px;padding:11px;font-weight:700;font-size:15px">✓ Save</button>' +
-      '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>', 'Wrong? Tap Cancel and say it again.');
-    panel.querySelector('.msgv-ok').onclick = () => { onSave(list); show('✓ Saved', list.map(x => x.name.split(' ')[0] + ' ' + x.val).join(', ')); hideSoon(1400); };
-    panel.querySelector('.msgv-no').onclick = hide;
+      '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>' +
+      '<small class="msgv-hint">Say “Save” or “Cancel”. Wrong? Say the scores again.</small>');
+    const ok = () => { pending = null; stopRec(); onSave(list); show('✓ Saved', list.map(x => x.name.split(' ')[0] + ' ' + x.val).join(', ')); hideSoon(1400); };
+    const no = () => { stopRec(); hide(); };
+    panel.querySelector('.msgv-ok').onclick = ok;
+    panel.querySelector('.msgv-no').onclick = no;
+    askYesNo(ok, no);
   }
 
   window.MSGVoice = {
@@ -178,9 +202,13 @@
     confirm(title, lines, okLabel, onOk) {
       show(title, '<div style="margin:4px 0 10px">' + lines.map(l => '<div style="padding:3px 0;border-bottom:1px solid #eee">' + l + '</div>').join('') + '</div>' +
         '<div style="display:flex;gap:8px"><button class="msgv-ok" style="flex:1;background:#1b4332;color:#fff;border:0;border-radius:10px;padding:11px;font-weight:700;font-size:15px">' + (okLabel || '✓ OK') + '</button>' +
-        '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>');
-      panel.querySelector('.msgv-ok').onclick = () => { hide(); onOk(); };
-      panel.querySelector('.msgv-no').onclick = hide;
+        '<button class="msgv-no" style="flex:1;background:#eee;color:#333;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:15px">Cancel</button></div>' +
+        '<small class="msgv-hint">Say “Yes” or “Cancel”.</small>');
+      const ok = () => { stopRec(); hide(); onOk(); };
+      const no = () => { stopRec(); hide(); };
+      panel.querySelector('.msgv-ok').onclick = ok;
+      panel.querySelector('.msgv-no').onclick = no;
+      askYesNo(ok, no);
     },
     say(title, body) { show(title, body); },
     flash(title, body, ms) { show(title, body); hideSoon(ms || 1400); },
