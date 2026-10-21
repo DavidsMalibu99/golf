@@ -237,7 +237,7 @@ body.yardage-open{overflow:hidden}
     <h3>⚙️ Admin Controls</h3>
     <div class="admin-row">
       <label>Week #:</label>
-      <input type="number" id="week-num" min="1" max="34" value="15" oninput="onWeekNumInput()">
+      <input type="number" id="week-num" min="1" max="34" value="15" onchange="onWeekNumInput()">
       <label>Re-Roll #:</label>
       <input type="number" id="reroll-num" min="1" max="99" value="1" oninput="saveAdmin()">
       <button class="btn" onclick="generateTeams()">Generate Teams</button>
@@ -831,20 +831,28 @@ function toggleAdmin() {
 }
 
 function saveAdmin() {
-  state.weekNum = parseInt(document.getElementById('week-num').value)||15;
   state.reroll = parseInt(document.getElementById('reroll-num').value)||1;
   saveState();
 }
 
+// Runs when the admin finishes changing the week (leaves the box, presses Enter or taps an arrow),
+// not on every keystroke, so retyping "34" over "34" never passes through week 3.
+// Selections are cleared only for a really different week, and only after the admin says OK.
 function onWeekNumInput() {
-  const newWk = parseInt(document.getElementById('week-num').value) || state.weekNum;
-  if (newWk !== state.weekNum) {
-    // Switching to a different week - last week's "who's playing" checkboxes don't carry over
-    state.playing = {};
-    renderPlayers();
-    clearLockRequests();
+  const el = document.getElementById('week-num');
+  const newWk = parseInt(el.value);
+  if (!newWk || newWk < 1 || newWk > 34) { el.value = state.weekNum; return false; }
+  if (newWk === state.weekNum) return false;
+  const picked = Object.values(state.playing).filter(Boolean).length;
+  if (picked && !confirm(`Switch to Week ${newWk}? This clears the ${picked} player${picked === 1 ? '' : 's'} selected for Week ${state.weekNum}.`)) {
+    el.value = state.weekNum; return false;
   }
+  state.weekNum = newWk;
+  state.playing = {};
+  renderPlayers();
+  clearLockRequests();
   saveAdmin();
+  return true;
 }
 
 // Player head shot from /photos (initials circle if none yet)
@@ -3490,8 +3498,9 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
         const why = needAdmin(); if(why) return why;
         const n = +m[1]; if(n < 1 || n > 34) return 'Weeks go from 1 to 34.';
         const el = document.getElementById('week-num'); const was = +el.value;
-        el.value = n; onWeekNumInput(); tab('teams');
-        if(was !== n) { V.say('✓ Week ' + n, 'Last week’s RSVPs were cleared for the new week.'); return 'asked'; } } },
+        el.value = n; const moved = onWeekNumInput(); tab('teams');
+        if(moved) { V.say('✓ Week ' + n, 'Last week’s RSVPs were cleared for the new week.'); return 'asked'; }
+        if(was !== n) { V.say('Still Week ' + was, 'Nothing changed.'); return 'asked'; } } },
     { say:['end round','end the round','post results','clear round','clear the round','reset','reset firebase','archive','archive hole scores'], run: ()=>
         'For safety, End Round & Post Results, Clear Round, Reset and Archive are tap-only. Use the buttons in Admin.' },
     { label:'Generate teams', say:['generate teams','generate','make teams','create teams','make the teams','generate the teams'], run: ()=>{ const w=needAdmin(); if(w) return w; tab('teams'); generateTeams(); } },
