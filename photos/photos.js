@@ -21,7 +21,7 @@
     'David Sauceda': 'david-sauceda-2.jpg',
     'Harvey Duke': 'harvey-duke.jpg',
     'Jake Kelley': 'jake-kelly-2.jpg',
-    'Jamie Daspit': 'jamie-daspit.jpg',
+    'Jamie Daspit': 'jamie-daspit-2.jpg',
     'Jerry Rains': 'jerry-rains.jpg',
     'Karey Carter': 'karey-carter.jpg',
     'Mike Cross': 'mike-cross.jpg',
