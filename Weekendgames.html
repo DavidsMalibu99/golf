@@ -229,6 +229,11 @@
   .sbg-summary{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
   .sbg-card{background:var(--mid-green); border-radius:8px; padding:8px 12px; font-size:0.82rem; color:var(--cream); line-height:1.4;}
   .sbg-card b{color:var(--gold-soft);}
+  .money-pill{flex:none; border:1px solid var(--gold); background:var(--gold); color:var(--dark-green); border-radius:12px; padding:3px 8px; font-size:0.68rem; font-weight:bold; white-space:nowrap; cursor:pointer; width:auto;}
+  .money-pill.off{background:transparent; border-color:var(--text-dim); color:var(--text-dim);}
+  .so-tag{display:inline-block; margin-left:5px; font-size:0.6rem; font-weight:bold; letter-spacing:0.5px; color:var(--text-dim); border:1px solid var(--text-dim); border-radius:6px; padding:0 4px; font-style:normal; vertical-align:middle;}
+  tr.ghost-row td, .pot-line.ghost .pl-name{color:var(--text-dim); font-style:italic;}
+  .ghost-note{color:var(--text-dim); font-style:italic; font-size:0.72rem; white-space:nowrap;}
   .sbg-card.warn{border:1px dashed var(--gold-soft); background:transparent; color:var(--gold-soft);}
 
   /* ---- Stableford group picker + hole-by-hole entry ---- */
@@ -1698,6 +1703,7 @@ let sbPots = {front:5, back:5, par3:5, draw:5, par4:5, par5:5, frontOn:true, bac
 let sbDraw = null;    // {basis:'total'|'front'|'back', teams:[[name,...],...], drawnAt:ms}
 let sbGroups = null;  // [[name,...],...] playing groups; null on rounds started before groups existed
 let sbGroupAssign = {};  // setup only: name -> group number (1-based)
+let sbNoMoney = {};      // setup only: name -> true when the player is in for scores only (not the money game)
 let sbGroupCount = 3;    // setup only
 let _sbSetupNames = [];  // setup only: names currently shown in the group list
 let sbMyGroupKey = null; // this phone's group (sorted names joined) — survives other groups changing
@@ -2090,8 +2096,11 @@ function sbRenderGroupSetup(){
     const chk = row.querySelector('input[type=checkbox]');
     row.style.display = (chk && chk.checked) ? 'none' : '';
   });
+  // Forget the scores-only setting for anyone no longer playing
+  Object.keys(sbNoMoney).forEach(n=>{ if(!names.includes(n)) delete sbNoMoney[n]; });
   // Player counter (checked roster names + added names)
-  const pickTxt = names.length + ' selected';
+  const soCount = names.filter(n=>sbNoMoney[n]).length;
+  const pickTxt = names.length + ' selected' + (soCount ? ' · ' + soCount + ' scores only' : '');
   ['sbPickCount','sbPickCountBottom'].forEach(id=>{ const el = document.getElementById(id); if(el) el.textContent = pickTxt; });
   // Forget assignments for players unchecked or groups removed
   Object.keys(sbGroupAssign).forEach(n=>{
@@ -2119,6 +2128,7 @@ function sbRenderGroupSetup(){
     <div class="sbg-row${sbGroupAssign[name] ? '' : ' unassigned'}">
       <button type="button" onclick="sbUnpick(${i})" aria-label="Remove ${name}" style="width:auto;background:none;border:0;color:var(--rust);font-size:1.1rem;padding:0 6px 0 0;cursor:pointer;">✕</button>
       ${_av(name, 28)}<span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')} ${teeHtml(name)}</span></span>
+      <button type="button" class="money-pill${sbNoMoney[name] ? ' off' : ''}" onclick="sbToggleMoney(${i})" title="Tap to switch between the money game and scores only">${sbNoMoney[name] ? 'Scores only' : '💲 In'}</button>
       <div class="sbg-btns">${btns(i)}</div>
     </div>`).join('') + '</div>';
 
@@ -2135,6 +2145,14 @@ function sbRenderGroupSetup(){
   wrap.innerHTML = list + '<div class="sbg-summary">' + cards + '</div>';
 }
 
+// 💲 In / Scores only pill in the groups list. Everyone starts in the money game.
+function sbToggleMoney(i){
+  const name = _sbSetupNames[i];
+  if(name === undefined) return;
+  if(sbNoMoney[name]) delete sbNoMoney[name]; else sbNoMoney[name] = true;
+  sbRenderGroupSetup();
+}
+
 // ✕ in the groups list: take the player out of today's round and put him back in the checklist
 function sbUnpick(i){
   const name = _sbSetupNames[i];
@@ -2148,6 +2166,7 @@ function sbUnpick(i){
     renderSbExtraList();
   }
   delete sbGroupAssign[name];
+  delete sbNoMoney[name];
   sbRenderGroupSetup();
 }
 
@@ -2194,6 +2213,7 @@ function endStablefordRound(){
   sbDraw = null;
   sbGroups = null;
   sbGroupAssign = {};
+  sbNoMoney = {};
   _sbDirty = {};
   _sbInFlight = {};
   _skipNextSbSnapshot = true;
@@ -2310,10 +2330,16 @@ function startStableford(){
       sbPlayers.push({name, hcp: getHcp(name)});
     }
   });
-  sbExtras.forEach(p=>sbPlayers.push(p));
+  sbExtras.forEach(p=>sbPlayers.push({name: p.name, hcp: p.hcp}));
+  // Scores-only players: flag saved with the round, locked at Start Round like handicaps
+  sbPlayers.forEach(p=>{ if(sbNoMoney[p.name]) p.noMoney = true; });
 
   if(sbPlayers.length < 2){
     alert('Select at least 2 players.');
+    return;
+  }
+  if(sbPlayers.filter(p=>!p.noMoney).length < 2){
+    alert('At least 2 players need to be in the money game (💲 In).');
     return;
   }
 
@@ -2510,7 +2536,8 @@ function sbPlayerSubline(name){
   const sc = sbScores[name] || [];
   const f = sbNineGross(sc, 1, 9), b = sbNineGross(sc, 10, 9);
   const part = (lbl, x) => lbl + ' ' + (x.thru ? x.total + (x.thru < 9 ? ' (' + x.thru + ')' : '') : '—');
-  return part('Out', f) + ' · ' + part('In', b);
+  const so = sbPlayers.some(p=>p.name===name && p.noMoney) ? ' · Scores only' : '';
+  return part('Out', f) + ' · ' + part('In', b) + so;
 }
 
 function sbTotalsHtml(members){
@@ -2714,13 +2741,50 @@ function sbWholeSplit(total, tier, oddOrder, notes){
   return amts;
 }
 
-function sbPlacePayouts(entries, pot, pay2, playoffOrder, oddOrder){
-  const cmp = (a,b)=>{
+function sbMakeCmp(playoffOrder){
+  return (a,b)=>{
     if(a.val !== b.val) return a.val - b.val;
     if(!playoffOrder) return 0;
     const h = sbPlayoffHole(a.scores, b.scores, playoffOrder);
     return h < 0 ? 0 : a.scores[h] - b.scores[h];
   };
+}
+
+// Pays a pot from the money players only. Each scores-only player is then run through
+// the same pot on his own, as if he had bought in (pot one buy-in bigger), to get his
+// "would've" finish. Paying players' money is never affected by scores-only players.
+function sbPayWithGhosts(entries, perHead, nMoney, pay2, playoffOrder, oddOrder){
+  const money = entries.filter(e=>!e.noMoney);
+  const pot = perHead * nMoney;
+  const pay = sbPlacePayouts(money, pot, pay2, playoffOrder, oddOrder);
+  pay.ghosts = {};
+  const cmp = sbMakeCmp(playoffOrder);
+  entries.filter(e=>e.noMoney).forEach(g=>{
+    const alt = sbPlacePayouts([...money, g], perHead * (nMoney + 1), pay2, playoffOrder, oddOrder);
+    const better = money.filter(m=>cmp(m, g) < 0).length;
+    const tied = money.some(m=>cmp(m, g) === 0);
+    const paid = alt.payouts[g.name];
+    pay.ghosts[g.name] = {place: paid ? paid.place : better + 1, amt: paid ? paid.amt : 0, tied};
+  });
+  return {pot, pay};
+}
+
+function sbGhostText(pay, name){
+  const g = pay && pay.ghosts ? pay.ghosts[name] : null;
+  if(!g) return '';
+  return `Would've ${g.tied ? 'tied for' : 'finished'} ${sbOrdinal(g.place)}${g.amt > 0 ? ', $' + sbMoney(g.amt) : ''}`;
+}
+
+// Where a row sorts on a board: paid place, or the place a scores-only player would've had
+function sbEffPlace(pay, name){
+  const p = pay.payouts[name];
+  if(p) return p.place;
+  const g = pay.ghosts ? pay.ghosts[name] : null;
+  return g && g.amt > 0 ? g.place : null;
+}
+
+function sbPlacePayouts(entries, pot, pay2, playoffOrder, oddOrder){
+  const cmp = sbMakeCmp(playoffOrder);
   const sorted = [...entries].sort(cmp);
   const tiers = [];
   sorted.forEach(e=>{
@@ -2784,36 +2848,34 @@ function computeSbBoardData(playersArr, scoresObj, pots, draw, course){
     const gross18 = (grossF.thru===9 && grossB.thru===9)
       ? {total: grossF.total + grossB.total, complete: true}
       : {total: null, complete: false};
-    return {name:p.name, hcp:p.hcp, scores, front, back, par3, par4, par5, total, grossF, grossB, gross18};
+    return {name:p.name, hcp:p.hcp, noMoney: !!p.noMoney, scores, front, back, par3, par4, par5, total, grossF, grossB, gross18};
   });
 
-  const n = playersArr.length;
+  // Pots are sized and paid on money players only; old rounds have no flag, so everyone counts
+  const n = playersArr.filter(p=>!p.noMoney).length;
   const odd18 = [...Array(18).keys()].sort((a,b)=>course.si[a]-course.si[b]); // hardest hole first
 
   // ---- Nine-hole pots: most margin over target, card playoff on ties ----
   const pay2 = !!pots.pay2;
-  const frontPot = (pots.frontOn ? pots.front : 0) * n;
-  const backPot  = (pots.backOn  ? pots.back  : 0) * n;
-  const frontPay = sbPlacePayouts(
-    rows.filter(r=>r.front.complete).map(r=>({name:r.name, val:-r.front.margin, scores:r.scores})),
-    frontPot, pay2, pots.playoff ? course.playoffFront : null, odd18);
-  const backPay = sbPlacePayouts(
-    rows.filter(r=>r.back.complete).map(r=>({name:r.name, val:-r.back.margin, scores:r.scores})),
-    backPot, pay2, pots.playoff ? course.playoffBack : null, odd18);
+  const F = sbPayWithGhosts(
+    rows.filter(r=>r.front.complete).map(r=>({name:r.name, noMoney:r.noMoney, val:-r.front.margin, scores:r.scores})),
+    pots.frontOn ? pots.front : 0, n, pay2, pots.playoff ? course.playoffFront : null, odd18);
+  const B = sbPayWithGhosts(
+    rows.filter(r=>r.back.complete).map(r=>({name:r.name, noMoney:r.noMoney, val:-r.back.margin, scores:r.scores})),
+    pots.backOn ? pots.back : 0, n, pay2, pots.playoff ? course.playoffBack : null, odd18);
+  const frontPot = F.pot, frontPay = F.pay, backPot = B.pot, backPay = B.pay;
 
   // ---- Par 3 pot: lowest combined gross, ties split ----
-  const par3Pot = (pots.par3On ? pots.par3 : 0) * n;
-  const par3Pay = sbPlacePayouts(
-    rows.filter(r=>r.par3.complete).map(r=>({name:r.name, val:r.par3.total, scores:r.scores})),
-    par3Pot, pay2, null, odd18);
+  const P3 = sbPayWithGhosts(
+    rows.filter(r=>r.par3.complete).map(r=>({name:r.name, noMoney:r.noMoney, val:r.par3.total, scores:r.scores})),
+    pots.par3On ? pots.par3 : 0, n, pay2, null, odd18);
+  const par3Pot = P3.pot, par3Pay = P3.pay;
 
   // ---- Par 4 / Par 5 pots: lowest combined NET, ties split ----
   function netPot(key, onKey, amtKey){
-    const pot = (pots[onKey] ? pots[amtKey] : 0) * n;
-    const pay = sbPlacePayouts(
-      rows.filter(r=>r[key].complete).map(r=>({name:r.name, val:r[key].total, scores:r.scores})),
-      pot, pay2, null, odd18);
-    return {pot, pay};
+    return sbPayWithGhosts(
+      rows.filter(r=>r[key].complete).map(r=>({name:r.name, noMoney:r.noMoney, val:r[key].total, scores:r.scores})),
+      pots[onKey] ? pots[amtKey] : 0, n, pay2, null, odd18);
   }
   const p4 = netPot('par4','par4On','par4');
   const p5 = netPot('par5','par5On','par5');
@@ -2836,7 +2898,7 @@ function computeSbBoardData(playersArr, scoresObj, pots, draw, course){
 // A player is eligible for the draw once his card is complete on the chosen basis
 function sbDrawEligible(rows, basis){
   const key = basis === 'front' ? 'front' : (basis === 'back' ? 'back' : 'total');
-  return rows.filter(r=>r[key].complete).map(r=>r.name);
+  return rows.filter(r=>r[key].complete && !r.noMoney).map(r=>r.name);
 }
 
 // Scores the locked teams against the current cards. Teams stay fixed; standings
@@ -2894,9 +2956,10 @@ function renderSbBoardTable(data, tab){
   const label = isFront ? 'F9' : 'B9';
 
   // Paid places first in playoff order, then everyone else by margin
+  // Scores-only players slot in where they would've placed
   const rows = [...data.rows].sort((a,b)=>{
-    const pa = pay.payouts[a.name], pb = pay.payouts[b.name];
-    if(pa && pb) return pa.place - pb.place || b[key].margin - a[key].margin;
+    const pa = sbEffPlace(pay, a.name), pb = sbEffPlace(pay, b.name);
+    if(pa && pb) return pa - pb || b[key].margin - a[key].margin || (a.noMoney ? 1 : 0) - (b.noMoney ? 1 : 0);
     if(pa) return -1; if(pb) return 1;
     return b[key].margin - a[key].margin;
   });
@@ -2913,9 +2976,10 @@ function renderSbBoardTable(data, tab){
       ? gross.total + (gross.thru < 9 ? ' (thru '+gross.thru+')' : '')
       : '—';
     const gross18Cell = r.gross18.complete ? r.gross18.total : '—';
-    const payoutCell = sbPayPill(pay, r.name) || '—';
-    html += `<tr>
-      <td class="name-col"><span style="display:inline-flex;align-items:center;">${_av(r.name, 22)}${r.name}</span></td>
+    const ghost = r.noMoney ? sbGhostText(pay, r.name) : '';
+    const payoutCell = r.noMoney ? (ghost ? `<span class="ghost-note">${ghost}</span>` : '—') : (sbPayPill(pay, r.name) || '—');
+    html += `<tr${r.noMoney ? ' class="ghost-row"' : ''}>
+      <td class="name-col"><span style="display:inline-flex;align-items:center;">${_av(r.name, 22)}${r.name}${r.noMoney ? '<span class="so-tag">SCORES ONLY</span>' : ''}</span></td>
       <td style="white-space:nowrap;">${r.hcp}<button type="button" class="hcp-fix" onclick="sbFixHcp(decodeURIComponent('${encodeURIComponent(r.name)}'))" aria-label="Change ${r.name.replace(/"/g,'&quot;')}'s handicap" title="Change handicap">✏️</button></td>
       <td>${nine.thru? nine.pts : '—'}</td>
       <td>${fmtNum(nine.target)}</td>
@@ -3010,12 +3074,19 @@ function sbPayPill(pay, name){
 function potLines(entries, pay){
   if(entries.length === 0) return '<div class="pot-line"><span class="pl-name" style="color:var(--text-dim)">No complete cards yet.</span></div>';
   // Paid men float to the top in finishing order
+  const ghosts = pay.ghosts || {};
   const sorted = [...entries].sort((a,b)=>{
-    const pa = pay.payouts[a.name], pb = pay.payouts[b.name];
-    if(pa && pb) return pa.place - pb.place;
+    const pa = sbEffPlace(pay, a.name), pb = sbEffPlace(pay, b.name);
+    if(pa && pb) return pa - pb;   // same place: keep score order
     return pa ? -1 : (pb ? 1 : 0);
   });
   return sorted.map(e=>{
+    if(ghosts[e.name]){
+      return `<div class="pot-line ghost">
+      <span class="pl-name">${e.name}<span class="so-tag">SCORES ONLY</span></span>
+      <span class="pl-val">${e.val} &nbsp;<span class="ghost-note">${sbGhostText(pay, e.name)}</span></span>
+    </div>`;
+    }
     const pill = sbPayPill(pay, e.name);
     return `<div class="pot-line${pill?' win':''}">
       <span class="pl-name">${e.name}</span>
