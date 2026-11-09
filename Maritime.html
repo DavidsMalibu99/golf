@@ -114,7 +114,12 @@ const db = firebase.firestore();
 const C = MaritimeCore;
 const SETTINGS = db.collection('wns2').doc('maritime');
 const LIVE = db.collection('weekendGames').doc('maritime_active');
-const CARDS = LIVE.collection('cards');
+// Scorecards live as top-level docs in weekendGames (the database rules allow that collection,
+// not sub-collections under it): weekendGames/maritime_card_<name>
+const GAMES = db.collection('weekendGames');
+const CARDS = GAMES.where('kind','==','maritimeCard');
+const cardRef = name => GAMES.doc('maritime_card_' + slug(name));
+const clearCards = () => CARDS.get().then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete())));
 const PIN = '1990';
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const enc = s => encodeURIComponent(s);
@@ -280,7 +285,7 @@ function setCell(name, f, i, v){
   cards[name] = cards[name] || {name, s:{}, p:{}};
   cards[name][f] = Object.assign({}, cards[name][f]||{}, {[i]: v});
   (pending[name] = pending[name] || {})[f+':'+i] = v;
-  CARDS.doc(slug(name)).set({ name, [f]: {[i]: v}, at: firebase.firestore.FieldValue.serverTimestamp() }, {merge:true})
+  cardRef(name).set({ kind:'maritimeCard', name, [f]: {[i]: v}, at: firebase.firestore.FieldValue.serverTimestamp() }, {merge:true})
     .then(()=>{ if(pending[name]){ delete pending[name][f+':'+i]; if(!Object.keys(pending[name]).length) delete pending[name]; } saveMsg = '✓ Saved'; flash(); })
     .catch(e=>{ console.error(e); saveMsg = '<span class="warn">Not saved yet — check signal. It will retry.</span>'; flash(); });
   saveMsg = 'Saving…'; render();
@@ -566,7 +571,7 @@ function startRound(){
   const s = settingsFromDraft();
   const players = pl.map(([name,r])=>({ name, hcp:r.hcp, flight: r.hcp <= d.flightBreak ? 1 : 2, pool:!!r.pool, member:!!r.member, group:r.group||'—' }));
   LS.set('mt_lastGroups', Object.fromEntries(pl.map(([n,r])=>[n,r.group])));
-  CARDS.get().then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete()))).then(()=>Promise.all([
+  clearCards().catch(e=>console.warn('old cards not cleared', e)).then(()=>Promise.all([
     SETTINGS.set(s, {merge:true}),
     LIVE.set({ active:true, date:d.date, season:d.season, players, ctpHoles:s.ctpHoles, twoPutt:s.twoPutt, flightBreak:s.flightBreak,
       escCarry:s.escCarry, cfg:s.cfg, ctp:{}, startedAt: firebase.firestore.FieldValue.serverTimestamp() })
@@ -588,7 +593,7 @@ function endRound(){
     linesJSON: JSON.stringify(lines), resultJSON: JSON.stringify(slim),
     roundJSON: JSON.stringify({ players: live.players, ctpHoles: live.ctpHoles, ctp: live.ctp, cfg: live.cfg, escCarry: live.escCarry, twoPutt: live.twoPutt, cards })
   }).then(()=>SETTINGS.set({ escCarry: res.esc.carry }, {merge:true}))
-    .then(()=>CARDS.get()).then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete())))
+    .then(()=>clearCards())
     .then(()=>LIVE.set({active:false, endedAt: firebase.firestore.FieldValue.serverTimestamp()}))
     .then(()=>{ history = null; alert(`Saved. Escobar ${res.esc.winner ? 'won by ' + res.esc.winner : 'carries over at $' + res.esc.carry}.`); go('season'); })
     .catch(e=>{ console.error(e); alert('Could not save — check signal and try again. Nothing was lost.'); });
@@ -596,7 +601,7 @@ function endRound(){
 function cancelRound(){
   if(!confirm('Cancel this round? Scores entered today will be deleted and nothing goes to the season.')) return;
   if(!needPin()) return;
-  CARDS.get().then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete()))).then(()=>LIVE.set({active:false})).catch(e=>alert('Could not cancel — check signal.'));
+  clearCards().then(()=>LIVE.set({active:false})).catch(e=>alert('Could not cancel — check signal.'));
 }
 function newSeason(){
   if(!needPin()) return;

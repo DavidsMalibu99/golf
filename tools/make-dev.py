@@ -95,11 +95,11 @@ function devFill(upTo){
     const lean = p.hcp / 18;                               // strokes over par per hole, on average
     for(let i=0;i<upTo;i++){
       if(c.s && c.s[i] != null) continue;
-      let over = Math.round(lean + rnd([-1,0,0,0,0,1,1,2]) * (Math.random()<0.6?1:0) - (Math.random()<0.15?1:0));
+      let over = Math.floor(lean) + (Math.random() < lean % 1 ? 1 : 0) + rnd([-1,0,0,0,0,0,0,1]);  // averages par + handicap
       s[i] = Math.max(2, C.PAR[i] + over);
       pt[i] = Math.min(s[i]-1, rnd([1,2,2,2,2,2,3]));
     }
-    return CARDS.doc(slug(p.name)).set({ name:p.name, s, p:pt }, {merge:true});
+    return cardRef(p.name).set({ kind:'maritimeCard', name:p.name, s, p:pt }, {merge:true});
   })).then(()=>alert('Done. Check the Leaderboard.')).catch(e=>alert('Fill failed: ' + e.message));
 }
 </script>
