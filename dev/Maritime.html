@@ -173,7 +173,7 @@ function defaultSettings(){
   const roster = {};
   Object.entries(SEED_ROSTER).forEach(([n,[h,m,p]])=>roster[n] = {hcp:h, member:!!m, pool:!!p});
   return { roster, ctpHoles:[2,11], twoPutt:[], flightBreak:16, escCarry:63, season:'62',
-           cfg:{ flightPerPlayer:0, ctpPay:0, puttsPay:0 } };
+           cfg:{ flightPerPlayer:0, ctpPay:25, puttsPay:0 } };
 }
 function rosterOf(){ return (settings && settings.roster) || defaultSettings().roster; }
 function isLive(){ return !!(live && live.active && Array.isArray(live.players) && live.players.length); }
@@ -468,7 +468,7 @@ function draftFromSettings(){
   return {
     date: today(), ctpHoles: (settings && settings.ctpHoles) || [2,11], twoPutt: ((settings && settings.twoPutt) || []).join(', '),
     flightBreak: (settings && settings.flightBreak) || 16, escCarry: (settings && settings.escCarry) || 0,
-    cfg: Object.assign({flightPerPlayer:0, ctpPay:0, puttsPay:0}, settings && settings.cfg),
+    cfg: Object.assign({flightPerPlayer:0, ctpPay:25, puttsPay:0}, settings && settings.cfg),
     season: (settings && settings.season) || '62',
     roster: Object.fromEntries(Object.entries(r).map(([n,v])=>[n, {hcp:v.hcp, member:!!v.member, pool:!!v.pool, play: n in playing, group: playing[n]||''}]))
   };

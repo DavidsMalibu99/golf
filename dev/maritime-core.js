@@ -16,7 +16,7 @@
     escPerPlayer: 1,                         // $ into the Escobar Challenge
     escTarget: 8,                            // net 8 or better on #9 + #18
     flightPerPlayer: 0,                      // $ per player into each flight pot (0 = not set)
-    ctpPay: 0, puttsPay: 0,                  // $ per CTP hole / low putts, each flight (0 = not set)
+    ctpPay: 25, puttsPay: 0,                 // $ per CTP hole / low putts, each flight (0 = not set)
     minRounds: 9, poolBuyIn: 10
   };
 
