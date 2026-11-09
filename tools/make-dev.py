@@ -69,4 +69,42 @@ for name in ('Weekendgames.html', 'Moregames.html'):
     w = w.replace('<body>', '<body>\n<div id="dev-bar" style="position:sticky;top:0;z-index:2000;background:#d32f2f;color:#fff;font:600 13px/1.3 -apple-system,system-ui,sans-serif;padding:6px 12px;text-align:center">🧪 DEV TEST COPY. Nothing here touches the real games.</div>', 1)
     assert 'wns-scramble-dev' in w and 'dev-bar' in w
     (root / 'dev' / name).write_text(w)
-print('dev/app.html, dev/Weekendgames.html, dev/Moregames.html written')
+
+# Maritime: dev database, red banner, and test helpers to fill a round with fake scores
+m = (root / 'Maritime.html').read_text()
+cfg = re.search(r'const firebaseConfig = \{.*?\};', m, re.S).group(0)
+assert 'wns-scramble"' in cfg
+m = m.replace(cfg, DEV, 1)
+m = m.replace('<head>', '<head>\n<meta name="robots" content="noindex">', 1)
+m = re.sub(r'<title>(.*?)</title>', r'<title>DEV · \1</title>', m, count=1)
+m = m.replace('<meta name="apple-mobile-web-app-title" content="Maritime">', '<meta name="apple-mobile-web-app-title" content="Maritime DEV">', 1)
+m = m.replace('<body>', """<body>
+<div id="dev-bar" style="position:sticky;top:0;z-index:2000;background:#d32f2f;color:#fff;font:600 13px/1.3 -apple-system,system-ui,sans-serif;padding:6px 10px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
+  <span>🧪 MARITIME DEV — practice copy, nothing touches the real league. PIN 1990</span>
+  <button onclick="devFill(9)" style="background:#fff;color:#d32f2f;border:0;border-radius:6px;padding:4px 8px;font-weight:700">Fill 9 holes</button>
+  <button onclick="devFill(18)" style="background:#fff;color:#d32f2f;border:0;border-radius:6px;padding:4px 8px;font-weight:700">Fill 18 holes</button>
+</div>""", 1)
+m = m.replace('</body>', """<script>
+// Dev only: give every player in the live round random but realistic scores and putts
+function devFill(upTo){
+  if(!isLive()){ alert('Start a round on the Setup tab first.'); return; }
+  if(!confirm('Fill holes 1-' + upTo + ' with random scores for every player who has none there?')) return;
+  const rnd = a => a[Math.floor(Math.random()*a.length)];
+  Promise.all(live.players.map(p=>{
+    const c = cards[p.name] || {s:{},p:{}}; const s = {}, pt = {};
+    const lean = p.hcp / 18;                               // strokes over par per hole, on average
+    for(let i=0;i<upTo;i++){
+      if(c.s && c.s[i] != null) continue;
+      let over = Math.round(lean + rnd([-1,0,0,0,0,1,1,2]) * (Math.random()<0.6?1:0) - (Math.random()<0.15?1:0));
+      s[i] = Math.max(2, C.PAR[i] + over);
+      pt[i] = Math.min(s[i]-1, rnd([1,2,2,2,2,2,3]));
+    }
+    return CARDS.doc(slug(p.name)).set({ name:p.name, s, p:pt }, {merge:true});
+  })).then(()=>alert('Done. Check the Leaderboard.')).catch(e=>alert('Fill failed: ' + e.message));
+}
+</script>
+</body>""", 1)
+assert 'wns-scramble-dev' in m and 'devFill' in m and 'wns-scramble"' not in m
+(root / 'dev' / 'Maritime.html').write_text(m)
+shutil.copy(root / 'maritime-core.js', root / 'dev' / 'maritime-core.js')
+print('dev/app.html, dev/Weekendgames.html, dev/Moregames.html, dev/Maritime.html written')

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEV · Maritime Golf</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Maritime DEV">
+<style>
+  :root{
+    --dark-green:#0b2e1f; --mid-green:#123c28; --line-green:#1c5238;
+    --gold:#d4af37; --gold-soft:#e8cf7a; --cream:#f4efe3; --text-dim:#9db8a8;
+    --coral:#ff8a80; --win:#3f9d5d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:var(--dark-green); color:var(--cream); min-height:100vh; padding-bottom:74px;}
+  header{background:linear-gradient(180deg,var(--mid-green),var(--dark-green)); border-bottom:2px solid var(--gold); padding:12px 16px 10px; text-align:center;}
+  header h1{margin:0; font-size:1.15rem; color:var(--gold-soft); letter-spacing:1px;}
+  header .sub{font-size:0.8rem; color:var(--text-dim); margin-top:2px;}
+  main{max-width:760px; margin:0 auto; padding:14px 12px;}
+  .panel{background:var(--mid-green); border:1px solid var(--line-green); border-radius:10px; padding:14px; margin-bottom:14px;}
+  .panel h2{margin:0 0 10px; font-size:1rem; color:var(--gold-soft);}
+  .panel h3{margin:14px 0 6px; font-size:0.9rem; color:var(--gold-soft);}
+  label{display:block; font-size:0.8rem; color:var(--text-dim); margin:10px 0 4px;}
+  input[type=text],input[type=number],input[type=date],select{width:100%; padding:9px 10px; border-radius:6px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:0.95rem;}
+  .btn{display:block; width:100%; padding:12px; margin-top:12px; border:none; border-radius:8px; background:var(--gold); color:var(--dark-green); font-weight:bold; font-size:0.95rem;}
+  .btn.secondary{background:transparent; border:1px solid var(--gold); color:var(--gold-soft);}
+  .btn.danger{background:var(--coral);}
+  .btn.small{display:inline-block; width:auto; padding:7px 12px; margin:0; font-size:0.85rem;}
+  .hint{font-size:0.8rem; color:var(--text-dim); line-height:1.4;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{padding:7px 12px; border-radius:16px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:0.9rem;}
+  .chip.on{background:var(--gold); color:var(--dark-green); border-color:var(--gold); font-weight:bold;}
+  table{width:100%; border-collapse:collapse; font-size:0.85rem;}
+  th{color:var(--text-dim); font-weight:600; font-size:0.72rem; text-align:center; padding:5px 3px; border-bottom:1px solid var(--line-green);}
+  td{text-align:center; padding:6px 3px; border-bottom:1px solid rgba(255,255,255,.05);}
+  td.name,th.name{text-align:left;}
+  tr.money td{background:rgba(212,175,55,.12);}
+  .pill{display:inline-block; background:var(--win); color:#fff; border-radius:10px; padding:1px 7px; font-size:0.75rem; font-weight:bold;}
+  .tag{font-size:0.68rem; color:var(--text-dim); margin-left:4px;}
+  .tabs{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+  .tab{flex:1; min-width:70px; padding:8px 6px; border-radius:8px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:0.85rem;}
+  .tab.on{background:var(--gold); color:var(--dark-green); font-weight:bold; border-color:var(--gold);}
+  nav{position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--mid-green); border-top:2px solid var(--gold); z-index:10;}
+  nav button{flex:1; padding:12px 4px 14px; background:none; border:none; color:var(--text-dim); font-size:0.82rem;}
+  nav button.on{color:var(--gold-soft); font-weight:bold;}
+  .roster{max-height:none;}
+  .rrow{display:grid; grid-template-columns:28px 1fr 58px 30px 30px 54px; gap:6px; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:0.88rem;}
+  .rrow input[type=number],.rrow input[type=text]{padding:6px 5px; font-size:0.88rem; text-align:center;}
+  .rrow.head{font-size:0.68rem; color:var(--text-dim); border-bottom:1px solid var(--line-green);}
+  .rrow.off .nm{color:var(--text-dim);}
+  input[type=checkbox]{width:20px; height:20px; accent-color:var(--gold);}
+  .grp{display:block; width:100%; text-align:left; padding:10px 12px; margin-bottom:8px; border-radius:8px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream);}
+  .grp b{color:var(--gold-soft);}
+  .hole-head{display:flex; align-items:center; justify-content:space-between; margin:4px 0 10px;}
+  .hole-head button{width:46px; height:46px; border-radius:50%; border:1px solid var(--gold); background:transparent; color:var(--gold-soft); font-size:1.2rem;}
+  .hole-title{text-align:center;}
+  .hole-title .h{font-size:1.5rem; color:var(--gold-soft); font-weight:bold;}
+  .hole-title .p{font-size:0.82rem; color:var(--text-dim);}
+  .flag{display:inline-block; margin-top:3px; font-size:0.75rem; background:rgba(212,175,55,.18); color:var(--gold-soft); border-radius:8px; padding:2px 8px;}
+  .prow{padding:10px 0; border-bottom:1px solid rgba(255,255,255,.07);}
+  .prow .who{font-weight:600; margin-bottom:6px;}
+  .prow .who span{font-weight:400; color:var(--text-dim); font-size:0.78rem;}
+  .steppers{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .step{display:flex; align-items:center; gap:6px;}
+  .step .lbl{font-size:0.7rem; color:var(--text-dim); width:34px;}
+  .step button{width:40px; height:42px; border-radius:8px; border:1px solid var(--line-green); background:var(--dark-green); color:var(--cream); font-size:1.2rem;}
+  .step .val{flex:1; height:42px; border-radius:8px; border:1px solid var(--gold); background:var(--dark-green); color:var(--cream); font-size:1.25rem; font-weight:bold;}
+  .step .val.empty{color:var(--text-dim); border-color:var(--line-green); font-weight:normal;}
+  .ctpbox{margin-top:12px; padding:10px; border:1px dashed var(--gold); border-radius:8px;}
+  .status{font-size:0.78rem; color:var(--text-dim); text-align:center; margin-top:8px; min-height:1em;}
+  .warn{color:var(--coral);}
+  .card{display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:0.9rem;}
+  .card .v{color:var(--gold-soft); text-align:right;}
+  .empty{color:var(--text-dim); text-align:center; padding:18px 6px; font-size:0.9rem;}
+  .fix{background:none; border:none; padding:0 0 0 3px; font-size:0.75rem; cursor:pointer;}
+  .scroll{overflow-x:auto;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="maritime-core.js"></script>
+</head>
+<body>
+<div id="dev-bar" style="position:sticky;top:0;z-index:2000;background:#d32f2f;color:#fff;font:600 13px/1.3 -apple-system,system-ui,sans-serif;padding:6px 10px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
+  <span>🧪 MARITIME DEV — practice copy, nothing touches the real league. PIN 1990</span>
+  <button onclick="devFill(9)" style="background:#fff;color:#d32f2f;border:0;border-radius:6px;padding:4px 8px;font-weight:700">Fill 9 holes</button>
+  <button onclick="devFill(18)" style="background:#fff;color:#d32f2f;border:0;border-radius:6px;padding:4px 8px;font-weight:700">Fill 18 holes</button>
+</div>
+<header>
+  <h1>⚓ MARITIME GOLF ASSOCIATION</h1>
+  <div class="sub" id="hdrSub">Margaritaville Golf Club</div>
+</header>
+<main>
+  <section id="v-score"></section>
+  <section id="v-board" style="display:none"></section>
+  <section id="v-season" style="display:none"></section>
+  <section id="v-setup" style="display:none"></section>
+</main>
+<nav>
+  <button id="n-score" class="on" onclick="go('score')">Score</button>
+  <button id="n-board" onclick="go('board')">Leaderboard</button>
+  <button id="n-season" onclick="go('season')">Season</button>
+  <button id="n-setup" onclick="go('setup')">Setup</button>
+</nav>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBiiE5BRUO_fUPVFVWi2C6IdiZUgzRhp6c",
+  authDomain: "wns-scramble-dev.firebaseapp.com",
+  projectId: "wns-scramble-dev",
+  storageBucket: "wns-scramble-dev.firebasestorage.app",
+  messagingSenderId: "1000750273997",
+  appId: "1:1000750273997:web:d868cc8b273653ec202084"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const C = MaritimeCore;
+const SETTINGS = db.collection('wns2').doc('maritime');
+const LIVE = db.collection('weekendGames').doc('maritime_active');
+const CARDS = LIVE.collection('cards');
+const PIN = '1990';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const enc = s => encodeURIComponent(s);
+const slug = s => s.replace(/[^A-Za-z0-9]+/g,'_');
+const LS = { get(k,d){ try{ const v = localStorage.getItem(k); return v===null?d:JSON.parse(v); }catch(e){ return d; } },
+             set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+
+/* ---- Starting roster: Nov 7 2026 pairings (handicap, (M) Margaritaville member, in the Bonus Pool) ---- */
+const SEED_ROSTER = {
+  'Hampton Bryan':[12,1,1],'Jerry Duggan':[8,0,0],'Cary Howell':[5,1,1],'Gary Schuelke':[14,1,1],'Joe Escobar':[15,0,1],
+  'Chad Moore':[4,1,1],'Robert Bell':[14,0,1],'Bill Dawkins':[13,0,0],'Wilson Aldridge':[9,0,1],'Chuck Schuler':[16,0,1],
+  'Jake Kelley':[9,1,1],'Dave Dawson':[14,1,1],'Glenn Green':[11,0,1],'Alan Sonnefeld':[16,1,1],'Adam Denison':[14,0,1],
+  'Dean Horsley':[12,0,1],'David Meyer':[10,1,1],'Karey Carter':[15,1,1],'David Maggard':[19,0,1],'Joey Pannell':[19,0,0],
+  'Jerry Chovanec':[34,0,1],'Ted Duke':[21,0,1],'Jerry January':[23,0,1],'Dan Snyder':[22,0,1],'Steve Woodward':[18,0,1],
+  'Joe Buford':[19,0,0],'Rick White':[19,0,1],'Steve Donohue':[32,0,0],'Richie Smith':[18,0,1],'Gary Hartzo':[23,0,1],
+  'Peter Sanders':[22,0,1],'Walt Kleczkowski':[18,0,0],'Brian Petrossi':[19,1,1],'Wade Battles':[31,0,0],'Mike Cross':[20,1,1],
+  'Mike Black':[18,0,1]
+};
+/* ---- Nov 7 2026 was played before the app: Chuck's published numbers, so the season starts complete ---- */
+const SEED_ROUNDS = [{ date:'2026-11-07', seeded:true, lines: [
+  // name, hcp, flight, net, putts, par3 gross total, cup, bonus
+  ['Hampton Bryan',12,1,70,28,15,10,3.5],['Jerry Duggan',8,1,73,33,16,9,0],['Cary Howell',5,1,73,30,17,8,3],
+  ['Gary Schuelke',14,1,73,32,null,6,2],['Joe Escobar',15,1,73,30,17,6,4],['Chad Moore',4,1,73,28,16,6,3.5],
+  ['Robert Bell',14,1,74,33,null,4,2.5],['Bill Dawkins',13,1,77,33,18,3,0],['Wilson Aldridge',9,1,78,29,16,1.5,3.5],
+  ['Chuck Schuler',16,1,78,29,18,1.5,2.5],['Jake Kelley',9,1,81,35,17,0,2],['Dave Dawson',14,1,81,29,24,0,3],
+  ['Glenn Green',11,1,83,34,20,0,2],['Alan Sonnefeld',16,1,83,36,19,0,2],['Adam Denison',14,1,86,32,16,0,3],
+  ['Dean Horsley',12,1,88,35,19,0,2],['David Meyer',10,1,90,37,20,0,2],['Karey Carter',15,1,92,32,21,0,2],
+  ['David Maggard',19,2,69,33,16,10,3.5],['Joey Pannell',19,2,69,26,18,9,0],['Jerry Chovanec',34,2,71,29,20,8,3],
+  ['Ted Duke',21,2,76,36,20,6.5,3],['Jerry January',23,2,76,38,18,6.5,3],['Dan Snyder',22,2,77,33,18,5,3.5],
+  ['Steve Woodward',18,2,78,35,16,2.5,2.5],['Joe Buford',19,2,78,37,18,2.5,0],['Rick White',19,2,78,34,21,2.5,2.5],
+  ['Steve Donohue',32,2,78,31,17,2.5,0],['Richie Smith',18,2,80,28,17,0,2],['Gary Hartzo',23,2,80,36,24,0,2],
+  ['Peter Sanders',22,2,82,31,23,0,2],['Walt Kleczkowski',18,2,84,33,19,0,0],['Brian Petrossi',19,2,84,36,21,0,2],
+  ['Wade Battles',31,2,84,31,24,0,0],['Mike Cross',20,2,85,33,24,0,2],['Mike Black',18,2,89,32,18,0,2]
+].map(([name,hcp,flight,net,putts,par3,cup,bonus])=>({name,hcp,flight,net,gross:net+hcp,putts,par3,cup,bonus,
+   pool: !!(SEED_ROSTER[name]||[])[2], complete:true})) }];
+
+/* ---- State ---- */
+let settings = null;     // wns2/maritime
+let live = null;         // weekendGames/maritime_active
+let cards = {};          // name -> {s:{}, p:{}}
+let history = null;      // season rounds from weekendHistory
+let view = LS.get('mt_view','score');
+let myGroup = LS.get('mt_group', null);
+let curHole = null;
+let boardTab = 'f1';
+let adminOk = false;
+let setupDraft = null;   // the setup form while it is being edited
+
+function defaultSettings(){
+  const roster = {};
+  Object.entries(SEED_ROSTER).forEach(([n,[h,m,p]])=>roster[n] = {hcp:h, member:!!m, pool:!!p});
+  return { roster, ctpHoles:[2,11], twoPutt:[], flightBreak:16, escCarry:63, season:'62',
+           cfg:{ flightPerPlayer:0, ctpPay:0, puttsPay:0 } };
+}
+function rosterOf(){ return (settings && settings.roster) || defaultSettings().roster; }
+function isLive(){ return !!(live && live.active && Array.isArray(live.players) && live.players.length); }
+
+SETTINGS.onSnapshot(doc=>{
+  const d = doc.exists ? doc.data() : {};
+  const base = defaultSettings();
+  settings = Object.assign(base, d.roster ? d : {}, { cfg: Object.assign(base.cfg, d.cfg || {}) });
+  if(!d.roster && d.ctpHoles) settings.ctpHoles = d.ctpHoles;  // carry the CTP holes from the first test version
+  if(view==='setup' && !setupDraft) render();
+}, e=>console.error('settings', e));
+LIVE.onSnapshot(doc=>{ live = doc.exists ? doc.data() : null; render(); }, e=>console.error('live', e));
+CARDS.onSnapshot(snap=>{
+  const c = {};
+  snap.forEach(d=>{ const v = d.data(); if(v && v.name) c[v.name] = v; });
+  // keep what this phone typed until the server has it
+  Object.entries(pending).forEach(([n,h])=>{ c[n] = c[n] || {name:n,s:{},p:{}}; Object.entries(h).forEach(([k,v])=>{ const [f,i]=k.split(':'); c[n][f] = Object.assign({}, c[n][f]||{}, {[i]:v}); }); });
+  cards = c; render();
+}, e=>console.error('cards', e));
+
+function needPin(){
+  if(adminOk) return true;
+  const v = prompt('Organizer PIN:');
+  if(v === null) return false;
+  if(v.trim() === PIN){ adminOk = true; return true; }
+  alert('Wrong PIN.'); return false;
+}
+
+function go(v){ view = v; LS.set('mt_view', v); if(v==='season' && history===null) loadHistory(); render(); window.scrollTo(0,0); }
+function render(){
+  ['score','board','season','setup'].forEach(v=>{
+    document.getElementById('v-'+v).style.display = v===view ? 'block' : 'none';
+    document.getElementById('n-'+v).classList.toggle('on', v===view);
+  });
+  document.getElementById('hdrSub').textContent = isLive() ? 'Round in progress · ' + fmtDate(live.date) : 'Margaritaville Golf Club';
+  if(view==='score') renderScore();
+  else if(view==='board') renderBoard();
+  else if(view==='season') renderSeason();
+  else renderSetup();
+}
+function fmtDate(d){ if(!d) return ''; const [y,m,dd] = d.split('-').map(Number); return new Date(y,m-1,dd).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
+function today(){ const t = new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+function roundObj(){ return { players: live.players, ctpHoles: live.ctpHoles||[], ctp: live.ctp||{}, escCarry: live.escCarry||0, cfg: live.cfg||{} }; }
+
+/* =================== SCORE =================== */
+function groupsOf(){
+  const g = {};
+  live.players.forEach(p=>{ const k = p.group || '—'; (g[k] = g[k] || []).push(p); });
+  return Object.keys(g).sort((a,b)=>{ const na = parseInt(a)||99, nb = parseInt(b)||99; return na-nb || a.localeCompare(b); }).map(k=>({label:k, players:g[k]}));
+}
+function startHole(label){ const n = parseInt(label); return n>=1 && n<=18 ? n-1 : 0; }
+function renderScore(){
+  const el = document.getElementById('v-score');
+  if(!isLive()){
+    el.innerHTML = `<div class="panel"><h2>No round in progress</h2><div class="hint">The organizer starts the round on the Setup tab: set this month's handicaps, closest-to-the-pin holes and groups, then tap Start Round. Each group then picks its starting hole here and enters scores and putts.</div></div>`;
+    return;
+  }
+  const groups = groupsOf();
+  const mine = groups.find(g=>g.label===myGroup);
+  if(!mine){
+    el.innerHTML = `<div class="panel"><h2>Which group are you in?</h2>` + groups.map(g=>
+      `<button class="grp" onclick="pickGroup(decodeURIComponent('${enc(g.label)}'))"><b>${esc(g.label)}</b> &nbsp;${g.players.map(p=>esc(p.name)).join(', ')}</button>`).join('') +
+      `<div class="hint">Shotgun start — a group labeled 17A starts on hole 17.</div></div>`;
+    return;
+  }
+  if(curHole === null) curHole = defaultHole(mine);
+  const i = curHole, par = C.PAR[i];
+  const ctpHere = (live.ctpHoles||[]).includes(i+1);
+  const two = (live.twoPutt||[]).includes(i+1);
+  let h = `<div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="color:var(--gold-soft)">Group ${esc(mine.label)}</b>
+      <button class="btn secondary small" onclick="pickGroup(null)">⇄ Change group</button></div>
+    <div class="hole-head"><button onclick="stepHole(-1)">◀</button>
+      <div class="hole-title"><div class="h">Hole ${i+1}</div><div class="p">Par ${par} · Hcp ${C.SI[i]}</div>
+      ${ctpHere?'<div class="flag">📍 Closest to the pin</div>':''}${two?'<div class="flag">2-putt max</div>':''}${[8,17].includes(i)?'<div class="flag">Escobar hole</div>':''}</div>
+      <button onclick="stepHole(1)">▶</button></div>`;
+  mine.players.forEach(p=>{
+    const c = cards[p.name] || {s:{},p:{}};
+    const s = c.s ? c.s[i] : null, pt = c.p ? c.p[i] : null;
+    const st = C.strokes(p.hcp, i);
+    h += `<div class="prow"><div class="who">${esc(p.name)} <span>hcp ${p.hcp} · Flt ${p.flight}${st?` · ${'•'.repeat(Math.max(0,st))} stroke${st>1?'s':''}`:''}</span></div>
+      <div class="steppers">
+        <div class="step"><span class="lbl">Score</span><button onclick="bump('${enc(p.name)}','s',-1)">−</button>
+          <button class="val${s==null?' empty':''}" onclick="tapVal('${enc(p.name)}','s')">${s==null?par:s}</button><button onclick="bump('${enc(p.name)}','s',1)">+</button></div>
+        <div class="step"><span class="lbl">Putts</span><button onclick="bump('${enc(p.name)}','p',-1)">−</button>
+          <button class="val${pt==null?' empty':''}" onclick="tapVal('${enc(p.name)}','p')">${pt==null?2:pt}</button><button onclick="bump('${enc(p.name)}','p',1)">+</button></div>
+      </div></div>`;
+  });
+  if(ctpHere) h += ctpBox(mine, i+1);
+  h += `<button class="btn" onclick="stepHole(1)">Next hole ▶</button><div class="status" id="saveMsg">${saveMsg}</div></div>`;
+  h += `<div class="panel"><h2>Group card</h2><div class="scroll">${groupCard(mine)}</div></div>`;
+  el.innerHTML = h;
+}
+function groupCard(g){
+  let h = '<table><tr><th class="name">Player</th><th>Thru</th><th>Gross</th><th>Net</th><th>Putts</th></tr>';
+  g.players.forEach(p=>{ const r = C.cardRow(p, cards[p.name]);
+    h += `<tr><td class="name">${esc(p.name)}</td><td>${r.thru}</td><td>${r.thru?r.gross:'—'}</td><td>${r.complete?r.net:'—'}</td><td>${r.puttsThru?r.putts:'—'}</td></tr>`; });
+  return h + '</table>';
+}
+function defaultHole(g){
+  const s = startHole(g.label);
+  for(let k=0;k<18;k++){ const i = (s+k)%18; if(g.players.some(p=>!(cards[p.name] && cards[p.name].s && cards[p.name].s[i]!=null))) return i; }
+  return s;
+}
+function pickGroup(label){ myGroup = label; LS.set('mt_group', label); curHole = null; render(); }
+function stepHole(d){ curHole = (curHole + d + 18) % 18; render(); window.scrollTo(0,0); }
+
+let pending = {}, saveMsg = '';
+function setCell(name, f, i, v){
+  cards[name] = cards[name] || {name, s:{}, p:{}};
+  cards[name][f] = Object.assign({}, cards[name][f]||{}, {[i]: v});
+  (pending[name] = pending[name] || {})[f+':'+i] = v;
+  CARDS.doc(slug(name)).set({ name, [f]: {[i]: v}, at: firebase.firestore.FieldValue.serverTimestamp() }, {merge:true})
+    .then(()=>{ if(pending[name]){ delete pending[name][f+':'+i]; if(!Object.keys(pending[name]).length) delete pending[name]; } saveMsg = '✓ Saved'; flash(); })
+    .catch(e=>{ console.error(e); saveMsg = '<span class="warn">Not saved yet — check signal. It will retry.</span>'; flash(); });
+  saveMsg = 'Saving…'; render();
+}
+function flash(){ const m = document.getElementById('saveMsg'); if(m) m.innerHTML = saveMsg; }
+function capPutts(i, v){ return (live.twoPutt||[]).includes(i+1) ? Math.min(v, 2) : v; }
+function tapVal(n, f){
+  const name = decodeURIComponent(n), i = curHole, cur = cards[name] && cards[name][f] ? cards[name][f][i] : null;
+  if(cur != null){ if(confirm('Clear this '+(f==='s'?'score':'putt count')+'?')) setCell(name, f, i, null); return; }
+  setCell(name, f, i, f==='s' ? C.PAR[i] : 2);
+}
+function bump(n, f, d){
+  const name = decodeURIComponent(n), i = curHole;
+  const cur = cards[name] && cards[name][f] ? cards[name][f][i] : null;
+  let v = (cur==null ? (f==='s' ? C.PAR[i] : 2) : cur) + d;
+  v = Math.max(f==='s' ? 1 : 0, Math.min(f==='s' ? 15 : 9, v));
+  if(f==='p') v = capPutts(i, v);
+  setCell(name, f, i, v);
+}
+
+/* ---- Closest to the pin, kept per flight ---- */
+function ctpBox(g, hole){
+  const flights = [...new Set(g.players.map(p=>Number(p.flight)))].sort();
+  let h = `<div class="ctpbox"><b style="color:var(--gold-soft)">📍 Closest to the pin — hole ${hole}</b>`;
+  [1,2].forEach(f=>{ const c = live.ctp && live.ctp[f] && live.ctp[f][hole];
+    h += `<div class="hint">Flight ${f}: ${c && c.name ? `<b style="color:var(--cream)">${esc(c.name)}</b> ${c.ft}′ ${c.in}″` : 'nobody yet'}</div>`; });
+  h += `<div class="hint" style="margin-top:6px">On the green and closer? Enter it:</div>
+    <div class="row3" style="margin-top:4px"><select id="ctpWho">${g.players.map(p=>`<option value="${esc(p.name)}">${esc(p.name)} (F${p.flight})</option>`).join('')}</select>
+    <input type="number" id="ctpFt" placeholder="feet" min="0"><input type="number" id="ctpIn" placeholder="inches" min="0" max="11.5" step="0.5"></div>
+    <button class="btn secondary" onclick="saveCtp(${hole})">Save closest to the pin</button></div>`;
+  return h;
+}
+function saveCtp(hole){
+  const name = document.getElementById('ctpWho').value;
+  const ft = parseInt(document.getElementById('ctpFt').value||'0'), inch = parseFloat(document.getElementById('ctpIn').value||'0');
+  if(isNaN(ft) || isNaN(inch) || (ft===0 && inch===0)){ alert('Enter the distance in feet and inches.'); return; }
+  const p = live.players.find(x=>x.name===name); const f = Number(p.flight);
+  const dist = ft*12 + inch;
+  db.runTransaction(tx=>tx.get(LIVE).then(doc=>{
+    const d = doc.data(); const ctp = d.ctp || {}; ctp[f] = ctp[f] || {};
+    const cur = ctp[f][hole];
+    if(cur && cur.name && cur.dist <= dist) return {beat:false, cur};
+    ctp[f][hole] = {name, ft, in:inch, dist};
+    tx.update(LIVE, {ctp}); return {beat:true};
+  })).then(r=>{
+    if(!r.beat) alert(`${r.cur.name} is closer in Flight ${f} (${r.cur.ft}′ ${r.cur.in}″). Not changed.`);
+    else alert(`${name} is the leader in Flight ${f} on hole ${hole}.`);
+  }).catch(e=>{ console.error(e); alert('Not saved — check signal and try again.'); });
+}
+
+/* =================== LEADERBOARD =================== */
+function renderBoard(){
+  const el = document.getElementById('v-board');
+  if(!isLive()){ el.innerHTML = `<div class="panel"><div class="empty">No round in progress. Past rounds are on the Season tab.</div></div>`; return; }
+  const res = C.computeRound(roundObj(), cards);
+  el.innerHTML = `<div class="tabs">${[['f1','Flight 1'],['f2','Flight 2'],['games','Games'],['money','Money']].map(([k,l])=>
+    `<button class="tab${boardTab===k?' on':''}" onclick="boardTab='${k}';render()">${l}</button>`).join('')}</div>` +
+    (boardTab==='f1' ? flightTable(res,1,true) : boardTab==='f2' ? flightTable(res,2,true) : boardTab==='games' ? gamesHtml(res) : moneyHtml(res));
+}
+function flightTable(res, f, live_){
+  const F = res.flights[f], cfg = res.cfg;
+  let h = `<div class="panel"><h2>Flight ${f} — Low Net</h2><div class="hint">${F.pot ? `Pot $${F.pot} · 50 / 30 / 20` : 'Pays 1st / 2nd / 3rd: 50 / 30 / 20% of the flight pot'} · ties for the money go to a card playoff, hardest hole first.</div>
+  <div class="scroll"><table><tr><th>Pos</th><th class="name">Player</th><th>Hcp</th><th>Gross</th><th>Net</th><th>Putts</th><th>Cup</th>${F.pot?'<th>$</th>':''}</tr>`;
+  F.standings.forEach(e=>{ const r = e.row;
+    h += `<tr class="${e.place<=3?'money':''}"><td>${e.tied?'T':''}${e.place}</td>
+      <td class="name">${esc(r.name)}${r.member?'<span class="tag">(M)</span>':''}${e.playoffHole?`<span class="tag">won card playoff, hole ${e.playoffHole}</span>`:''}</td>
+      <td style="white-space:nowrap">${r.hcp}${live_?`<button class="fix" onclick="fixHcp('${enc(r.name)}')">✏️</button>`:''}</td><td>${r.gross}</td><td><b>${r.net}</b></td><td>${r.puttsThru===18?r.putts:'—'}</td><td>${e.cup}</td>${F.pot?`<td>${e.pay?'$'+e.pay:''}</td>`:''}</tr>`; });
+  if(F.open.length){
+    h += `<tr><td colspan="8" class="hint" style="text-align:left;padding-top:10px">Still playing</td></tr>`;
+    [...F.open].sort((a,b)=>b.thru-a.thru).forEach(r=>{
+      h += `<tr><td>${r.thru?'thru '+r.thru:'—'}</td><td class="name">${esc(r.name)}</td><td style="white-space:nowrap">${r.hcp}${live_?`<button class="fix" onclick="fixHcp('${enc(r.name)}')">✏️</button>`:''}</td><td>${r.thru?r.gross:'—'}</td><td class="hint">${r.thru?(r.toPar>0?'+':'')+r.toPar+' gross':''}</td><td>${r.puttsThru?r.putts:'—'}</td><td></td>${F.pot?'<td></td>':''}</tr>`; });
+  }
+  if(!F.standings.length && !F.open.length) h += `<tr><td colspan="8" class="empty">Nobody in this flight.</td></tr>`;
+  return h + '</table></div></div>';
+}
+function pnote(o){ if(!o.over.length) return ''; return o.hole ? `<div class="hint">won card playoff (hole ${o.hole}) over ${o.over.map(esc).join(', ')}</div>` : `<div class="hint">tied with ${o.over.map(esc).join(', ')} — cards identical</div>`; }
+const CUP_PAY = [200,100,75,60,50,25,25,25,25,25];   // Chuck's Maritime Cup sheet
+const SEASON_PAY = [150,75,50];                      // net avg, putts, par 3 avg, low net: per handicap group
+function gamesHtml(res){
+  let h = `<div class="panel"><h2>📍 Closest to the Pin</h2>`;
+  if(!(live.ctpHoles||[]).length) h += `<div class="hint">No CTP holes set for this round.</div>`;
+  [1,2].forEach(f=>(live.ctpHoles||[]).forEach(hole=>{ const c = res.ctp[f][hole];
+    h += `<div class="card"><span>Flight ${f} · Hole ${hole}</span><span class="v">${c?`${esc(c.name)} — ${c.ft}′ ${c.in}″`:'—'}</span></div>`; }));
+  h += `</div><div class="panel"><h2>Low Putts</h2>`;
+  [1,2].forEach(f=>{ const lp = res.putts[f];
+    h += `<div class="card"><span>Flight ${f}</span><span class="v">${lp?`${esc(lp.winner)} — ${lp.putts}${pnote(lp)}`:'waiting on cards'}</span></div>`; });
+  h += `</div><div class="panel"><h2>Par 3 Sidegame</h2><div class="hint">Net on holes 2, 5, 8, 11 &amp; 15 (strokes by hole handicap). $5 a player; each handicap group plays for its own pot.</div>`;
+  res.side.forEach(g=>{
+    h += `<div class="card"><span>Hcp ${g.range[0]}–${g.range[1]>=99?'up':g.range[1]} · ${g.count} players · $${g.pot}</span><span class="v">${g.winner?`${esc(g.winner)} — net ${g.net}${g.split?` <span class="hint">(split $${g.pot})</span>`:''}${pnote(g)}`:'—'}</span></div>`; });
+  const e = res.esc;
+  h += `</div><div class="panel"><h2>Escobar Challenge — $${e.pot}</h2><div class="hint">Holes 9 + 18, net (strokes by hole handicap). Net ${res.cfg.escTarget} or better wins; a tie carries over.</div>
+    <div class="card"><span>Result</span><span class="v">${e.winner?`${esc(e.winner)} wins — net ${e.best}`:e.best===null?'waiting on cards':e.tied.length?`Tie at net ${e.best} (${e.tied.map(esc).join(', ')}) — carries over`:`Best net ${e.best} — no winner, carries over`}</span></div>
+    ${e.grossBest!==null?`<div class="card"><span>Best gross</span><span class="v">${e.grossBest} — ${e.grossBy.map(esc).join(', ')}</span></div>`:''}</div>`;
+  h += `<div class="panel"><h2>Low Round of the Day</h2><div class="card"><span>Gross</span><span class="v">${res.lowGross?`${res.lowGross.gross} — ${res.lowGross.names.map(esc).join(', ')}`:'waiting on cards'}</span></div></div>`;
+  return h;
+}
+function moneyHtml(res){
+  const names = res.rows.map(r=>r.name);
+  const lines = names.map(n=>({n, m:res.money[n]||0, b:res.bonus[n], cup:res.cup[n]||0, pool: res.rows.find(r=>r.name===n).pool}))
+    .sort((a,b)=>b.m-a.m || (b.b||0)-(a.b||0) || a.n.localeCompare(b.n));
+  const cfg = res.cfg;
+  let h = `<div class="panel"><h2>Today's money &amp; points</h2><div class="hint">${!cfg.flightPerPlayer||!cfg.ctpPay||!cfg.puttsPay?'Flight, CTP and low-putt dollar amounts are set on the Setup tab; until then only the Par 3 sidegame and Escobar show dollars. ':''}Bonus points count only for Bonus Pool members.</div>
+    <table><tr><th class="name">Player</th><th>$</th><th>Cup pts</th><th>Bonus pts</th></tr>`;
+  lines.forEach(l=>{ h += `<tr><td class="name">${esc(l.n)}</td><td>${l.m?`<span class="pill">$${l.m}</span>`:''}</td><td>${l.cup||''}</td><td>${l.pool?(l.b||0):'<span class="hint">—</span>'}</td></tr>`; });
+  return h + '</table></div>';
+}
+function fixHcp(n){
+  const name = decodeURIComponent(n);
+  if(!needPin()) return;
+  const p = live.players.find(x=>x.name===name);
+  const v = prompt(`Handicap for ${name} in this round (now ${p.hcp}):`, p.hcp);
+  if(v===null) return; const h = parseFloat(v); if(isNaN(h) || h<0 || h>54){ alert("That doesn't look like a handicap."); return; }
+  db.runTransaction(tx=>tx.get(LIVE).then(doc=>{
+    const d = doc.data(); const pl = d.players.find(x=>x.name===name); if(!pl) return;
+    pl.hcp = h; tx.update(LIVE, {players: d.players});
+  })).then(()=>{
+    const r = Object.assign({}, rosterOf()); r[name] = Object.assign({}, r[name]||{}, {hcp:h});
+    return SETTINGS.set({roster: r}, {merge:true});
+  }).catch(e=>{ console.error(e); alert('Not saved — check signal.'); });
+}
+
+/* =================== SEASON =================== */
+function loadHistory(){
+  db.collection('weekendHistory').where('game','==','maritime').get().then(snap=>{
+    const rounds = [];
+    snap.forEach(d=>{ const v = d.data(); try{ rounds.push({ id:d.id, date:v.date, season:v.season, lines: JSON.parse(v.linesJSON||'[]'), res: v.resultJSON ? JSON.parse(v.resultJSON) : null }); }catch(e){} });
+    history = rounds; render();
+  }).catch(e=>{ console.error(e); history = []; render(); });
+}
+function seasonRounds(){
+  const s = (settings && settings.season) || '62';
+  const saved = (history||[]).filter(r=>String(r.season)===String(s));
+  const seeds = s==='62' ? SEED_ROUNDS.filter(sr=>!saved.some(r=>r.date===sr.date)) : [];
+  return [...seeds, ...saved].sort((a,b)=>a.date.localeCompare(b.date));
+}
+let seasonTab = 'cup';
+function renderSeason(){
+  const el = document.getElementById('v-season');
+  if(history===null){ el.innerHTML = '<div class="panel"><div class="empty">Loading the season…</div></div>'; return; }
+  const rounds = seasonRounds();
+  const hcpNow = {}; Object.entries(rosterOf()).forEach(([n,v])=>hcpNow[n]=v.hcp);
+  const S = C.season(rounds, hcpNow);
+  let h = `<div class="tabs">${[['cup','Maritime Cup'],['pool','Bonus Pool'],['avg','Averages'],['rounds','Rounds']].map(([k,l])=>
+    `<button class="tab${seasonTab===k?' on':''}" onclick="seasonTab='${k}';render()">${l}</button>`).join('')}</div>`;
+  h += `<div class="hint" style="margin:-4px 0 10px">Season ${esc((settings&&settings.season)||'62')} · after ${rounds.length} round${rounds.length===1?'':'s'} of 15</div>`;
+  if(seasonTab==='cup'){
+    const rk = C.ranks(S.cup,'cup');
+    h += `<div class="panel"><h2>Maritime Cup</h2><div class="hint">Flight finish each round: 1st 10 points down to 10th 1; ties split. Season-end pay: $200, $100, $75, $60, $50, then $25 for 6th–10th.</div>
+      <table><tr><th>Rank</th><th class="name">Player</th><th>Pts</th><th>Rds</th><th>Pays</th></tr>` +
+      S.cup.map((p,i)=>`<tr${i<10?' class="money"':''}><td>${rk[i]}</td><td class="name">${esc(p.name)}</td><td><b>${p.cup}</b></td><td>${p.rounds}</td><td class="hint">${i<10?'$'+CUP_PAY[i]:''}</td></tr>`).join('') + `</table></div>`;
+  } else if(seasonTab==='pool'){
+    const L = S.pool.standings, rk = C.ranks(L,'bonus');
+    h += `<div class="panel"><h2>Bonus Pool — $${S.pool.total}</h2><div class="hint">Pays ${S.pool.split.map((x,i)=>['1st','2nd','3rd'][i]+' $'+x).join(' · ')}. Points: 2 for playing, 1.5 win your flight, 1 for 2nd–5th, ½ for 6th–10th, 1 each for CTP, low putts, Par 3 sidegame, Escobar Challenge, 5 for a hole-in-one.</div>
+      <table><tr><th>Rank</th><th class="name">Player</th><th>Pts</th><th>Rds</th></tr>` +
+      L.map((p,i)=>`<tr${i<S.pool.split.length?' class="money"':''}><td>${rk[i]}</td><td class="name">${esc(p.name)}</td><td><b>${p.bonus}</b></td><td>${p.rounds}</td></tr>`).join('') + `</table></div>`;
+  } else if(seasonTab==='avg'){
+    const lbl = g => `Handicaps ${g[0]} – ${g[1]>=99?30:g[1]}`;
+    S.groups.forEach(g=>{
+      h += `<div class="panel"><h2>${lbl(g.range)}</h2><div class="hint">Need ${C.DEFAULTS.minRounds} rounds to win. Grouped by current handicap. Each contest pays $150 / $75 / $50 at season end.</div>`;
+      [['netAvg','Net scoring average',v=>v],['puttsAvg','Putts per round',v=>v],['par3Avg','Par 3 stroke average (gross)',v=>v.toFixed(2)],['lowNet','Low net round',v=>v]].forEach(([k,t,fmt])=>{
+        const L = g[k].slice(0,6);
+        h += `<h3>${t}</h3>` + (L.length ? `<table>` + L.map((p,i)=>`<tr><td style="width:36px">${C.ranks(g[k],k)[i]}</td><td class="name">${esc(p.name)}</td><td><b>${fmt(p[k])}</b></td><td class="hint">${p.rounds} rd${p.rounds===1?'':'s'}</td></tr>`).join('') + `</table>` : `<div class="hint">No rounds yet.</div>`);
+      });
+      h += `</div>`;
+    });
+  } else {
+    h += `<div class="panel"><h2>Rounds this season</h2>` + rounds.slice().reverse().map(r=>{
+      const n = r.lines.length, best = [1,2].map(f=>{ const L = r.lines.filter(l=>l.flight==f && l.net!=null).sort((a,b)=>b.cup-a.cup||a.net-b.net); return L[0]?`F${f}: ${esc(L[0].name)} (${L[0].net})`:''; }).filter(Boolean).join(' · ');
+      return `<div class="card"><span>${fmtDate(r.date)}${r.seeded?' <span class="tag">from Chuck\'s sheets</span>':''}<div class="hint">${n} players · ${best}</div></span></div>`;
+    }).join('') + `</div>`;
+  }
+  el.innerHTML = h;
+}
+
+/* =================== SETUP =================== */
+function draftFromSettings(){
+  const r = rosterOf();
+  const playing = isLive() ? Object.fromEntries(live.players.map(p=>[p.name,p.group||''])) : LS.get('mt_lastGroups', {});
+  return {
+    date: today(), ctpHoles: (settings && settings.ctpHoles) || [2,11], twoPutt: ((settings && settings.twoPutt) || []).join(', '),
+    flightBreak: (settings && settings.flightBreak) || 16, escCarry: (settings && settings.escCarry) || 0,
+    cfg: Object.assign({flightPerPlayer:0, ctpPay:0, puttsPay:0}, settings && settings.cfg),
+    season: (settings && settings.season) || '62',
+    roster: Object.fromEntries(Object.entries(r).map(([n,v])=>[n, {hcp:v.hcp, member:!!v.member, pool:!!v.pool, play: n in playing, group: playing[n]||''}]))
+  };
+}
+function renderSetup(){
+  const el = document.getElementById('v-setup');
+  if(!settings){ el.innerHTML = '<div class="panel"><div class="empty">Loading…</div></div>'; return; }
+  if(isLive()){
+    el.innerHTML = `<div class="panel"><h2>Round in progress — ${fmtDate(live.date)}</h2>
+      <div class="hint">${live.players.length} players · CTP holes ${(live.ctpHoles||[]).join(' & ')||'none'} · Flight 1 is handicap ${live.flightBreak} and under${(live.twoPutt||[]).length?` · 2-putt max on ${live.twoPutt.join(', ')}`:''}</div>
+      <div class="hint" style="margin-top:8px">Fix a handicap with ✏️ on the leaderboard. When every card is in, end the round to save it to the season.</div>
+      <button class="btn" onclick="endRound()">End Round &amp; Save to Season</button>
+      <button class="btn secondary" onclick="cancelRound()">Cancel this round (nothing saved)</button></div>`;
+    return;
+  }
+  if(!setupDraft) setupDraft = draftFromSettings();
+  const d = setupDraft;
+  const names = Object.keys(d.roster).sort((a,b)=>a.split(' ').slice(-1)[0].localeCompare(b.split(' ').slice(-1)[0]) || a.localeCompare(b));
+  const playing = names.filter(n=>d.roster[n].play);
+  let h = `<div class="panel"><h2>This month's round</h2>
+    <div class="row2"><div><label>Date</label><input type="date" value="${d.date}" onchange="setupDraft.date=this.value"></div>
+      <div><label>Flight 1 is handicap … and under</label><input type="number" value="${d.flightBreak}" onchange="setupDraft.flightBreak=+this.value;render()"></div></div>
+    <label>Closest-to-the-pin holes (usually 2; all 5 at the Championship)</label>
+    <div class="chips">${C.PAR3.map(i=>i+1).map(n=>`<button class="chip${d.ctpHoles.includes(n)?' on':''}" onclick="toggleCtp(${n})">Hole ${n}</button>`).join('')}</div>
+    <div class="row2"><div><label>2-putt max holes (e.g. 15, 16)</label><input type="text" value="${esc(d.twoPutt)}" placeholder="none" onchange="setupDraft.twoPutt=this.value"></div>
+      <div><label>Escobar carry-over ($)</label><input type="number" value="${d.escCarry}" onchange="setupDraft.escCarry=+this.value||0"></div></div>
+    <label>Payouts (leave 0 if you don't know them yet)</label>
+    <div class="row3"><div><span class="hint">Flight pot $/player</span><input type="number" step="0.5" value="${d.cfg.flightPerPlayer}" onchange="setupDraft.cfg.flightPerPlayer=+this.value||0"></div>
+      <div><span class="hint">CTP $ each</span><input type="number" value="${d.cfg.ctpPay}" onchange="setupDraft.cfg.ctpPay=+this.value||0"></div>
+      <div><span class="hint">Low putts $ each</span><input type="number" value="${d.cfg.puttsPay}" onchange="setupDraft.cfg.puttsPay=+this.value||0"></div></div>
+  </div>
+  <div class="panel"><h2>Players &amp; handicaps <span style="float:right;color:var(--gold)">${playing.length} playing</span></h2>
+    <div class="hint">Tick who's playing and type their group from Chuck's pairings (1A, 18B…). Handicaps are Maritime's own and are kept month to month — change them here when Chuck's new list comes out. M = Margaritaville member, Pool = in the Bonus Pool.</div>
+    <div class="rrow head"><span>Play</span><span>Name</span><span>Hcp</span><span>M</span><span>Pool</span><span>Group</span></div>` +
+    names.map(n=>{ const r = d.roster[n]; const fl = r.hcp <= d.flightBreak ? 1 : 2;
+      return `<div class="rrow${r.play?'':' off'}"><input type="checkbox" ${r.play?'checked':''} onchange="setR('${enc(n)}','play',this.checked)">
+        <span class="nm">${esc(n)}${r.play?`<span class="tag">F${fl}</span>`:''}</span>
+        <input type="number" value="${r.hcp}" onchange="setR('${enc(n)}','hcp',+this.value)">
+        <input type="checkbox" ${r.member?'checked':''} onchange="setR('${enc(n)}','member',this.checked)">
+        <input type="checkbox" ${r.pool?'checked':''} onchange="setR('${enc(n)}','pool',this.checked)">
+        <input type="text" value="${esc(r.group)}" placeholder="—" onchange="setR('${enc(n)}','group',this.value.trim().toUpperCase())"></div>`; }).join('') +
+    `<label>Add a player</label><div style="display:flex;gap:8px"><input type="text" id="newName" placeholder="First Last"><input type="number" id="newHcp" placeholder="Hcp" style="width:80px">
+      <button class="btn small" onclick="addPlayer()">Add</button></div>
+    <button class="btn secondary" onclick="saveRoster()">Save handicaps &amp; settings</button>
+    <button class="btn" onclick="startRound()">Start Round (${playing.length} players)</button>
+    <div class="hint" style="margin-top:8px">Season ${esc(d.season)}. <a href="#" style="color:var(--gold-soft)" onclick="newSeason();return false">Start a new season</a></div>
+  </div>`;
+  el.innerHTML = h;
+}
+function toggleCtp(n){ const a = setupDraft.ctpHoles; const k = a.indexOf(n); if(k>=0) a.splice(k,1); else a.push(n); a.sort((x,y)=>x-y); render(); }
+function setR(n, k, v){ const name = decodeURIComponent(n); setupDraft.roster[name][k] = v; if(k==='play' && v && !setupDraft.roster[name].group) {} if(k!=='group') render(); }
+function addPlayer(){
+  const n = document.getElementById('newName').value.trim(), h = parseFloat(document.getElementById('newHcp').value);
+  if(!n || isNaN(h)){ alert('Enter a name and handicap.'); return; }
+  setupDraft.roster[n] = {hcp:h, member:false, pool:false, play:true, group:''}; render();
+}
+function twoPuttList(s){ return String(s||'').split(/[^0-9]+/).map(Number).filter(n=>n>=1&&n<=18); }
+function settingsFromDraft(){
+  const d = setupDraft;
+  const roster = Object.fromEntries(Object.entries(d.roster).map(([n,r])=>[n,{hcp:r.hcp, member:!!r.member, pool:!!r.pool}]));
+  return { roster, ctpHoles:d.ctpHoles, twoPutt: twoPuttList(d.twoPutt), flightBreak:d.flightBreak, escCarry:d.escCarry, cfg:d.cfg, season:d.season };
+}
+function saveRoster(){
+  if(!needPin()) return;
+  SETTINGS.set(settingsFromDraft(), {merge:true}).then(()=>alert('Saved.')).catch(e=>{ console.error(e); alert('Not saved — check signal.'); });
+}
+function startRound(){
+  const d = setupDraft;
+  const pl = Object.entries(d.roster).filter(([,r])=>r.play);
+  if(pl.length < 2){ alert('Tick at least 2 players.'); return; }
+  const noGroup = pl.filter(([,r])=>!r.group).map(([n])=>n);
+  if(noGroup.length && !confirm(`No group typed for: ${noGroup.join(', ')}.\nThey'll be listed under "—". Start anyway?`)) return;
+  if(!needPin()) return;
+  const s = settingsFromDraft();
+  const players = pl.map(([name,r])=>({ name, hcp:r.hcp, flight: r.hcp <= d.flightBreak ? 1 : 2, pool:!!r.pool, member:!!r.member, group:r.group||'—' }));
+  LS.set('mt_lastGroups', Object.fromEntries(pl.map(([n,r])=>[n,r.group])));
+  CARDS.get().then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete()))).then(()=>Promise.all([
+    SETTINGS.set(s, {merge:true}),
+    LIVE.set({ active:true, date:d.date, season:d.season, players, ctpHoles:s.ctpHoles, twoPutt:s.twoPutt, flightBreak:s.flightBreak,
+      escCarry:s.escCarry, cfg:s.cfg, ctp:{}, startedAt: firebase.firestore.FieldValue.serverTimestamp() })
+  ])).then(()=>{ setupDraft = null; myGroup = null; LS.set('mt_group', null); go('score'); })
+    .catch(e=>{ console.error(e); alert('Could not start — check signal and try again.\n' + (e.message||'')); });
+}
+function endRound(){
+  const res = C.computeRound(roundObj(), cards);
+  const open = res.rows.filter(r=>!r.complete);
+  if(open.length && !confirm(`${open.length} card${open.length>1?'s are':' is'} not complete (${open.map(r=>r.name).join(', ')}). They won't place.\nEnd the round anyway?`)) return;
+  if(!confirm('End the round and save it to the season?')) return;
+  if(!needPin()) return;
+  const lines = C.roundSummary(res);
+  const slim = { flights: Object.fromEntries([1,2].map(f=>[f, res.flights[f].standings.slice(0,3).map(e=>({name:e.row.name, net:e.row.net, place:e.place, pay:e.pay}))])),
+    putts: res.putts, ctp: res.ctp, side: res.side.map(g=>({range:g.range, pot:g.pot, winner:g.winner, net:g.net})), esc: res.esc, lowGross: res.lowGross, money: res.money };
+  db.collection('weekendHistory').add({
+    game:'maritime', season: live.season || (settings && settings.season) || '62', date: live.date,
+    endedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    linesJSON: JSON.stringify(lines), resultJSON: JSON.stringify(slim),
+    roundJSON: JSON.stringify({ players: live.players, ctpHoles: live.ctpHoles, ctp: live.ctp, cfg: live.cfg, escCarry: live.escCarry, twoPutt: live.twoPutt, cards })
+  }).then(()=>SETTINGS.set({ escCarry: res.esc.carry }, {merge:true}))
+    .then(()=>CARDS.get()).then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete())))
+    .then(()=>LIVE.set({active:false, endedAt: firebase.firestore.FieldValue.serverTimestamp()}))
+    .then(()=>{ history = null; alert(`Saved. Escobar ${res.esc.winner ? 'won by ' + res.esc.winner : 'carries over at $' + res.esc.carry}.`); go('season'); })
+    .catch(e=>{ console.error(e); alert('Could not save — check signal and try again. Nothing was lost.'); });
+}
+function cancelRound(){
+  if(!confirm('Cancel this round? Scores entered today will be deleted and nothing goes to the season.')) return;
+  if(!needPin()) return;
+  CARDS.get().then(snap=>Promise.all(snap.docs.map(x=>x.ref.delete()))).then(()=>LIVE.set({active:false})).catch(e=>alert('Could not cancel — check signal.'));
+}
+function newSeason(){
+  if(!needPin()) return;
+  const v = prompt('New season number (the current one is ' + setupDraft.season + '):', String((parseInt(setupDraft.season)||62)+1));
+  if(!v) return; setupDraft.season = v.trim();
+  SETTINGS.set({season: setupDraft.season}, {merge:true}).then(()=>{ history = null; render(); });
+}
+
+render();
+if(view==='season') loadHistory();
+</script>
+<script>
+// Dev only: give every player in the live round random but realistic scores and putts
+function devFill(upTo){
+  if(!isLive()){ alert('Start a round on the Setup tab first.'); return; }
+  if(!confirm('Fill holes 1-' + upTo + ' with random scores for every player who has none there?')) return;
+  const rnd = a => a[Math.floor(Math.random()*a.length)];
+  Promise.all(live.players.map(p=>{
+    const c = cards[p.name] || {s:{},p:{}}; const s = {}, pt = {};
+    const lean = p.hcp / 18;                               // strokes over par per hole, on average
+    for(let i=0;i<upTo;i++){
+      if(c.s && c.s[i] != null) continue;
+      let over = Math.round(lean + rnd([-1,0,0,0,0,1,1,2]) * (Math.random()<0.6?1:0) - (Math.random()<0.15?1:0));
+      s[i] = Math.max(2, C.PAR[i] + over);
+      pt[i] = Math.min(s[i]-1, rnd([1,2,2,2,2,2,3]));
+    }
+    return CARDS.doc(slug(p.name)).set({ name:p.name, s, p:pt }, {merge:true});
+  })).then(()=>alert('Done. Check the Leaderboard.')).catch(e=>alert('Fill failed: ' + e.message));
+}
+</script>
+</body>
+</html>

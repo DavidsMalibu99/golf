@@ -101,14 +101,15 @@
 </nav>
 
 <script>
-firebase.initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyASZm6VJsOHeEi1TfXXG4S1HisZ_HuC-fI",
   authDomain: "wns-scramble.firebaseapp.com",
   projectId: "wns-scramble",
   storageBucket: "wns-scramble.firebasestorage.app",
   messagingSenderId: "1012126405668",
   appId: "1:1012126405668:web:8bc7a2178c7be0f534b4b1"
-});
+};
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const C = MaritimeCore;
 const SETTINGS = db.collection('wns2').doc('maritime');
