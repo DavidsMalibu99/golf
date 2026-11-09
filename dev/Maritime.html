@@ -501,7 +501,8 @@ function renderSetup(){
       <div><span class="hint">Low putts $ each</span><input type="number" value="${d.cfg.puttsPay}" onchange="setupDraft.cfg.puttsPay=+this.value||0"></div></div>
   </div>
   <div class="panel"><h2>Players &amp; handicaps <span style="float:right;color:var(--gold)">${playing.length} playing</span></h2>
-    <div class="hint">Tick who's playing and type their group from Chuck's pairings (1A, 18B…). Handicaps are Maritime's own and are kept month to month — change them here when Chuck's new list comes out. M = Margaritaville member, Pool = in the Bonus Pool.</div>
+    <div class="hint">Tick who's playing, then tap Make groups — or type the groups from Chuck's pairings (1A, 18B…). Handicaps are Maritime's own and are kept month to month — change them here when Chuck's new list comes out. M = Margaritaville member, Pool = in the Bonus Pool.</div>
+    ${playing.length >= 2 ? (()=>{ const g = groupPlan(playing.length); return `<button class="btn secondary" onclick="autoGroups()">🔀 Make groups — ${g.sizes.length} group${g.sizes.length>1?'s':''} on ${g.holes} hole${g.holes>1?'s':''} (${g.labels.join(', ')})</button>`; })() : ''}
     <div class="rrow head"><span>Play</span><span>Name</span><span>Hcp</span><span>M</span><span>Pool</span><span>Group</span></div>` +
     names.map(n=>{ const r = d.roster[n]; const fl = r.hcp <= d.flightBreak ? 1 : 2;
       return `<div class="rrow${r.play?'':' off'}"><input type="checkbox" ${r.play?'checked':''} onchange="setR('${enc(n)}','play',this.checked)">
@@ -520,6 +521,28 @@ function renderSetup(){
 }
 function toggleCtp(n){ const a = setupDraft.ctpHoles; const k = a.indexOf(n); if(k>=0) a.splice(k,1); else a.push(n); a.sort((x,y)=>x-y); render(); }
 function setR(n, k, v){ const name = decodeURIComponent(n); setupDraft.roster[name][k] = v; if(k==='play' && v && !setupDraft.roster[name].group) {} if(k!=='group') render(); }
+/* Groups from the head count: foursomes (threesomes only when the numbers don't divide),
+   two groups per starting hole the way Chuck sets the shotgun: 1A, 1B, 18A, 18B, 17A, 17B ... */
+const START_HOLES = [1,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2];
+function groupPlan(n){
+  const g = Math.max(1, Math.ceil(n/4));
+  const sizes = Array.from({length:g}, (_,i)=>Math.floor(n/g) + (i < n % g ? 1 : 0));
+  const labels = sizes.map((_,i)=>START_HOLES[Math.floor(i/2) % 18] + (i % 2 ? 'B' : 'A'));
+  return { sizes, labels, holes: Math.ceil(g/2) };
+}
+// Margaritaville members ride together (they use their own carts), everyone else is mixed at random
+function autoGroups(quiet){
+  const d = setupDraft;
+  const playing = Object.keys(d.roster).filter(n=>d.roster[n].play);
+  if(playing.length < 2){ alert('Tick at least 2 players first.'); return; }
+  if(!quiet && playing.some(n=>d.roster[n].group) && !confirm('Replace the groups already typed in?')) return;
+  const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; };
+  const order = [...shuffle(playing.filter(n=>d.roster[n].member)), ...shuffle(playing.filter(n=>!d.roster[n].member))];
+  const plan = groupPlan(order.length);
+  let k = 0;
+  plan.sizes.forEach((size,gi)=>{ for(let j=0;j<size;j++) d.roster[order[k++]].group = plan.labels[gi]; });
+  render();
+}
 function addPlayer(){
   const n = document.getElementById('newName').value.trim(), h = parseFloat(document.getElementById('newHcp').value);
   if(!n || isNaN(h)){ alert('Enter a name and handicap.'); return; }
@@ -539,6 +562,10 @@ function startRound(){
   const d = setupDraft;
   const pl = Object.entries(d.roster).filter(([,r])=>r.play);
   if(pl.length < 2){ alert('Tick at least 2 players.'); return; }
+  if(pl.every(([,r])=>!r.group)){
+    if(!confirm(`No groups yet. Make ${groupPlan(pl.length).sizes.length} groups automatically and start?`)) return;
+    autoGroups(true);
+  }
   const noGroup = pl.filter(([,r])=>!r.group).map(([n])=>n);
   if(noGroup.length && !confirm(`No group typed for: ${noGroup.join(', ')}.\nThey'll be listed under "—". Start anyway?`)) return;
   if(!needPin()) return;
