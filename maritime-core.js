@@ -152,12 +152,16 @@
       const pot = cfg.par3PerPlayer * grp.length;
       const done = grp.filter(r=>r.par3Done && r.complete);
       const o = orderWithPlayoff(done, r=>r.par3Net, netHole, BY_SI.filter(i=>PAR3.includes(i)));
+      const p3 = BY_SI.filter(i=>PAR3.includes(i));
       const w = o[0] || null;
       const tied = w ? o.filter(r=>r.par3Net===w.par3Net) : [];
-      res.side.push({ range:g, pot, count: grp.length, winner: w ? w.name : null, net: w ? w.par3Net : null,
-        over: tied.slice(1).map(r=>r.name), hole: tied.length>1 ? playoff(w,tied[1],netHole,BY_SI.filter(i=>PAR3.includes(i))).hole : 0,
+      // cards that match hole for hole can't be separated: they split the pot
+      const co = w ? tied.filter(r=>r===w || playoff(w,r,netHole,p3).hole===0) : [];
+      const beaten = tied.filter(r=>!co.includes(r));
+      res.side.push({ range:g, pot, count: grp.length, winner: w ? co.map(r=>r.name).join(' & ') : null, winners: co.map(r=>r.name), net: w ? w.par3Net : null,
+        split: co.length > 1, over: beaten.map(r=>r.name), hole: beaten.length ? playoff(w,beaten[0],netHole,p3).hole : 0,
         board: o.slice(0,5).map(r=>({name:r.name, net:r.par3Net, gross:r.par3Gross})) });
-      if(w && pot){ add(res.money, w.name, pot); if(w.pool) add(res.bonus, w.name, 1); }
+      if(w && pot) co.forEach(r=>{ add(res.money, r.name, Math.round(pot/co.length*100)/100); if(r.pool) add(res.bonus, r.name, 1); });
     });
 
     // Escobar Challenge: #9 + #18 net, must be 8 or better, a tie carries over

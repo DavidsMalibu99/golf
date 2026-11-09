@@ -68,3 +68,14 @@ assert.strictEqual(s.cup[0].cup, 20);
 assert.strictEqual(s.pool.total, 29*10);
 assert.deepStrictEqual(s.pool.split, [145,87,58]);
 console.log('All Maritime checks passed.');
+// Identical par 3 cards split the sidegame (Chuck: "Karey Carter & Dave Dawson - Tie Net 13 - Split $40")
+{
+  const pl = [{name:'A',hcp:15,flight:1},{name:'B',hcp:15,flight:1},{name:'C',hcp:15,flight:1},{name:'D',hcp:15,flight:1}];
+  const base = ()=>({ s: Object.assign({}, M.PAR), p: Object.assign({}, Array(18).fill(2)) });
+  const cs = {A:base(), B:base(), C:base(), D:base()}; cs.C.s[1] = 4; cs.D.s[1] = 4;  // C and D bogey hole 2
+  const r = M.computeRound({players: pl, ctpHoles:[]}, cs);
+  const g = r.side[1];
+  assert.deepStrictEqual(g.winners, ['A','B']); assert.ok(g.split);
+  assert.strictEqual(r.money.A, 10); assert.strictEqual(r.money.B, 10);
+  console.log('Split check passed.');
+}

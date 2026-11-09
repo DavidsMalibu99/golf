@@ -356,6 +356,8 @@ function flightTable(res, f, live_){
   return h + '</table></div></div>';
 }
 function pnote(o){ if(!o.over.length) return ''; return o.hole ? `<div class="hint">won card playoff (hole ${o.hole}) over ${o.over.map(esc).join(', ')}</div>` : `<div class="hint">tied with ${o.over.map(esc).join(', ')} — cards identical</div>`; }
+const CUP_PAY = [200,100,75,60,50,25,25,25,25,25];   // Chuck's Maritime Cup sheet
+const SEASON_PAY = [150,75,50];                      // net avg, putts, par 3 avg, low net: per handicap group
 function gamesHtml(res){
   let h = `<div class="panel"><h2>📍 Closest to the Pin</h2>`;
   if(!(live.ctpHoles||[]).length) h += `<div class="hint">No CTP holes set for this round.</div>`;
@@ -366,7 +368,7 @@ function gamesHtml(res){
     h += `<div class="card"><span>Flight ${f}</span><span class="v">${lp?`${esc(lp.winner)} — ${lp.putts}${pnote(lp)}`:'waiting on cards'}</span></div>`; });
   h += `</div><div class="panel"><h2>Par 3 Sidegame</h2><div class="hint">Net on holes 2, 5, 8, 11 &amp; 15 (strokes by hole handicap). $5 a player; each handicap group plays for its own pot.</div>`;
   res.side.forEach(g=>{
-    h += `<div class="card"><span>Hcp ${g.range[0]}–${g.range[1]>=99?'up':g.range[1]} · ${g.count} players · $${g.pot}</span><span class="v">${g.winner?`${esc(g.winner)} — net ${g.net}${pnote(g)}`:'—'}</span></div>`; });
+    h += `<div class="card"><span>Hcp ${g.range[0]}–${g.range[1]>=99?'up':g.range[1]} · ${g.count} players · $${g.pot}</span><span class="v">${g.winner?`${esc(g.winner)} — net ${g.net}${g.split?` <span class="hint">(split $${g.pot})</span>`:''}${pnote(g)}`:'—'}</span></div>`; });
   const e = res.esc;
   h += `</div><div class="panel"><h2>Escobar Challenge — $${e.pot}</h2><div class="hint">Holes 9 + 18, net (strokes by hole handicap). Net ${res.cfg.escTarget} or better wins; a tie carries over.</div>
     <div class="card"><span>Result</span><span class="v">${e.winner?`${esc(e.winner)} wins — net ${e.best}`:e.best===null?'waiting on cards':e.tied.length?`Tie at net ${e.best} (${e.tied.map(esc).join(', ')}) — carries over`:`Best net ${e.best} — no winner, carries over`}</span></div>
@@ -425,9 +427,9 @@ function renderSeason(){
   h += `<div class="hint" style="margin:-4px 0 10px">Season ${esc((settings&&settings.season)||'62')} · after ${rounds.length} round${rounds.length===1?'':'s'} of 15</div>`;
   if(seasonTab==='cup'){
     const rk = C.ranks(S.cup,'cup');
-    h += `<div class="panel"><h2>Maritime Cup</h2><div class="hint">Flight finish each round: 1st 10 points down to 10th 1; ties split. Pays 10 places at season end.</div>
-      <table><tr><th>Rank</th><th class="name">Player</th><th>Pts</th><th>Rds</th></tr>` +
-      S.cup.map((p,i)=>`<tr${i<10?' class="money"':''}><td>${rk[i]}</td><td class="name">${esc(p.name)}</td><td><b>${p.cup}</b></td><td>${p.rounds}</td></tr>`).join('') + `</table></div>`;
+    h += `<div class="panel"><h2>Maritime Cup</h2><div class="hint">Flight finish each round: 1st 10 points down to 10th 1; ties split. Season-end pay: $200, $100, $75, $60, $50, then $25 for 6th–10th.</div>
+      <table><tr><th>Rank</th><th class="name">Player</th><th>Pts</th><th>Rds</th><th>Pays</th></tr>` +
+      S.cup.map((p,i)=>`<tr${i<10?' class="money"':''}><td>${rk[i]}</td><td class="name">${esc(p.name)}</td><td><b>${p.cup}</b></td><td>${p.rounds}</td><td class="hint">${i<10?'$'+CUP_PAY[i]:''}</td></tr>`).join('') + `</table></div>`;
   } else if(seasonTab==='pool'){
     const L = S.pool.standings, rk = C.ranks(L,'bonus');
     h += `<div class="panel"><h2>Bonus Pool — $${S.pool.total}</h2><div class="hint">Pays ${S.pool.split.map((x,i)=>['1st','2nd','3rd'][i]+' $'+x).join(' · ')}. Points: 2 for playing, 1.5 win your flight, 1 for 2nd–5th, ½ for 6th–10th, 1 each for CTP, low putts, Par 3 sidegame, Escobar Challenge, 5 for a hole-in-one.</div>
@@ -436,7 +438,7 @@ function renderSeason(){
   } else if(seasonTab==='avg'){
     const lbl = g => `Handicaps ${g[0]} – ${g[1]>=99?30:g[1]}`;
     S.groups.forEach(g=>{
-      h += `<div class="panel"><h2>${lbl(g.range)}</h2><div class="hint">Need ${C.DEFAULTS.minRounds} rounds to win. Grouped by current handicap.</div>`;
+      h += `<div class="panel"><h2>${lbl(g.range)}</h2><div class="hint">Need ${C.DEFAULTS.minRounds} rounds to win. Grouped by current handicap. Each contest pays $150 / $75 / $50 at season end.</div>`;
       [['netAvg','Net scoring average',v=>v],['puttsAvg','Putts per round',v=>v],['par3Avg','Par 3 stroke average (gross)',v=>v.toFixed(2)],['lowNet','Low net round',v=>v]].forEach(([k,t,fmt])=>{
         const L = g[k].slice(0,6);
         h += `<h3>${t}</h3>` + (L.length ? `<table>` + L.map((p,i)=>`<tr><td style="width:36px">${C.ranks(g[k],k)[i]}</td><td class="name">${esc(p.name)}</td><td><b>${fmt(p[k])}</b></td><td class="hint">${p.rounds} rd${p.rounds===1?'':'s'}</td></tr>`).join('') + `</table>` : `<div class="hint">No rounds yet.</div>`);
