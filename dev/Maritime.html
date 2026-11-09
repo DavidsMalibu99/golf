@@ -452,7 +452,7 @@ function renderSeason(){
     S.groups.forEach(g=>{
       h += `<div class="panel"><h2>${lbl(g.range)}</h2><div class="hint">Need ${C.DEFAULTS.minRounds} rounds to win. Grouped by current handicap. Each contest pays $150 / $75 / $50 at season end.</div>`;
       [['netAvg','Net scoring average',v=>v],['puttsAvg','Putts per round',v=>v],['par3Avg','Par 3 stroke average (gross)',v=>v.toFixed(2)],['lowNet','Low net round',v=>v]].forEach(([k,t,fmt])=>{
-        const L = g[k].slice(0,6);
+        const L = g[k];
         h += `<h3>${t}</h3>` + (L.length ? `<table>` + L.map((p,i)=>`<tr><td style="width:36px">${C.ranks(g[k],k)[i]}</td><td class="name">${esc(p.name)}</td><td><b>${fmt(p[k])}</b></td><td class="hint">${p.rounds} rd${p.rounds===1?'':'s'}</td></tr>`).join('') + `</table>` : `<div class="hint">No rounds yet.</div>`);
       });
       h += `</div>`;
