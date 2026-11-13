@@ -4,6 +4,51 @@
 (function () {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let cfg = { commands: [], bottom: 16, hint: '' };
+
+  // The 🎤 button can be dragged anywhere (it was sitting on top of other buttons). A short
+  // tap still listens; a drag moves it, and the spot is remembered on this phone.
+  const POS_KEY = 'msgv.pos';
+  function clampTo(x, y) {
+    const w = btn.offsetWidth || 56; const h = btn.offsetHeight || 56;
+    return [Math.min(Math.max(4, x), window.innerWidth - w - 4), Math.min(Math.max(4, y), window.innerHeight - h - 4)];
+  }
+  function placeAt(x, y) {
+    const [cx, cy] = clampTo(x, y);
+    btn.style.left = cx + 'px'; btn.style.top = cy + 'px'; btn.style.bottom = 'auto'; btn.style.right = 'auto';
+  }
+  function placeSaved() {
+    let p = null;
+    try { p = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (e) { p = null; }
+    if (p && typeof p.x === 'number' && typeof p.y === 'number') placeAt(p.x * window.innerWidth, p.y * window.innerHeight);
+  }
+  function makeDraggable(el) {
+    let start = null; let moved = false;
+    el.style.touchAction = 'none';
+    el.addEventListener('pointerdown', (e) => {
+      const r = el.getBoundingClientRect();
+      start = { px: e.clientX, py: e.clientY, x: r.left, y: r.top }; moved = false;
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!start) return;
+      const dx = e.clientX - start.px; const dy = e.clientY - start.py;
+      if (!moved && Math.hypot(dx, dy) < 8) return;
+      moved = true;
+      placeAt(start.x + dx, start.y + dy);
+    });
+    const end = () => {
+      if (start && moved) {
+        const r = el.getBoundingClientRect();
+        try { localStorage.setItem(POS_KEY, JSON.stringify({ x: r.left / window.innerWidth, y: r.top / window.innerHeight })); } catch (err) { /* storage off */ }
+      }
+      start = null;
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    // A drag isn't a tap: swallow the click that follows it.
+    el.addEventListener('click', (e) => { if (moved) { e.stopImmediatePropagation(); e.preventDefault(); moved = false; } }, true);
+    window.addEventListener('resize', () => { if (btn.style.top && btn.style.top !== 'auto') { const r = btn.getBoundingClientRect(); placeAt(r.left, r.top); } });
+  }
   let rec = null, busy = false, panel, btn;
 
   function css() {
@@ -217,12 +262,14 @@
       if (!btn) {
         css();
         btn = document.createElement('button'); btn.className = 'msgv-btn'; btn.type = 'button';
-        btn.setAttribute('aria-label', 'Talk to the app'); btn.textContent = '🎤'; btn.onclick = listen;
+        btn.setAttribute('aria-label', 'Talk to the app (drag to move it)'); btn.textContent = '🎤'; btn.onclick = listen;
+        makeDraggable(btn);
         panel = document.createElement('div'); panel.className = 'msgv-panel'; panel.setAttribute('role', 'status');
         document.body.appendChild(panel); document.body.appendChild(btn);
       }
       btn.style.bottom = cfg.bottom + 'px';
       panel.style.bottom = (cfg.bottom + 66) + 'px';
+      placeSaved();
     },
     _match: (alts) => match(alts)
   };
