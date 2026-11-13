@@ -11,6 +11,7 @@
     'Brian Petrossi': 'brian-patrossi.jpg', // same person, other spelling
     'Bryson Nail': 'bryson-nail.jpg',
     'Cary Howell': 'cary-howell.jpg',
+    'Clint Wedgworth': 'clint-wedgworth.jpg',
     'Craig Taylor': 'craig-taylor.jpg',
     'Curtis Newstrom': 'curtis-newstrom.jpg',
     'Dale Dugas': 'dale-dugas.jpg',
