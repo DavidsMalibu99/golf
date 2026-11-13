@@ -333,7 +333,7 @@
   .mg-money-row + .mg-money-row{border-top:1px solid var(--line-green);}
   .mg-sec{margin:16px 0 6px; font-size:0.85rem; color:var(--gold-soft); letter-spacing:0.5px;}
   #mgResultsWrap td, #mgHistDetailBody td{font-variant-numeric:tabular-nums;}
-  /* GPS yardages overlay (Margaritaville only) */
+  /* GPS yardages overlay (Margaritaville and Walden) */
   .yardage-layer{position:fixed;inset:0;z-index:1000;background:#1f5130;padding-top:env(safe-area-inset-top)}
   .yardage-layer iframe{display:block;width:100%;height:100%;border:0}
   body.yardage-open{overflow:hidden}
@@ -1650,20 +1650,25 @@ document.getElementById('mgRoster').addEventListener('change', ()=>mgRenderGroup
 mgShow('home');
 </script>
 <script>
-// GPS yardages (Margaritaville, holes 1-18), same page the Wednesday scramble uses.
-// Opens over the scorecard and stays loaded so GPS keeps its fix.
-const YDS_COURSE = 'margaritaville';
-let _yLayer = null;
-function openYardages(hole) {
+// GPS yardages (Margaritaville and Walden, holes 1-18), same page the Wednesday scramble uses.
+// Opens over the scorecard and stays loaded so GPS keeps its fix (reloaded if the course changes).
+const YDS_COURSES = { margaritaville: '', walden: '&course=walden' };
+let _yLayer = null, _yCourse = null, _yFor = null;
+function openYardages(hole, courseId) {
   hole = parseInt(hole) || 1;
+  const c = courseId || _yCourse || 'margaritaville';
+  if (_yLayer && _yFor !== c) { _yLayer.remove(); _yLayer = null; }
   if (!_yLayer) {
-    _yLayer = document.createElement('div'); _yLayer.className = 'yardage-layer';
+    _yLayer = document.createElement('div'); _yLayer.className = 'yardage-layer'; _yFor = c;
     const f = document.createElement('iframe');
-    f.src = 'yardage.html?hole=' + hole + '&embed=1'; f.title = 'Yardages'; f.allow = 'geolocation; screen-wake-lock';
+    f.src = 'yardage.html?hole=' + hole + '&embed=1' + (YDS_COURSES[c] || ''); f.title = 'Yardages'; f.allow = 'geolocation; screen-wake-lock';
     _yLayer.appendChild(f); document.body.appendChild(_yLayer);
-    window.addEventListener('message', (ev) => {
-      if (ev.origin === location.origin && ev.data && ev.data.type === 'msg-close-yardages') closeYardages();
-    });
+    if (!openYardages.listening) {
+      openYardages.listening = true;
+      window.addEventListener('message', (ev) => {
+        if (ev.origin === location.origin && ev.data && ev.data.type === 'msg-close-yardages') closeYardages();
+      });
+    }
   } else {
     _yLayer.querySelector('iframe').contentWindow.postMessage({ type: 'msg-yardage-hole', hole }, location.origin);
   }
@@ -1671,9 +1676,9 @@ function openYardages(hole) {
 }
 function closeYardages() { if (_yLayer) { _yLayer.hidden = true; document.body.classList.remove('yardage-open'); } }
 function ydsBtn(courseId, hole) {
-  return courseId === YDS_COURSE ? `<button type="button" class="yds-btn" onclick="openYardages(${hole})">📍 Yardages</button>` : '';
+  return courseId in YDS_COURSES ? `<button type="button" class="yds-btn" onclick="openYardages(${hole}, '${courseId}')">📍 Yardages</button>` : '';
 }
-function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.hidden = courseId !== YDS_COURSE; }
+function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.hidden = !(courseId in YDS_COURSES); if (courseId in YDS_COURSES) _yCourse = courseId; }
 </script>
 </body>
 </html>

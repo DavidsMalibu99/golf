@@ -55,6 +55,8 @@ async function copyLiveToDev() {
 s = s.replace('</body>', tool, 1)
 (root / 'dev' / 'app.html').write_text(s)
 shutil.copy(root / 'yardage.html', root / 'dev' / 'yardage.html')
+(root / 'dev' / 'yardage').mkdir(exist_ok=True)
+shutil.copy(root / 'yardage' / 'walden.js', root / 'dev' / 'yardage' / 'walden.js')  # Walden course data for ?course=walden
 shutil.copy(root / 'tools' / 'dev-apple-touch-icon.png', root / 'dev' / 'apple-touch-icon.png')  # logo with a red DEV band
 
 # Weekend Games and More Games: same dev database and a red banner (no copy button;
