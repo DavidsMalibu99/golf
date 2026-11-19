@@ -56,7 +56,7 @@ function sameGolfer(rosterName, g) {
 function parseIndex(g) {
   const v = g.hi_value ?? g.handicap_index ?? g.handicap_index_display ?? g.HandicapIndex ?? g.hi_display;
   if (typeof v === 'number') return v >= 99 ? null : v; // 999 = no handicap
-  const s = String(v ?? '').trim();
+  const s = String(v ?? '').trim().replace(/[A-Z]$/i, (m) => (/^nh$/i.test(String(v).trim()) ? m : '')); // "21.5M" -> "21.5"
   if (/^\+\d+(\.\d+)?$/.test(s)) return -Number(s.slice(1)); // plus handicap
   if (/^\d+(\.\d+)?$/.test(s)) return Number(s) >= 99 ? null : Number(s);
   return null; // "NH" (no handicap yet) or missing
@@ -104,6 +104,17 @@ async function searchByName(client, fullName) {
   if (!diag) diag = `name search HTTP ${status}`;
   if (status !== 200) throw new Error(`GHIN name search HTTP ${status}`);
   return listOf(body);
+}
+// One golfer by GHIN #. The ghin client rejects some valid answers (plus, "NH" or "M" indexes),
+// so fall back to asking GHIN directly.
+async function lookupByGhin(client, ghinNo) {
+  try { return await client.golfers.getOne(Number(ghinNo)); }
+  catch (e) {
+    if (!/validation/i.test(e.message || '')) throw e;
+    const { status, body } = await ghinGet(client, 'golfers/search.json', { golfer_id: String(ghinNo), per_page: '1', page: '1' });
+    if (status !== 200) throw new Error(`GHIN lookup HTTP ${status}`);
+    return listOf(body).find((g) => String(g.ghin) === String(ghinNo)) || null;
+  }
 }
 const inTexas = (g) => /(^|-)TX$/i.test(String(g.state || '').trim()) || /texas/i.test(String(g.state || ''));
 const pause = () => (QUICK ? sleep(1500 + Math.random() * 2000) : sleep(2500 + Math.random() * 3500)); // spaced out like a person looking people up
@@ -155,7 +166,7 @@ async function main() {
         fromFollowing++;
       } else if (p.ghin) {
         lookups++;
-        golfer = await ghin.golfers.getOne(Number(p.ghin));
+        golfer = await lookupByGhin(ghin, p.ghin);
         await pause();
         if (!golfer) { skipped.push(`${p.name}: GHIN ${p.ghin} not found`); continue; }
       } else if (QUICK) {
