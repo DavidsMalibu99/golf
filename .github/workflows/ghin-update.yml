@@ -16,6 +16,10 @@ on:
         description: 'Dry run: look up only, save nothing'
         default: false
         type: boolean
+      probe:
+        description: 'Probe only (find the Following list address; reads nothing else, saves nothing)'
+        default: false
+        type: boolean
 
 concurrency: ghin-update
 
@@ -38,4 +42,4 @@ jobs:
           GHIN_PASSWORD: ${{ secrets.GHIN_PASSWORD }}
           TARGET: ${{ inputs.target || 'live' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
-        run: node update.mjs
+        run: if [ "${{ inputs.probe }}" = "true" ]; then node probe.mjs; else node update.mjs; fi
