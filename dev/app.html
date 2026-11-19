@@ -253,6 +253,7 @@ body.yardage-open{overflow:hidden}
       <button class="btn" onclick="openRosterEditor()" style="background:#7a5c1e">👥 Players</button>
       <button class="btn" onclick="resetFirebase()" style="background:#c0392b;margin-left:8px">🗑 Reset Firebase DB</button>
     </div>
+    <div id="ghin-check-box"></div>
     <div class="admin-row" style="margin-top:8px;padding-top:8px;border-top:1px solid #e0d8c0">
       <label style="font-size:12px;color:#555">Live Scorecard:</label>
       <select id="nine-select" onchange="onNineSelect()" style="padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px">
@@ -3818,5 +3819,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
   ]});
 })();
 </script>
+<script src="/ghin-check.js?v=20261119"></script>
+<script>try{GhinCheck.mount(document.getElementById('ghin-check-box'),{db:db,target:location.pathname.startsWith('/dev/')?'dev':'live'})}catch(e){console.warn(e)}</script>
 </body>
 </html>

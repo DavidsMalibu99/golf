@@ -22,6 +22,9 @@ const PROJECTS = {
 };
 const TARGET = process.env.TARGET === 'dev' ? 'dev' : 'live';
 const DRY_RUN = process.env.DRY_RUN === 'true';
+// QUICK = started from a "Check GHIN" button: only players we already have a GHIN # for (or who are on
+// the Following list). Name searches for everyone else wait for the Tuesday/Thursday night runs.
+const QUICK = process.env.QUICK === 'true';
 // Clubs our players belong to; used only to pick between golfers with the same name.
 const HOME_CLUBS = /margaritaville|conroe|walden|montgomery|bentwater|april sound|woodlands|panorama|del lago|wedgewood/i;
 
@@ -103,9 +106,10 @@ async function searchByName(client, fullName) {
   return listOf(body);
 }
 const inTexas = (g) => /(^|-)TX$/i.test(String(g.state || '').trim()) || /texas/i.test(String(g.state || ''));
-const pause = () => sleep(2500 + Math.random() * 3500); // spaced out like a person looking people up
+const pause = () => (QUICK ? sleep(1500 + Math.random() * 2000) : sleep(2500 + Math.random() * 3500)); // spaced out like a person looking people up
 
 const summary = [];
+let statusRef = null; // wns2/ghinbot, once the database is open
 const log = (line) => { console.log(line); summary.push(line); };
 
 async function main() {
@@ -116,11 +120,16 @@ async function main() {
   const roster = (await getDoc(playersRef)).data()?.roster;
   if (!Array.isArray(roster) || !roster.length) throw new Error('The master player list (wns2/players.roster) is empty.');
   const hc = (await getDoc(hcRef)).data()?.players || {};
+  const botRef = doc(db, 'wns2', 'ghinbot');
+  statusRef = botRef;
+  const lastRun = (await getDoc(botRef)).data() || {};
+  // Tell the Check GHIN buttons a check is under way (the finished summary below replaces this).
+  await setDoc(botRef, { running: { startedAt: new Date().toISOString(), quick: QUICK } }, { merge: true });
 
   const ghin = new GhinClient({ username: process.env.GHIN_USER, password: process.env.GHIN_PASSWORD });
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); // YYYY-MM-DD
 
-  const updated = [], newGhin = [], skipped = [], noGhin = [], review = [];
+  const updated = [], changed = [], newGhin = [], skipped = [], noGhin = [], review = [];
   // Following list first: David picked these people himself, so their GHIN # is taken as is.
   const me = /^\d+$/.test(process.env.GHIN_USER) ? process.env.GHIN_USER
     : (roster.find((r) => r.name === 'David Meyer' && r.ghin) || {}).ghin;
@@ -149,6 +158,9 @@ async function main() {
         golfer = await ghin.golfers.getOne(Number(p.ghin));
         await pause();
         if (!golfer) { skipped.push(`${p.name}: GHIN ${p.ghin} not found`); continue; }
+      } else if (QUICK) {
+        skipped.push(`${p.name}: no GHIN # yet (searched on the Tuesday/Thursday night runs)`);
+        continue;
       } else {
         const parts = clean(p.name);
         if (parts.length < 2) { skipped.push(`${p.name}: needs a last name to search GHIN`); continue; }
@@ -190,6 +202,7 @@ async function main() {
       if (index === null) { skipped.push(`${p.name}: no index on GHIN yet`); continue; }
       const old = hc[p.name]?.index;
       updated.push(`${p.name}: ${old ?? '—'} → ${index}`);
+      if (old !== index) changed.push(`${p.name}: ${old ?? '—'} → ${index}`);
       if (!DRY_RUN) {
         await updateDoc(hcRef,
           new FieldPath('players', p.name, 'index'), index,
@@ -204,14 +217,18 @@ async function main() {
   }
 
   if (!DRY_RUN && newGhin.length) await updateDoc(playersRef, { roster: nextRoster });
+  // A quick check does no name searches, so keep the last please-check list (minus anyone now matched).
+  if (QUICK && Array.isArray(lastRun.review)) {
+    for (const r of lastRun.review) if (nextRoster.some((p) => p.name === r.name && !p.ghin)) review.push(r);
+  }
   const result = {
-    ranAt: new Date().toISOString(), asOf: today, target: TARGET, dryRun: DRY_RUN,
-    updated: updated.length, newGhin, review, skipped, noGhin: noGhin.length, failures,
+    ranAt: new Date().toISOString(), asOf: today, target: TARGET, dryRun: DRY_RUN, quick: QUICK,
+    updated: updated.length, changed, newGhin, review, skipped, noGhin: noGhin.length, failures,
   };
-  await setDoc(doc(db, 'wns2', 'ghinbot'), result); // summary only; a dry run saves no indexes or GHIN numbers
+  await setDoc(botRef, result); // summary only; a dry run saves no indexes or GHIN numbers
 
   log(`## GHIN update ${today} (${TARGET}${DRY_RUN ? ', dry run, nothing saved' : ''})`);
-  log(`- Indexes updated: ${updated.length}`);
+  log(`- Indexes checked: ${updated.length}; changed: ${changed.length}`);
   log(`- New GHIN numbers found: ${newGhin.length}`);
   newGhin.forEach((s) => log(`  - ${s}`));
   log(`- Please check (possible match, not saved; enter the GHIN # in 👥 Players if it's right): ${review.length}`);
@@ -232,8 +249,10 @@ async function main() {
 
 main()
   .then(() => { if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n'); process.exit(0); })
-  .catch((e) => {
+  .catch(async (e) => {
     console.error(e);
+    // Clear the "checking" note so the buttons don't spin forever; keep the last good summary.
+    if (statusRef) await setDoc(statusRef, { running: null, lastError: { at: new Date().toISOString(), message: e.message.slice(0, 200) } }, { merge: true }).catch(() => {});
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## GHIN update failed\n\n${e.message}\n\n${summary.join('\n')}\n`);
     process.exit(1);
   });

@@ -428,6 +428,7 @@ function hcSave(dbRef) {
     <button class="btn" id="home-fourman" onclick="selectGame('fourman')">👥 4-Man Scramble</button>
     <button class="btn" id="home-sweetheart" onclick="selectGame('sweetheart')">💑 Sweetheart Scramble</button>
     <div class="hint">Any of these games can run at the same time. Start one, tap Switch Game to come back here, and start another. A game marked "round in progress" picks up right where you left off.</div>
+    <div id="ghin-check-box"></div>
   </div>
 </div>
 
@@ -6469,5 +6470,7 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
   ]});
 })();
 </script>
+<script src="/ghin-check.js?v=20261119"></script>
+<script>try{GhinCheck.mount(document.getElementById('ghin-check-box'),{db:db,target:location.pathname.startsWith('/dev/')?'dev':'live',guard:wgAdminCheck})}catch(e){console.warn(e)}</script>
 </body>
 </html>

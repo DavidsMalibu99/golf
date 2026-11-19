@@ -1,4 +1,5 @@
 name: GHIN index update
+run-name: ${{ inputs.quick && 'Check GHIN button' || 'GHIN index update' }}
 
 # Tuesday and Thursday nights, about 10:30 PM Central (11:30 PM during daylight time).
 # Run it any time from the Actions tab: "GHIN index update" > Run workflow.
@@ -14,6 +15,10 @@ on:
         options: [live, dev]
       dry_run:
         description: 'Dry run: look up only, save nothing'
+        default: false
+        type: boolean
+      quick:
+        description: 'Quick check (Check GHIN button): known GHIN numbers only, no name searches'
         default: false
         type: boolean
       probe:
@@ -42,4 +47,5 @@ jobs:
           GHIN_PASSWORD: ${{ secrets.GHIN_PASSWORD }}
           TARGET: ${{ inputs.target || 'live' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          QUICK: ${{ inputs.quick || 'false' }}
         run: if [ "${{ inputs.probe }}" = "true" ]; then node probe.mjs; else node update.mjs; fi
