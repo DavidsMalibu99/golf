@@ -3458,6 +3458,7 @@ async function showGhinBotLast() {
     if (!d) { el.textContent = 'The GHIN bot has not run yet.'; return; }
     const when = new Date(d.ranAt).toLocaleString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     el.innerHTML = `<b>Last GHIN update:</b> ${rosterEsc(when)}${d.dryRun ? ' (dry run)' : ''}. ${d.updated} index${d.updated === 1 ? '' : 'es'} updated, ${d.newGhin.length} new GHIN #, ${d.skipped.length} skipped.`
+      + ((d.review || []).length ? `<details open style="margin-top:4px"><summary><b>Please check</b> (possible GHIN match, not saved; type the GHIN # above if it's right)</summary>${d.review.map(s => `<div>${rosterEsc(s)}</div>`).join('')}</details>` : '')
       + (d.skipped.length ? `<details style="margin-top:4px"><summary>Skipped (index left as it was)</summary>${d.skipped.map(s => `<div>${rosterEsc(s)}</div>`).join('')}</details>` : '');
   } catch (e) { el.textContent = ''; }
 }
