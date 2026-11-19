@@ -11,11 +11,13 @@
     'Brian Petrossi': 'brian-patrossi.jpg', // same person, other spelling
     'Bryson Nail': 'bryson-nail.jpg',
     'Cary Howell': 'cary-howell.jpg',
-    'Clint Wedgworth': 'clint-wedgworth.jpg',
+    'Clint Wedgeworth': 'clint-wedgworth.jpg',
+    'Clint Wedgworth': 'clint-wedgworth.jpg', // older spelling
     'Craig Taylor': 'craig-taylor.jpg',
     'Curtis Newstrom': 'curtis-newstrom.jpg',
     'Dale Dugas': 'dale-dugas.jpg',
-    'Dale Vasek': 'dale-vasek.jpg',
+    'Dale Vacek': 'dale-vasek.jpg',
+    'Dale Vasek': 'dale-vasek.jpg', // older spelling
     'Dave Dawson': 'dave-dawson-2.jpg',
     'Ed Menville': 'ed-menville.jpg',
     'David Meyer': 'david-meyer.jpg',
