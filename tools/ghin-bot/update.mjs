@@ -38,8 +38,20 @@ const NICK = {
 const firstKey = (s) => { const w = String(s || '').toLowerCase().replace(/[^a-z]/g, ''); return NICK[w] || w; };
 const clean = (name) => name.replace(/\(.*?\)/g, ' ').replace(/\b(jr|sr|ii|iii|iv)\.?$/i, '').trim().split(/\s+/);
 
+// Same person by name? Last names equal, and the first name matches (Mike = Michael) or appears
+// in GHIN's first/middle name ("D Marc McKeehan").
+function sameGolfer(rosterName, g) {
+  const parts = clean(rosterName);
+  if (parts.length < 2) return false;
+  const last = parts[parts.length - 1].toLowerCase();
+  if (String(g.last_name || '').toLowerCase().replace(/\s+(jr|sr|ii|iii|iv)\.?$/, '') !== last) return false;
+  const words = `${g.first_name || ''} ${g.middle_name || ''}`.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  const want = parts[0].toLowerCase();
+  return words.some((w) => w === want || firstKey(w) === firstKey(want) || (want.length >= 3 && w.startsWith(want)));
+}
+
 function parseIndex(g) {
-  const v = g.hi_value ?? g.handicap_index;
+  const v = g.hi_value ?? g.handicap_index ?? g.HandicapIndex ?? g.hi_display;
   if (typeof v === 'number') return v >= 99 ? null : v; // 999 = no handicap
   const s = String(v ?? '').trim();
   if (/^\+\d+(\.\d+)?$/.test(s)) return -Number(s.slice(1)); // plus handicap
@@ -52,23 +64,42 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Name search. The ghin client's own search() drops the name filters (only GHIN # works),
 // so send the golfer search ourselves over the client's signed-in connection.
 let diag = '';
-async function searchByName(client, last, first) {
-  // GHIN's Golfer Lookup (by name) lives at golfers/search.json; the client only knows golfers.json.
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36';
+async function ghinGet(client, path, params = {}) {
   const tok = await client.httpClient.lock.runExclusive(() => client.httpClient.getAccessToken());
   if (tok.isErr()) throw tok.error;
-  const url = new URL('https://api2.ghin.com/api/v1/golfers/search.json');
-  const q = { per_page: '100', page: '1', last_name: last, state: 'TX', country: 'USA', status: 'Active', source: 'GHINcom' };
-  if (first) q.first_name = first;
-  for (const [k, v] of Object.entries(q)) url.searchParams.set(k, v);
-  const res = await fetch(url, { headers: {
-    'Content-Type': 'application/json', source: 'GHINcom', Authorization: `Bearer ${tok.value}`,
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
-  } });
-  const body = await res.json().catch(() => ({}));
-  if (!diag) diag = `name search answered HTTP ${res.status}, fields: ${Object.keys(body).join(', ') || '(none)'}`;
+  const url = new URL('https://api2.ghin.com/api/v1/' + path);
+  for (const [k, v] of Object.entries({ source: 'GHINcom', ...params })) url.searchParams.set(k, v);
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json', source: 'GHINcom', Authorization: `Bearer ${tok.value}`, 'User-Agent': UA } });
   if (res.status === 429) throw new Error('GHIN rate limit');
-  if (!res.ok) throw new Error(`GHIN name search HTTP ${res.status}`);
-  return Array.isArray(body.golfers) ? body.golfers : [];
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body };
+}
+const listOf = (body) => ((Array.isArray(body) ? body : Object.values(body || {}).find(Array.isArray)) || []).map(norm);
+// Field names differ a little between GHIN screens; line them up.
+const norm = (g) => ({ ...g,
+  ghin: g.ghin ?? g.ghin_number ?? g.golfer_id ?? g.id,
+  first_name: g.first_name ?? g.FirstName ?? '', last_name: g.last_name ?? g.LastName ?? '',
+  club_name: g.club_name ?? g.ClubName ?? g.club ?? '', state: g.state ?? g.State ?? '' });
+let followingFields = '';
+
+// The golfers David follows in GHIN (same list as the GHIN app's Golfers > Following).
+async function followedGolfers(client, me) {
+  const { status, body } = await ghinGet(client, `followed_golfers/${me}.json`);
+  if (status !== 200) throw new Error(`Following list HTTP ${status}`);
+  const raw = (Array.isArray(body) ? body : Object.values(body || {}).find(Array.isArray)) || [];
+  followingFields = raw[0] ? Object.keys(raw[0]).slice(0, 25).join(', ') : '(empty)';
+  return listOf(body);
+}
+
+// GHIN's own "Search full name or GHIN #" (golfers.json?full_name=...).
+async function searchByName(client, fullName) {
+  const { status, body } = await ghinGet(client, 'golfers.json', {
+    full_name: fullName, status: 'Active', per_page: '100', page: '1', from_ghin: 'true', sorting_criteria: 'full_name', order: 'asc',
+  });
+  if (!diag) diag = `name search HTTP ${status}`;
+  if (status !== 200) throw new Error(`GHIN name search HTTP ${status}`);
+  return listOf(body);
 }
 const inTexas = (g) => /(^|-)TX$/i.test(String(g.state || '').trim()) || /texas/i.test(String(g.state || ''));
 const pause = () => sleep(2500 + Math.random() * 3500); // spaced out like a person looking people up
@@ -89,6 +120,13 @@ async function main() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); // YYYY-MM-DD
 
   const updated = [], newGhin = [], skipped = [], noGhin = [], review = [];
+  // Following list first: David picked these people himself, so their GHIN # is taken as is.
+  const me = /^\d+$/.test(process.env.GHIN_USER) ? process.env.GHIN_USER
+    : (roster.find((r) => r.name === 'David Meyer' && r.ghin) || {}).ghin;
+  let following = [];
+  try { if (me) { following = await followedGolfers(ghin, me); await pause(); } }
+  catch (e) { log(`Note: could not read the GHIN Following list (${e.message}).`); }
+  let fromFollowing = 0;
   let lookups = 0, failures = 0, rawSeen = 0;
   const nextRoster = roster.map((p) => ({ ...p }));
 
@@ -97,7 +135,15 @@ async function main() {
     if (p.noGhin) { noGhin.push(p.name); continue; }
     try {
       let golfer = null;
-      if (p.ghin) {
+      const fol = following.filter((g) => (p.ghin && String(g.ghin) === p.ghin) || (!p.ghin && sameGolfer(p.name, g)));
+      if (fol.length === 1) {
+        golfer = fol[0];
+        if (!p.ghin) {
+          p.ghin = String(golfer.ghin);
+          newGhin.push(`${p.name} → GHIN ${golfer.ghin}, ${golfer.club_name || 'no club'} (from your GHIN Following list)`);
+        }
+        fromFollowing++;
+      } else if (p.ghin) {
         lookups++;
         golfer = await ghin.golfers.getOne(Number(p.ghin));
         await pause();
@@ -105,19 +151,18 @@ async function main() {
       } else {
         const parts = clean(p.name);
         if (parts.length < 2) { skipped.push(`${p.name}: needs a last name to search GHIN`); continue; }
-        const last = parts[parts.length - 1], first = firstKey(parts[0]);
         // Search with the first name as written, then (if nothing) with its full form (Mike -> Michael).
-        // Search the first name as written and its full form (Mike + Michael) and combine both.
+        // GHIN's full-name search, once as written and once with the full first name (Mike -> Michael).
         const byGhin = new Map();
-        for (const fn of [...new Set([parts[0].toLowerCase(), first])]) {
+        const full = firstKey(parts[0]);
+        for (const q of [...new Set([parts.join(' '), [full, ...parts.slice(1)].join(' ')])]) {
           lookups++;
-          for (const g of await searchByName(ghin, last, fn)) byGhin.set(String(g.ghin), g);
+          for (const g of await searchByName(ghin, q)) byGhin.set(String(g.ghin), g);
           await pause();
         }
         const found = [...byGhin.values()];
         rawSeen += found.length;
-        let hits = found.filter((g) => inTexas(g) && String(g.last_name).toLowerCase() === last.toLowerCase()
-          && (firstKey(g.first_name) === first || String(g.first_name).toLowerCase().startsWith(parts[0].toLowerCase())));
+        let hits = found.filter((g) => inTexas(g) && sameGolfer(p.name, g));
         if (hits.length > 1) {
           const local = hits.filter((g) => HOME_CLUBS.test(g.club_name || ''));
           if (local.length === 1) hits = local;
@@ -173,6 +218,7 @@ async function main() {
   log(`- No GHIN (index kept as entered): ${noGhin.length}`);
   log(`- Skipped, index left as it was: ${skipped.length}`);
   skipped.forEach((s) => log(`  - ${s}`));
+  log(`- From your GHIN Following list: ${fromFollowing} players (list has ${following.length}; fields: ${followingFields})`);
   log(`- GHIN lookups: ${lookups}; golfers returned by name searches: ${rawSeen}${diag ? ` (${diag})` : ''}`);
   log('');
   log('<details><summary>Index changes</summary>\n');
