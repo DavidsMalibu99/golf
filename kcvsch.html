@@ -291,6 +291,7 @@
 
 <header id="hdr"></header>
 <main id="main"><div class="empty">Loading the tournament…</div></main>
+<div style="max-width:720px;margin:0 auto;padding:0 12px"><div class="ghin-check-slot"></div></div>
 
 <nav class="tabs" id="tabs">
   <button data-act="tab" data-v="roster">Roster</button>
@@ -1345,5 +1346,7 @@ db.collection('wns2').doc('players').onSnapshot(doc=>{
 
 render();
 </script>
+<script src="/ghin-check.js?v=20261119c"></script>
+<script>try{document.querySelectorAll('.ghin-check-slot').forEach(function(el){GhinCheck.mount(el,{db:db,target:'live',guard:requireAdmin})})}catch(e){console.warn(e)}</script>
 </body>
 </html>
