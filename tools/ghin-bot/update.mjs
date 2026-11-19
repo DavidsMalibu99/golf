@@ -22,7 +22,6 @@ const PROJECTS = {
 };
 const TARGET = process.env.TARGET === 'dev' ? 'dev' : 'live';
 const DRY_RUN = process.env.DRY_RUN === 'true';
-const STATE = 'TX';
 // Clubs our players belong to; used only to pick between golfers with the same name.
 const HOME_CLUBS = /margaritaville|conroe|walden|montgomery|bentwater|april sound|woodlands|panorama|del lago|wedgewood/i;
 
@@ -49,6 +48,19 @@ function parseIndex(g) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Name search. The ghin client's own search() drops the name filters (only GHIN # works),
+// so send the golfer search ourselves over the client's signed-in connection.
+const ANY = { safeParse: (v) => ({ success: true, data: v }) };
+async function searchByName(client, last, first) {
+  const sp = new URLSearchParams([['source', 'GHINcom'], ['from_ghin', 'true'], ['per_page', '100'], ['page', '1'],
+    ['sorting_criteria', 'full_name'], ['order', 'asc'], ['status', 'Active'], ['last_name', last]]);
+  if (first) sp.set('first_name', first);
+  const r = await client.httpClient.fetch({ entity: 'golfers_search', schema: ANY, options: { searchParams: sp } });
+  if (r.isErr()) throw r.error;
+  return (r.value && r.value.golfers) || [];
+}
+const inTexas = (g) => /(^|-)TX$/i.test(String(g.state || '').trim()) || /texas/i.test(String(g.state || ''));
 const pause = () => sleep(2500 + Math.random() * 3500); // spaced out like a person looking people up
 
 const summary = [];
@@ -67,7 +79,7 @@ async function main() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); // YYYY-MM-DD
 
   const updated = [], newGhin = [], skipped = [], noGhin = [];
-  let lookups = 0, failures = 0;
+  let lookups = 0, failures = 0, rawSeen = 0;
   const nextRoster = roster.map((p) => ({ ...p }));
 
   for (const p of nextRoster) {
@@ -84,10 +96,17 @@ async function main() {
         const parts = clean(p.name);
         if (parts.length < 2) { skipped.push(`${p.name}: needs a last name to search GHIN`); continue; }
         const last = parts[parts.length - 1], first = firstKey(parts[0]);
-        lookups++;
-        const found = await ghin.golfers.search({ last_name: last, state: STATE, status: 'Active', per_page: 100, page: 1 });
-        await pause();
-        let hits = (found || []).filter((g) => String(g.last_name).toLowerCase() === last.toLowerCase()
+        // Search with the first name as written, then (if nothing) with its full form (Mike -> Michael).
+        // Search the first name as written and its full form (Mike + Michael) and combine both.
+        const byGhin = new Map();
+        for (const fn of [...new Set([parts[0].toLowerCase(), first])]) {
+          lookups++;
+          for (const g of await searchByName(ghin, last, fn)) byGhin.set(String(g.ghin), g);
+          await pause();
+        }
+        const found = [...byGhin.values()];
+        rawSeen += found.length;
+        let hits = found.filter((g) => inTexas(g) && String(g.last_name).toLowerCase() === last.toLowerCase()
           && (firstKey(g.first_name) === first || String(g.first_name).toLowerCase().startsWith(parts[0].toLowerCase())));
         if (hits.length > 1) {
           const local = hits.filter((g) => HOME_CLUBS.test(g.club_name || ''));
@@ -132,6 +151,7 @@ async function main() {
   log(`- No GHIN (index kept as entered): ${noGhin.length}`);
   log(`- Skipped, index left as it was: ${skipped.length}`);
   skipped.forEach((s) => log(`  - ${s}`));
+  log(`- GHIN lookups: ${lookups}; golfers returned by name searches: ${rawSeen}`);
   log('');
   log('<details><summary>Index changes</summary>\n');
   updated.forEach((s) => log(`- ${s}`));
