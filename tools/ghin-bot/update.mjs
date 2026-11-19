@@ -51,14 +51,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Name search. The ghin client's own search() drops the name filters (only GHIN # works),
 // so send the golfer search ourselves over the client's signed-in connection.
-const ANY = { safeParse: (v) => ({ success: true, data: v }) };
+let diag = '';
 async function searchByName(client, last, first) {
-  const sp = new URLSearchParams([['source', 'GHINcom'], ['from_ghin', 'true'], ['per_page', '100'], ['page', '1'],
-    ['sorting_criteria', 'full_name'], ['order', 'asc'], ['status', 'Active'], ['last_name', last]]);
-  if (first) sp.set('first_name', first);
-  const r = await client.httpClient.fetch({ entity: 'golfers_search', schema: ANY, options: { searchParams: sp } });
-  if (r.isErr()) throw r.error;
-  return (r.value && r.value.golfers) || [];
+  // GHIN's Golfer Lookup (by name) lives at golfers/search.json; the client only knows golfers.json.
+  const tok = await client.httpClient.lock.runExclusive(() => client.httpClient.getAccessToken());
+  if (tok.isErr()) throw tok.error;
+  const url = new URL('https://api2.ghin.com/api/v1/golfers/search.json');
+  const q = { per_page: '100', page: '1', last_name: last, state: 'TX', country: 'USA', status: 'Active', source: 'GHINcom' };
+  if (first) q.first_name = first;
+  for (const [k, v] of Object.entries(q)) url.searchParams.set(k, v);
+  const res = await fetch(url, { headers: {
+    'Content-Type': 'application/json', source: 'GHINcom', Authorization: `Bearer ${tok.value}`,
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+  } });
+  const body = await res.json().catch(() => ({}));
+  if (!diag) diag = `name search answered HTTP ${res.status}, fields: ${Object.keys(body).join(', ') || '(none)'}`;
+  if (res.status === 429) throw new Error('GHIN rate limit');
+  if (!res.ok) throw new Error(`GHIN name search HTTP ${res.status}`);
+  return Array.isArray(body.golfers) ? body.golfers : [];
 }
 const inTexas = (g) => /(^|-)TX$/i.test(String(g.state || '').trim()) || /texas/i.test(String(g.state || ''));
 const pause = () => sleep(2500 + Math.random() * 3500); // spaced out like a person looking people up
@@ -151,7 +161,7 @@ async function main() {
   log(`- No GHIN (index kept as entered): ${noGhin.length}`);
   log(`- Skipped, index left as it was: ${skipped.length}`);
   skipped.forEach((s) => log(`  - ${s}`));
-  log(`- GHIN lookups: ${lookups}; golfers returned by name searches: ${rawSeen}`);
+  log(`- GHIN lookups: ${lookups}; golfers returned by name searches: ${rawSeen}${diag ? ` (${diag})` : ''}`);
   log('');
   log('<details><summary>Index changes</summary>\n');
   updated.forEach((s) => log(`- ${s}`));
