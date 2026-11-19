@@ -238,6 +238,21 @@ async function main() {
   };
   await setDoc(botRef, result); // summary only; a dry run saves no indexes or GHIN numbers
 
+  // Keep the dev site in step: after a real run on live, copy the player list, indexes and this
+  // summary to wns-scramble-dev. A failure here is noted but doesn't fail the run.
+  if (TARGET === 'live' && !DRY_RUN) {
+    try {
+      const dev = getFirestore(initializeApp(PROJECTS.dev, 'dev-mirror'));
+      const [lp, lh] = await Promise.all([getDoc(playersRef), getDoc(hcRef)]);
+      await setDoc(doc(dev, 'wns2', 'players'), { roster: lp.data().roster }, { merge: true });
+      await setDoc(doc(dev, 'wns2', 'handicaps'), { players: lh.data().players }, { merge: true });
+      await setDoc(doc(dev, 'wns2', 'ghinbot'), result);
+      log('Dev site updated to match live (player list, indexes, summary).');
+    } catch (e) {
+      log(`Note: could not update the dev site (${e.message}).`);
+    }
+  }
+
   log(`## GHIN update ${today} (${TARGET}${DRY_RUN ? ', dry run, nothing saved' : ''})`);
   log(`- Indexes checked: ${updated.length}; changed: ${changed.length}`);
   log(`- New GHIN numbers found: ${newGhin.length}`);
