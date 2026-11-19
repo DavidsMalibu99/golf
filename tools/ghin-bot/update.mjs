@@ -51,7 +51,7 @@ function sameGolfer(rosterName, g) {
 }
 
 function parseIndex(g) {
-  const v = g.hi_value ?? g.handicap_index ?? g.HandicapIndex ?? g.hi_display;
+  const v = g.hi_value ?? g.handicap_index ?? g.handicap_index_display ?? g.HandicapIndex ?? g.hi_display;
   if (typeof v === 'number') return v >= 99 ? null : v; // 999 = no handicap
   const s = String(v ?? '').trim();
   if (/^\+\d+(\.\d+)?$/.test(s)) return -Number(s.slice(1)); // plus handicap
@@ -92,10 +92,11 @@ async function followedGolfers(client, me) {
   return listOf(body);
 }
 
-// GHIN's own "Search full name or GHIN #" (golfers.json?full_name=...).
+// Golfer Lookup by name (golfers/search.json, last name + first name in Texas).
 async function searchByName(client, fullName) {
-  const { status, body } = await ghinGet(client, 'golfers.json', {
-    full_name: fullName, status: 'Active', per_page: '100', page: '1', from_ghin: 'true', sorting_criteria: 'full_name', order: 'asc',
+  const parts = fullName.split(' ');
+  const { status, body } = await ghinGet(client, 'golfers/search.json', {
+    last_name: parts[parts.length - 1], first_name: parts[0], state: 'TX', country: 'USA', status: 'Active', per_page: '100', page: '1',
   });
   if (!diag) diag = `name search HTTP ${status}`;
   if (status !== 200) throw new Error(`GHIN name search HTTP ${status}`);
