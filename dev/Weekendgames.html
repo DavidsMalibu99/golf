@@ -442,6 +442,7 @@ function hcSave(dbRef) {
     <div class="panel">
       <button class="btn secondary" onclick="showHome()">← Switch Game</button>
       <h2 style="margin-top:14px;">Wolf — Round Setup</h2>
+      <div class="ghin-check-slot"></div>
       <div id="wolfCourseWrap" style="margin-bottom:6px"></div>
       <label>Player 1 (tees off 1st)</label>
       <select id="p0Select" class="roster-select" onchange="onRosterChange(0)"></select>
@@ -548,6 +549,7 @@ function hcSave(dbRef) {
     <div class="panel">
       <button class="btn secondary" onclick="showHome()">← Switch Game</button>
       <h2 style="margin-top:14px;">Stableford — Round Setup</h2>
+      <div class="ghin-check-slot"></div>
 
       <label for="sbCourseSelect">Course</label>
       <select id="sbCourseSelect" class="roster-select" onchange="sbPickCourse(this.value)"></select>
@@ -3485,6 +3487,7 @@ function renderSbBoard(){
         <button class="btn secondary" style="flex:1" onclick="nvShowHistory()">📜 History</button>
       </div>
       <h2 style="margin-top:14px;">🏁 NASCAR Vegas — Setup</h2>
+      <div class="ghin-check-slot"></div>
       <div class="hint" style="margin-bottom:14px">Enter 4 player names, then pick your dollar value per point. On each hole, tee shots that land LEFT are partners vs tee shots that land RIGHT.</div>
       <div id="nvCourseWrap" style="margin-bottom:16px"></div>
 
@@ -3643,6 +3646,7 @@ function renderSbBoard(){
         <button class="btn secondary" style="flex:1" onclick="fmShowHistory()">📜 History</button>
       </div>
       <h2 style="margin-top:14px;">👥 4-Man Scramble — Setup</h2>
+      <div class="ghin-check-slot"></div>
       <div class="hint" style="margin-bottom:14px">Check off who's playing, optionally lock a couple of players together, then generate teams.</div>
 
       <div id="fmCourseWrap" style="margin-bottom:16px"></div>
@@ -3798,6 +3802,7 @@ function renderSbBoard(){
         <button class="btn secondary" style="flex:1" onclick="swShowHistory()">📜 History</button>
       </div>
       <h2 style="margin-top:14px;">💑 Sweetheart Scramble — Setup</h2>
+      <div class="ghin-check-slot"></div>
       <div class="hint" style="margin-bottom:14px">Straight gross scramble, 2-player teams. Pick each pair yourself below — no random draw.</div>
       <div id="swCourseWrap" style="margin-bottom:16px"></div>
 
@@ -6472,7 +6477,7 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
   ]});
 })();
 </script>
-<script src="/ghin-check.js?v=20261119b"></script>
-<script>try{GhinCheck.mount(document.getElementById('ghin-check-box'),{db:db,target:location.pathname.startsWith('/dev/')?'dev':'live',guard:wgAdminCheck})}catch(e){console.warn(e)}</script>
+<script src="/ghin-check.js?v=20261119c"></script>
+<script>try{document.querySelectorAll('#ghin-check-box,.ghin-check-slot').forEach(function(el){GhinCheck.mount(el,{db:firebase.firestore(),target:location.pathname.startsWith('/dev/')?'dev':'live',guard:wgAdminCheck})})}catch(e){console.warn(e)}</script>
 </body>
 </html>
