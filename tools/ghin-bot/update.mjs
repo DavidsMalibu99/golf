@@ -127,13 +127,16 @@ async function main() {
           continue;
         }
         golfer = hits[0];
-        // Only take a new GHIN # on its own when it's clearly our player: a home club, or an index
-        // within 3 strokes of the one we have. Otherwise list it for David to check.
+        // Only take a new GHIN # on its own when the golfer is at one of our home clubs. Anyone else
+        // (even with a similar index - there are two Tom Bledsoes) goes on the please-check list,
+        // where David confirms with one tap in 👥 Players.
         const gi = parseIndex(golfer), cur = hc[p.name]?.index;
         const home = HOME_CLUBS.test(golfer.club_name || '');
-        const close = typeof cur === 'number' && gi !== null && Math.abs(gi - cur) <= 3;
         const desc = `GHIN ${golfer.ghin}, ${golfer.club_name || 'no club'}, index ${gi ?? 'none'}`;
-        if (!home && !close) { review.push(`${p.name}: ${desc}${typeof cur === 'number' ? ` (we have ${cur})` : ''}`); continue; }
+        if (!home) {
+          review.push({ name: p.name, ghin: String(golfer.ghin), club: golfer.club_name || '', index: gi, have: typeof cur === 'number' ? cur : null });
+          continue;
+        }
         p.ghin = String(golfer.ghin);
         newGhin.push(`${p.name} → ${desc}`);
       }
@@ -159,14 +162,14 @@ async function main() {
     ranAt: new Date().toISOString(), asOf: today, target: TARGET, dryRun: DRY_RUN,
     updated: updated.length, newGhin, review, skipped, noGhin: noGhin.length, failures,
   };
-  if (!DRY_RUN) await setDoc(doc(db, 'wns2', 'ghinbot'), result);
+  await setDoc(doc(db, 'wns2', 'ghinbot'), result); // summary only; a dry run saves no indexes or GHIN numbers
 
   log(`## GHIN update ${today} (${TARGET}${DRY_RUN ? ', dry run, nothing saved' : ''})`);
   log(`- Indexes updated: ${updated.length}`);
   log(`- New GHIN numbers found: ${newGhin.length}`);
   newGhin.forEach((s) => log(`  - ${s}`));
   log(`- Please check (possible match, not saved; enter the GHIN # in 👥 Players if it's right): ${review.length}`);
-  review.forEach((s) => log(`  - ${s}`));
+  review.forEach((r) => log(`  - ${r.name}: GHIN ${r.ghin}, ${r.club || 'no club'}, index ${r.index ?? 'none'}${r.have !== null ? ` (we have ${r.have})` : ''}`));
   log(`- No GHIN (index kept as entered): ${noGhin.length}`);
   log(`- Skipped, index left as it was: ${skipped.length}`);
   skipped.forEach((s) => log(`  - ${s}`));

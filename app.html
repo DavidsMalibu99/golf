@@ -3458,9 +3458,19 @@ async function showGhinBotLast() {
     if (!d) { el.textContent = 'The GHIN bot has not run yet.'; return; }
     const when = new Date(d.ranAt).toLocaleString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     el.innerHTML = `<b>Last GHIN update:</b> ${rosterEsc(when)}${d.dryRun ? ' (dry run)' : ''}. ${d.updated} index${d.updated === 1 ? '' : 'es'} updated, ${d.newGhin.length} new GHIN #, ${d.skipped.length} skipped.`
-      + ((d.review || []).length ? `<details open style="margin-top:4px"><summary><b>Please check</b> (possible GHIN match, not saved; type the GHIN # above if it's right)</summary>${d.review.map(s => `<div>${rosterEsc(s)}</div>`).join('')}</details>` : '')
+      + ((d.review || []).length ? `<details open style="margin-top:6px"><summary><b>Please check</b>: possible GHIN matches, not saved. Compare with the GHIN app (club and index), tap <b>That's him</b> if it's right, then Save.</summary>${d.review.map(r => typeof r === 'string' ? `<div>${rosterEsc(r)}</div>` : `<div style="display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid #f0f0f0"><span style="flex:1"><b>${rosterEsc(r.name)}</b>: ${rosterEsc(r.club || 'no club')}, index ${r.index === null || r.index === undefined ? 'none' : (r.index < 0 ? '+' + Math.abs(r.index) : r.index)}${r.have !== null && r.have !== undefined ? ` <span style="color:#888">(we have ${r.have})</span>` : ''}</span><button class="btn" style="padding:3px 8px;font-size:11px;background:#2d6a4f" onclick="rosterConfirmGhin(this, '${rosterEsc(r.name).replace(/'/g, '&#39;')}', '${rosterEsc(r.ghin)}')">That's him</button></div>`).join('')}</details>` : '')
       + (d.skipped.length ? `<details style="margin-top:4px"><summary>Skipped (index left as it was)</summary>${d.skipped.map(s => `<div>${rosterEsc(s)}</div>`).join('')}</details>` : '');
   } catch (e) { el.textContent = ''; }
+}
+
+// "That's him" on the please-check list: put that GHIN # in the player's box (saved with Save).
+function rosterConfirmGhin(btn, name, ghin) {
+  const tr = [...document.querySelectorAll('#roster-table tr[data-id]')].find(r => r.querySelector('[data-k=name]').value === name);
+  if (!tr) { alert(name + ' is not on the list.'); return; }
+  tr.querySelector('[data-k=ghin]').value = ghin;
+  tr.querySelector('[data-k=noGhin]').checked = false;
+  tr.style.background = '#e8f5ec';
+  btn.textContent = '✓ Added, tap Save'; btn.disabled = true;
 }
 
 async function saveRosterEditor() {
