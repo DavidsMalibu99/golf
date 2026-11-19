@@ -427,6 +427,7 @@ function hcSave(dbRef) {
     <h2 style="margin-top:16px;">More Games</h2>
     <div class="hint" style="margin-top:0;">New games to try. Every game has the course picker, your roster and handicaps, and live scoring across phones.</div>
     <div id="mgHomeList"></div>
+    <div class="ghin-check-slot"></div>
   </div>
 </div>
 
@@ -437,6 +438,7 @@ function hcSave(dbRef) {
       <button class="btn secondary" style="flex:1; margin-top:0;" onclick="mgShow('history')">📋 Past Rounds</button>
     </div>
     <h2 style="margin-top:14px;" id="mgSetupTitle"></h2>
+    <div class="ghin-check-slot"></div>
     <div class="hint" id="mgSetupRules" style="margin-top:0;"></div>
     <div id="mgCourseWrap" style="margin-top:14px;"></div>
     <label style="font-size:12px; letter-spacing:1px; margin-top:16px;">BETS &amp; OPTIONS</label>
@@ -1682,5 +1684,8 @@ function ydsBtn(courseId, hole) {
 }
 function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.hidden = !(courseId in YDS_COURSES); if (courseId in YDS_COURSES) _yCourse = courseId; }
 </script>
+<script src="/ghin-check.js?v=20261119c"></script>
+<script>(function(){var ok=false;function pin(){if(ok)return true;var v=prompt('Admin PIN to check GHIN:');if(v&&v.trim()==='1990'){ok=true;return true}if(v!==null)alert('Wrong PIN.');return false}
+try{document.querySelectorAll('.ghin-check-slot').forEach(function(el){GhinCheck.mount(el,{db:firebase.firestore(),target:location.pathname.startsWith('/dev/')?'dev':'live',guard:pin})})}catch(e){console.warn(e)}})();</script>
 </body>
 </html>
