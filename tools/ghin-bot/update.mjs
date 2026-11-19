@@ -40,10 +40,10 @@ const clean = (name) => name.replace(/\(.*?\)/g, ' ').replace(/\b(jr|sr|ii|iii|i
 
 function parseIndex(g) {
   const v = g.hi_value ?? g.handicap_index;
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return v >= 99 ? null : v; // 999 = no handicap
   const s = String(v ?? '').trim();
   if (/^\+\d+(\.\d+)?$/.test(s)) return -Number(s.slice(1)); // plus handicap
-  if (/^\d+(\.\d+)?$/.test(s)) return Number(s);
+  if (/^\d+(\.\d+)?$/.test(s)) return Number(s) >= 99 ? null : Number(s);
   return null; // "NH" (no handicap yet) or missing
 }
 
@@ -88,7 +88,7 @@ async function main() {
   const ghin = new GhinClient({ username: process.env.GHIN_USER, password: process.env.GHIN_PASSWORD });
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); // YYYY-MM-DD
 
-  const updated = [], newGhin = [], skipped = [], noGhin = [];
+  const updated = [], newGhin = [], skipped = [], noGhin = [], review = [];
   let lookups = 0, failures = 0, rawSeen = 0;
   const nextRoster = roster.map((p) => ({ ...p }));
 
@@ -127,8 +127,15 @@ async function main() {
           continue;
         }
         golfer = hits[0];
+        // Only take a new GHIN # on its own when it's clearly our player: a home club, or an index
+        // within 3 strokes of the one we have. Otherwise list it for David to check.
+        const gi = parseIndex(golfer), cur = hc[p.name]?.index;
+        const home = HOME_CLUBS.test(golfer.club_name || '');
+        const close = typeof cur === 'number' && gi !== null && Math.abs(gi - cur) <= 3;
+        const desc = `GHIN ${golfer.ghin}, ${golfer.club_name || 'no club'}, index ${gi ?? 'none'}`;
+        if (!home && !close) { review.push(`${p.name}: ${desc}${typeof cur === 'number' ? ` (we have ${cur})` : ''}`); continue; }
         p.ghin = String(golfer.ghin);
-        newGhin.push(`${p.name} → GHIN ${golfer.ghin}${golfer.club_name ? ` (${golfer.club_name})` : ''}`);
+        newGhin.push(`${p.name} → ${desc}`);
       }
       const index = parseIndex(golfer);
       if (index === null) { skipped.push(`${p.name}: no index on GHIN yet`); continue; }
@@ -150,7 +157,7 @@ async function main() {
   if (!DRY_RUN && newGhin.length) await updateDoc(playersRef, { roster: nextRoster });
   const result = {
     ranAt: new Date().toISOString(), asOf: today, target: TARGET, dryRun: DRY_RUN,
-    updated: updated.length, newGhin, skipped, noGhin: noGhin.length, failures,
+    updated: updated.length, newGhin, review, skipped, noGhin: noGhin.length, failures,
   };
   if (!DRY_RUN) await setDoc(doc(db, 'wns2', 'ghinbot'), result);
 
@@ -158,6 +165,8 @@ async function main() {
   log(`- Indexes updated: ${updated.length}`);
   log(`- New GHIN numbers found: ${newGhin.length}`);
   newGhin.forEach((s) => log(`  - ${s}`));
+  log(`- Please check (possible match, not saved; enter the GHIN # in 👥 Players if it's right): ${review.length}`);
+  review.forEach((s) => log(`  - ${s}`));
   log(`- No GHIN (index kept as entered): ${noGhin.length}`);
   log(`- Skipped, index left as it was: ${skipped.length}`);
   skipped.forEach((s) => log(`  - ${s}`));
