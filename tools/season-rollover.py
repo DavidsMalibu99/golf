@@ -13,6 +13,7 @@ It writes two pages from the 2026 app:
                  pairings2027, holes2027, round2027) so the 2026 records are never touched.
                  The player list (wns2/players), Index & Tees (wns2/handicaps) and handicap
                  overrides (wns2/state.hcps) stay shared with Weekend Games, More Games and KC vs CH.
+Then run tools/season-tables.py on the new app (lists everyone, no medals before week 1).
 """
 import datetime as dt
 import json
@@ -73,9 +74,10 @@ def make_season(src):
     fresh = {
         'roster': data['roster'],
         'leaderboard': [],
-        'yearly': [],
+        # every roster player listed from day one (Yearly Points / Weekly Payout), all at zero
+        'yearly': [{'name': p['name'], 'hcp': p['hcp'], 'pts': 0, 'scores': [0] * WEEKS} for p in data['roster']],
         'weekDates': [f'{d.month}/{d.day}' for d in dates],
-        'weeklyPayout': [],
+        'weeklyPayout': [{'name': p['name'], 'results': [''] * WEEKS, 'total': 0} for p in data['roster']],
         'pairingHistory': {},
     }
     t = t[:start] + json.dumps(fresh, separators=(',', ':')) + t[start + length:]
