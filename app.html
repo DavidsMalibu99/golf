@@ -697,7 +697,14 @@ async function hcSaveEditor() {
     const idx = hcParseIndex(tr.querySelector('[data-k="index"]').value);
     if (idx === undefined) { bad.push(tr.dataset.name); return; }
     const wed = tr.querySelector('[data-k="wed"]').value, wkd = tr.querySelector('[data-k="wkd"]').value;
-    if (idx !== null || wed || wkd) players[tr.dataset.name] = { index: idx, wed, wkd };
+    if (idx !== null || wed || wkd) {
+      // Keep the GHIN bot's "as of" date when the index wasn't changed; a typed-in change is marked as entered by hand.
+      const prev = (hcData.players || {})[tr.dataset.name] || {};
+      const rec = { index: idx, wed, wkd };
+      if (prev.index === idx) { if (prev.indexAsOf) rec.indexAsOf = prev.indexAsOf; if (prev.indexSource) rec.indexSource = prev.indexSource; }
+      else if (idx !== null) { rec.indexAsOf = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); rec.indexSource = 'manual'; }
+      players[tr.dataset.name] = rec;
+    }
   });
   if (bad.length) { alert('Check the index for: ' + bad.join(', ')); return; }
   hcData = { tees, players };
@@ -3417,16 +3424,42 @@ function openRosterEditor() {
   const rows = [...MASTER_ROSTER].sort((a, b) => a.name.localeCompare(b.name)).map(p => `<tr data-id="${rosterEsc(p.id)}">
       <td style="${cell}"><input data-k="name" value="${rosterEsc(p.name)}" style="width:100%;min-width:150px;box-sizing:border-box"></td>
       <td style="${cell}"><input data-k="ghin" value="${rosterEsc(p.ghin || '')}" inputmode="numeric" placeholder="GHIN #" style="width:90px"></td>
+      <td style="${cell};text-align:center"><input type="checkbox" data-k="noGhin" ${p.noGhin ? 'checked' : ''}></td>
+      <td style="${cell};text-align:center;white-space:nowrap">${rosterIndexCell(p.name)}</td>
       <td style="${cell};text-align:center"><input type="checkbox" data-k="active" ${p.active !== false ? 'checked' : ''}></td></tr>`).join('');
   box.innerHTML = `<div style="background:#fff;max-width:620px;margin:0 auto;border-radius:12px;padding:16px;font-size:13px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">👥 Players</h3>
       <button class="btn gray" onclick="document.getElementById('roster-editor').remove()">Close</button></div>
     <p style="color:#666;margin:0 0 10px">One player list for the Wednesday Scramble, Weekend Games, More Games, KC vs CH and the MSG App league groups. Fix a name, add a GHIN number, or untick <b>Active</b> to hide someone who has left. Past results keep the name they were played under. Handicaps are still set with 🏌️ Index &amp; Tees.</p>
+    <p style="color:#666;margin:0 0 10px">GHIN update: every Tuesday and Thursday night the bot refreshes the index of everyone with a GHIN # and finds missing GHIN numbers when there's exactly one clear match. Tick <b>No GHIN</b> for players without one: the bot leaves their index exactly as you entered it. Anyone it can't find keeps their current index.</p>
+    <div id="ghinbot-last" style="margin:0 0 10px;font-size:12px;color:#555"></div>
     <table style="width:100%;border-collapse:collapse" id="roster-table">
-      <tr><th style="text-align:left">Name</th><th>GHIN #</th><th>Active</th></tr>${rows}</table>
+      <tr><th style="text-align:left">Name</th><th>GHIN #</th><th>No GHIN</th><th>Index</th><th>Active</th></tr>${rows}</table>
     <div id="roster-msg" style="margin:8px 0;font-size:12px"></div>
     <button class="btn" style="background:#2d6a4f" onclick="saveRosterEditor()">Save</button>
   </div>`;
+  showGhinBotLast();
+}
+
+// Index and its "as of" date for the Players list (from Index & Tees / the GHIN bot).
+function rosterIndexCell(name) {
+  const r = (typeof hcData !== 'undefined' && hcData.players) ? hcData.players[name] : null;
+  if (!r || typeof r.index !== 'number') return '<span style="color:#999">—</span>';
+  const v = r.index < 0 ? '+' + Math.abs(r.index) : String(r.index);
+  const when = r.indexAsOf ? `<div style="font-size:10px;color:#888">${r.indexSource === 'ghin' ? 'GHIN ' : ''}${rosterEsc(r.indexAsOf.slice(5).replace('-', '/'))}</div>` : '';
+  return v + when;
+}
+
+async function showGhinBotLast() {
+  const el = document.getElementById('ghinbot-last');
+  if (!el) return;
+  try {
+    const d = (await db.collection('wns2').doc('ghinbot').get()).data();
+    if (!d) { el.textContent = 'The GHIN bot has not run yet.'; return; }
+    const when = new Date(d.ranAt).toLocaleString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    el.innerHTML = `<b>Last GHIN update:</b> ${rosterEsc(when)}${d.dryRun ? ' (dry run)' : ''}. ${d.updated} index${d.updated === 1 ? '' : 'es'} updated, ${d.newGhin.length} new GHIN #, ${d.skipped.length} skipped.`
+      + (d.skipped.length ? `<details style="margin-top:4px"><summary>Skipped (index left as it was)</summary>${d.skipped.map(s => `<div>${rosterEsc(s)}</div>`).join('')}</details>` : '');
+  } catch (e) { el.textContent = ''; }
 }
 
 async function saveRosterEditor() {
@@ -3441,6 +3474,7 @@ async function saveRosterEditor() {
     if (!nm) { msg.style.color = '#c0392b'; msg.textContent = 'Every player needs a name.'; return; }
     if (nm !== p.name) renames[p.name] = nm;
     p.name = nm; p.ghin = ghin; p.active = tr.querySelector('[data-k=active]').checked;
+    p.noGhin = tr.querySelector('[data-k=noGhin]').checked;
   }
   const seen = new Set();
   for (const p of next) {

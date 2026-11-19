@@ -1,0 +1,41 @@
+name: GHIN index update
+
+# Tuesday and Thursday nights, about 10:30 PM Central (11:30 PM during daylight time).
+# Run it any time from the Actions tab: "GHIN index update" > Run workflow.
+on:
+  schedule:
+    - cron: '30 4 * * 3,5'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which database: live or dev'
+        default: live
+        type: choice
+        options: [live, dev]
+      dry_run:
+        description: 'Dry run: look up only, save nothing'
+        default: false
+        type: boolean
+
+concurrency: ghin-update
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        working-directory: tools/ghin-bot
+        run: npm install --no-audit --no-fund
+      - name: Update indexes from GHIN
+        working-directory: tools/ghin-bot
+        env:
+          GHIN_USER: ${{ secrets.GHIN_USER }}
+          GHIN_PASSWORD: ${{ secrets.GHIN_PASSWORD }}
+          TARGET: ${{ inputs.target || 'live' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: node update.mjs

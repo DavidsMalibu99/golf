@@ -1,0 +1,10 @@
+{
+  "name": "ghin-bot",
+  "private": true,
+  "type": "module",
+  "description": "Tuesday/Thursday GHIN index update for the master player list",
+  "dependencies": {
+    "firebase": "11.10.0",
+    "ghin": "0.7.0"
+  }
+}
