@@ -8,6 +8,7 @@
 (function () {
   const URL = 'https://us-central1-msg-dev-74f88.cloudfunctions.net/ghin-check';
   const STALE_MIN = 20; // a "running" note older than this is ignored (the run must have died)
+  const OLD_DAYS = 5;   // normal gap is 2-3 days (Tue/Thu nights); older than this = something stopped
 
   const css = `
 .gc-box{margin:10px 0;padding:10px 12px;border:1px solid #d8cfb0;border-radius:10px;background:#fffdf5;font-size:13px;color:#333;text-align:left}
@@ -45,6 +46,10 @@
         h += `<div>Last GHIN check: ${t(last.ranAt)}${last.dryRun ? ' (test, nothing saved)' : ''} — ` +
           (ch ? `<b>${ch.length} index${ch.length === 1 ? '' : 'es'} changed</b>` : `${last.updated || 0} indexes checked`) + '</div>';
         if (ch && ch.length) h += `<details><summary>Show changes</summary>${ch.map((c) => `<div>${esc(c)}</div>`).join('')}</details>`;
+        const age = (Date.now() - Date.parse(last.ranAt)) / 864e5;
+        if (age > OLD_DAYS) h += `<div style="color:#b03a2e;font-weight:600">⚠️ No GHIN check for ${Math.floor(age)} days. The Tuesday/Thursday night checks may have stopped — tap Check GHIN, and tell Claude if it keeps happening.</div>`;
+        const bad = (Array.isArray(last.skipped) ? last.skipped : []).filter((x) => /lookup failed|not found/i.test(x));
+        if (bad.length) h += `<div style="color:#b03a2e">⚠️ ${bad.length} player${bad.length === 1 ? '' : 's'} couldn't be checked: ${bad.map((x) => esc(x.split(':')[0])).join(', ')}. They keep their last index.</div>`;
         const rv = Array.isArray(last.review) ? last.review.length : 0;
         if (rv) h += `<div>${rv} player${rv === 1 ? '' : 's'} to check in 👥 Players (Wednesday app admin).</div>`;
       } else {
