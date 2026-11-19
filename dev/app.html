@@ -771,7 +771,7 @@ async function saveHcps() {
 }
 
 async function resetFirebase() {
-  if (!confirm('⚠️ This will wipe this season's records (2027 check-ins, week number, pairings, holes, live round and results) and start the season over.\n\nThe player list, Index & Tees, handicaps and the 2026 season are not touched.\n\nContinue?')) return;
+  if (!confirm('⚠️ This will wipe the season records (2027 check-ins, week number, pairings, holes, live round and results) and start the season over.\n\nThe player list, Index & Tees, handicaps and the 2026 season are not touched.\n\nContinue?')) return;
   try {
     const batch = db.batch();
     ['state','results','pairings','holes','round'].forEach(docId => {

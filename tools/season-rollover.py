@@ -127,7 +127,7 @@ def make_season(src):
         "    });")
     t = must_replace(t,
         "This will wipe ALL Firebase data (RSVPs, HCP overrides, extra players, week 15+ results) and start fresh.\\n\\nWeeks 1–14 data in the app is safe — it lives in the HTML, not Firebase.",
-        f"This will wipe this season's records ({SEASON} check-ins, week number, pairings, holes, live round and results) and start the season over.\\n\\nThe player list, Index & Tees, handicaps and the 2026 season are not touched.")
+        f"This will wipe the season records ({SEASON} check-ins, week number, pairings, holes, live round and results) and start the season over.\\n\\nThe player list, Index & Tees, handicaps and the 2026 season are not touched.")
     t = must_replace(t, "alert('✅ Firebase reset complete. App is using hardcoded data for weeks 1–14.');",
                      f"alert('✅ {SEASON} season records cleared.');")
     t = must_replace(t, '    state.hcps = {};\n    state.weekNum = 15;', '    state.weekNum = 1;')
