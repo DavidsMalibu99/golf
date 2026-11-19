@@ -1330,9 +1330,13 @@ db.collection('wns2').doc('state').onSnapshot(doc=>{
   if(doc.exists && doc.data().hcps){ hcpOverrides = doc.data().hcps; if(tab === 'roster' && manage) render(); }
 }, err=>console.error('hcp sync', err));
 db.collection('wns2').doc('players').onSnapshot(doc=>{
-  if(!doc.exists || !doc.data().extra) return;
+  if(!doc.exists) return;
+  const d = doc.data() || {};
+  // Master player list (wns2/players.roster) when it exists: one list for every app.
+  const master = Array.isArray(d.roster) && d.roster.length ? d.roster.filter(p => p.active !== false) : null;
   let added = false;
-  doc.data().extra.forEach(p=>{
+  if (master) { const keep = new Set(master.map(p => p.name)); for (let i = ROSTER.length - 1; i >= 0; i--) if (!keep.has(ROSTER[i])) { ROSTER.splice(i, 1); added = true; } }
+  (master || d.extra || []).forEach(p=>{
     if(!ROSTER.includes(p.name)){ ROSTER.push(p.name); added = true; }
     ROSTER_HCP[p.name] = p.hcp;
   });

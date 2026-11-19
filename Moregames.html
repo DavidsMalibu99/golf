@@ -523,9 +523,13 @@ weekendDb.collection('wns2').doc('state').onSnapshot(doc=>{
 // New players added on the WNS app (app.html) are saved to Firestore at wns2/players.extra.
 // We mirror that here so a player added on one app shows up on the other without a manual edit.
 weekendDb.collection('wns2').doc('players').onSnapshot(doc=>{
-  if(!doc.exists || !doc.data().extra) return;
-  const extras = doc.data().extra;
+  if(!doc.exists) return;
+  const d = doc.data() || {};
+  // Master player list (wns2/players.roster) when it exists: one list for every app.
+  const master = Array.isArray(d.roster) && d.roster.length ? d.roster.filter(p => p.active !== false) : null;
+  const extras = master || d.extra || [];
   const added = [];
+  if (master) { const keep = new Set(master.map(p => p.name)); for (let i = ROSTER.length - 1; i >= 0; i--) if (!keep.has(ROSTER[i])) ROSTER.splice(i, 1); }
   extras.forEach(p=>{
     if(!ROSTER.includes(p.name)){
       ROSTER.push(p.name);
