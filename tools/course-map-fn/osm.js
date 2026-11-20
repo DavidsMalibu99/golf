@@ -64,7 +64,7 @@ function inside(pt, poly) {
 const geomOf = (el) => (el.geometry || []).map((g) => [g.lat, g.lon]);
 
 /** Version of the hole-matching rules; saved maps with an older one are rebuilt. */
-export const MAP_VERSION = 4;
+export const MAP_VERSION = 5;
 
 const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 /** "Pebble Beach Golf Links" and "Pebble Beach Golf Course" -> "pebble beach": the words that differ between listings go. */
@@ -101,9 +101,9 @@ const inArea = (p, area) => area.rings.some((r) => inside(p, r));
  * Holes come from the course area chosen by pickCourseArea when there is one; otherwise, when
  * several holes share a number, the one closest to `near` wins.
  */
-export function mapHoles(json, near = null, name = '') {
+export function mapHoles(json, near = null, name = '', useArea = true) {
   const els = json?.elements || [];
-  const area = pickCourseArea(els, near, name);
+  const area = useArea ? pickCourseArea(els, near, name) : null;
   const greens = [];
   for (const el of els) {
     if (el.tags?.golf !== 'green') continue;
@@ -127,6 +127,8 @@ export function mapHoles(json, near = null, name = '') {
     const prev = holes[n];
     if (!prev || (near && yards(near, hole.tee) < yards(near, prev.tee))) holes[n] = hole;
   }
+  // The course outline holds none of the mapped holes (its holes aren't drawn): use all nearby holes.
+  if (area && !Object.keys(holes).length) return mapHoles(json, near, name, false);
   return { holes, count: Object.keys(holes).length, area: area ? area.name || 'course' : null };
 }
 

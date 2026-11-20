@@ -54,18 +54,20 @@ async function locate(name, near = null) {
   const q = baseName(name);
   const c = near || TX_CENTER;
   const box = `&viewbox=${c[1] - 3},${c[0] + 3},${c[1] + 3},${c[0] - 3}`; // a preference, not a limit
-  // "Bentwater Yacht & Country Club" -> "Bentwater golf": drop the generic words that differ between listings.
-  const core = q.replace(/&/g, ' ').replace(/\b(yacht|country|club|golf|links|course|resort|and|the|cc|gc)\b/gi, ' ').replace(/\s+/g, ' ').trim();
-  for (const query of [...new Set([q, `${q} golf`, core && `${core} golf`].filter(Boolean))]) {
+  // "Bentwater Yacht & Country Club" -> "Bentwater": drop the generic words that differ between listings.
+  const core = coreName(q);
+  const found = [];
+  for (const query of [...new Set([q, core, core && `${core} golf`].filter(Boolean))]) {
     try {
       const r = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=20&countrycodes=us${box}&q=${encodeURIComponent(query)}`, {}, 12000);
-      if (r.ok) {
-        const p = pickPlace(await r.json(), name, c);
-        if (p) return { lat: Number(p.lat), lng: Number(p.lon), via: 'nominatim', label: p.display_name };
-      }
+      if (r.ok) found.push(...(await r.json()));
     } catch { /* try the next way */ }
+    const best = pickPlace(found, name, c);
+    if (best && coreName(best.name) === core && kmBetween(c, [Number(best.lat), Number(best.lon)]) < 200) break; // close and exact: done
     await wait(1100); // Nominatim allows one request a second
   }
+  const p = pickPlace(found, name, c);
+  if (p) return { lat: Number(p.lat), lng: Number(p.lon), via: 'nominatim', label: p.display_name };
   try {
     const r = await get(`https://api.opengolfapi.org/v1/courses/search?q=${encodeURIComponent(q)}&limit=25`, {}, 12000);
     if (r.ok) {
