@@ -64,9 +64,11 @@ function inside(pt, poly) {
 const geomOf = (el) => (el.geometry || []).map((g) => [g.lat, g.lon]);
 
 /** Version of the hole-matching rules; saved maps with an older one are rebuilt. */
-export const MAP_VERSION = 2;
+export const MAP_VERSION = 3;
 
 const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/** "Pebble Beach Golf Links" and "Pebble Beach Golf Course" -> "pebble beach": the words that differ between listings go. */
+export const coreName = (x) => normName(String(x || '').split(/ — | – | - |\(/)[0]).replace(/\b(golf|links|course|club|country|cc|gc|yacht|resort|the|and|at|of)\b/g, ' ').replace(/\s+/g, ' ').trim();
 
 /**
  * The golf course outline the holes should come from: the course area (leisure=golf_course) that
@@ -83,9 +85,9 @@ export function pickCourseArea(els, near, name) {
     if (rings.length) areas.push({ rings, name: el.tags.name || '' });
   }
   if (!areas.length) return null;
-  const want = normName(String(name || '').split(/ — | – | - |\(/)[0]);
+  const want = coreName(name);
   const scored = areas.map((a) => {
-    const n = normName(a.name);
+    const n = coreName(a.name);
     const nameHit = want && n ? (n === want ? 3 : (n.includes(want) || want.includes(n)) ? 2 : 0) : 0;
     const holds = near && a.rings.some((r) => inside(near, r)) ? 2 : 0;
     return { a, score: nameHit + holds };

@@ -14,7 +14,7 @@
 import functions from '@google-cloud/functions-framework';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse, photoBox, inTexas, hasPhotos, MAP_VERSION } from './osm.js';
+import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse, photoBox, inTexas, hasPhotos, MAP_VERSION, coreName } from './osm.js';
 
 const UA = 'MSG-Golf-App/1.0 (+https://msg-golf.com; info@msg-golf.com)';
 const ORIGINS = /^https:\/\/((www\.)?mvwns\.com|(www\.)?msg-golf\.com|msg-dev-74f88\.(web\.app|firebaseapp\.com))$|^http:\/\/localhost(:\d+)?$/;
@@ -38,10 +38,11 @@ export const baseName = (name) => String(name || '').split(/ — | – | - |\(/)
 
 /** Pick a golf course from Nominatim results: golf courses only, the best name match first. */
 export function pickPlace(list, name) {
-  const golf = (list || []).filter((p) => (p.class === 'leisure' && p.type === 'golf_course') || /golf/i.test(p.name || p.display_name || ''));
+  // Golf course areas only: a restaurant or shop named "... Golf Links" is not the course.
+  const golf = (list || []).filter((p) => (p.category || p.class) === 'leisure' && p.type === 'golf_course');
   if (!golf.length) return null;
-  const want = norm(baseName(name));
-  const score = (p) => { const n = norm(p.name || p.display_name.split(',')[0]); return n === want ? 3 : (n.includes(want) || want.includes(n)) ? 2 : 1; };
+  const want = coreName(name);
+  const score = (p) => { const n = coreName(p.name || p.display_name.split(',')[0]); return n === want ? 3 : (n && want && (n.includes(want) || want.includes(n))) ? 2 : 1; };
   return golf.slice().sort((a, b) => score(b) - score(a) || (b.importance || 0) - (a.importance || 0))[0];
 }
 
@@ -191,7 +192,7 @@ functions.http('courseMap', async (req, res) => {
     const saved = (await ref.get()).data();
     if (saved?.mapJSON && saved.mv === MAP_VERSION) return reply(res, 'ok', { name, lat: saved.lat, lng: saved.lng, mapJSON: saved.mapJSON, holes: saved.holes, mv: MAP_VERSION });
     // A map saved under older hole-matching rules is rebuilt at its saved location.
-    const oldLoc = saved?.mapJSON && Number.isFinite(saved.lat) ? { lat: saved.lat, lng: saved.lng, via: saved.via || 'saved' } : null;
+    const oldLoc = saved?.mapJSON && saved.via === 'golfer' && Number.isFinite(saved.lat) ? { lat: saved.lat, lng: saved.lng, via: 'golfer' } : null;
     const fresh = saved?.v === V && saved?.checkedAt && Date.now() - saved.checkedAt.toMillis() < (RECHECK_DAYS[saved.status] || 1) * 864e5;
     if (saved?.status && fresh && !pin) return reply(res, saved.status, { name, lat: saved.lat ?? null, lng: saved.lng ?? null, message: saved.message });
 
