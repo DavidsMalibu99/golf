@@ -11,4 +11,4 @@ cd ~/golf/tools/course-map-fn
 echo "== Publishing the course-map endpoint (2-3 minutes) =="
 gcloud functions deploy course-map --gen2 --project=$P --region=us-central1 \
   --runtime=nodejs22 --entry-point=courseMap --trigger-http --allow-unauthenticated \
-  --max-instances=3 --memory=512Mi --timeout=150s --quiet >/dev/null 2>&1 && echo "ALL DONE - course-map is live." || echo "Publish failed - tell Claude."
+  --max-instances=3 --concurrency=20 --cpu=1 --memory=512Mi --timeout=150s --quiet >/dev/null 2>&1 && echo "ALL DONE - course-map is live." || echo "Publish failed - tell Claude."

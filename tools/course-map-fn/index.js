@@ -46,7 +46,9 @@ export function pickPlace(list, name) {
 
 async function locate(name) {
   const q = baseName(name);
-  for (const query of [q, `${q} golf`]) {
+  // "Bentwater Yacht & Country Club" -> "Bentwater golf": drop the generic words that differ between listings.
+  const core = q.replace(/&/g, ' ').replace(/\b(yacht|country|club|golf|links|course|resort|and|the|cc|gc)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  for (const query of [...new Set([q, `${q} golf`, core && `${core} golf`].filter(Boolean))]) {
     try {
       const r = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&countrycodes=us&q=${encodeURIComponent(query)}`, {}, 12000);
       if (r.ok) {
