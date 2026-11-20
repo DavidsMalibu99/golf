@@ -66,19 +66,56 @@ async function locate(name) {
   return null;
 }
 
+// OpenStreetMap's main database: the raw data in a box, turned into the same shape Overpass gives
+// (ways with geometry). Used last, for one course at a time, and the result is saved.
+export function osmApiToOverpass(data) {
+  const nodes = new Map(); const ways = new Map(); const out = [];
+  for (const e of data.elements || []) if (e.type === 'node') nodes.set(e.id, { lat: e.lat, lon: e.lon });
+  for (const e of data.elements || []) if (e.type === 'way') ways.set(e.id, e);
+  const geom = (w) => (w.nodes || []).map((id) => nodes.get(id)).filter(Boolean);
+  for (const w of ways.values()) {
+    const g = w.tags?.golf;
+    if (g === 'hole' || g === 'green') out.push({ type: 'way', id: w.id, tags: w.tags, geometry: geom(w) });
+  }
+  for (const r of data.elements || []) {
+    if (r.type !== 'relation' || r.tags?.golf !== 'green') continue;
+    out.push({ type: 'relation', id: r.id, tags: r.tags, members: (r.members || []).filter((m) => m.type === 'way' && ways.has(m.ref))
+      .map((m) => ({ type: 'way', ref: m.ref, role: m.role, geometry: geom(ways.get(m.ref)) })) });
+  }
+  return { elements: out };
+}
+
+async function osmApi(lat, lng) {
+  const box = (s, w, n, e) => `https://api.openstreetmap.org/api/0.6/map.json?bbox=${w},${s},${e},${n}`;
+  const dLat = 0.016, dLng = 0.016 / Math.cos((lat * Math.PI) / 180);
+  const whole = [lat - dLat, lng - dLng, lat + dLat, lng + dLng];
+  let r = await get(box(...whole), {}, 25000);
+  if (r.ok) return osmApiToOverpass(await r.json());
+  // Too much in one box (a busy neighbourhood): ask for the four quarters.
+  const els = [];
+  for (const [s, w, n, e] of [[lat - dLat, lng - dLng, lat, lng], [lat - dLat, lng, lat, lng + dLng], [lat, lng - dLng, lat + dLat, lng], [lat, lng, lat + dLat, lng + dLng]]) {
+    r = await get(box(s, w, n, e), {}, 25000);
+    if (!r.ok) throw new Error(`osm api ${r.status}`);
+    els.push(...((await r.json()).elements || []));
+  }
+  const seen = new Set();
+  return osmApiToOverpass({ elements: els.filter((x) => { const k = x.type + x.id; if (seen.has(k)) return false; seen.add(k); return true; }) });
+}
+
+const SERVERS = [OVERPASS[0], 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', ...OVERPASS.slice(1)];
 async function overpass(lat, lng) {
   const body = 'data=' + encodeURIComponent(overpassQuery(lat, lng));
-  const tries = [OVERPASS[0], ...OVERPASS.slice(1), OVERPASS[0]];
   let last = '';
-  for (const [i, url] of tries.entries()) {
+  for (const url of SERVERS) {
     try {
-      const r = await get(url, { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 30000);
+      const r = await get(url, { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 20000);
       if (r.ok) { const j = await r.json(); if (Array.isArray(j.elements)) return j; }
       last = `${new URL(url).host} ${r.status}`;
     } catch (e) { last = `${new URL(url).host} ${e.name}`; }
-    if (i < tries.length - 1) await wait(2000);
+    console.log('overpass miss', last);
   }
-  throw new Error(`map servers busy (${last})`);
+  try { return await osmApi(lat, lng); }
+  catch (e) { throw new Error(`map servers busy (${last}; ${e.message})`); }
 }
 
 const reply = (res, status, extra = {}) => res.json({ status, ...extra });
