@@ -137,8 +137,10 @@
     const dist = { eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0 };
     const byPar = { 3: [], 4: [], 5: [] };
     const holes = new Map();
+    const eagleList = [];
     entries.forEach((e) => e.holeRows.forEach((x) => {
       const d = x.gross - x.par;
+      if (d <= -2) eagleList.push({ date: e.date, course: e.course, hole: x.hole, par: x.par, gross: x.gross, ace: x.gross === 1 });
       dist[d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'double']++;
       if (byPar[x.par]) byPar[x.par].push(x.gross);
       const k = `${e.courseId}#${x.hole}`;
@@ -156,7 +158,7 @@
       avgGross: avg(full.map((e) => e.gross)), avgNet: avg(full.map((e) => e.net)),
       avgGrossToPar: avg(full.map((e) => e.grossToPar)), avgNetToPar: avg(full.map((e) => e.netToPar)),
       bestGross: lo((e) => e.grossToPar), bestNet: lo((e) => e.netToPar),
-      dist, scored, birdies: dist.birdie + dist.eagle,
+      dist, scored, birdies: dist.birdie, eagles: dist.eagle, eagleList, aces: eagleList.filter((x) => x.ace).length,
       parAvg: { 3: avg(byPar[3]), 4: avg(byPar[4]), 5: avg(byPar[5]) },
       courses: [...courses.values()].map((c) => ({ course: c.course, n: c.r.length, avg: avg(c.r.map((e) => e.gross)), best: Math.min(...c.r.map((e) => e.gross)) })).sort((a, b) => b.n - a.n),
       bestHoles: hs.slice(0, 3), worstHoles: hs.slice(-3).reverse(),
@@ -175,6 +177,7 @@
     avgNet: { label: 'Avg net', v: (s) => s.avgNetToPar, dir: 1 },
     money: { label: 'Money', v: (s) => (s.moneyRounds ? s.moneyTotal : null), dir: -1 },
     birdies: { label: 'Birdies', v: (s) => (s.scored ? s.birdies : null), dir: -1 },
+    eagles: { label: 'Eagles', v: (s) => (s.eagles ? s.eagles : null), dir: -1 },
   };
   const inPeriod = (list, p) => (p === 'all' ? list : list.filter((e) => e.date.startsWith(p)));
 
@@ -219,13 +222,15 @@
       if (view.board === 'avgGross') return `avg ${one(s.avgGross)} over ${s.full} full round${s.full === 1 ? '' : 's'}`;
       if (view.board === 'avgNet') return `avg ${one(s.avgNet)} net over ${s.full} full round${s.full === 1 ? '' : 's'}`;
       if (view.board === 'money') return `${s.up} up · ${s.down} down · ${s.moneyRounds} rounds`;
+      if (view.board === 'eagles') { const l = s.eagleList[0]; return `${s.aces ? `${s.aces} hole${s.aces === 1 ? '' : 's'} in one · ` : ''}last: #${l.hole} ${l.course}, ${niceDate(l.date)}`; }
       return `${(s.birdies / Math.max(1, s.stableRounds)).toFixed(1)} per round · ${s.stableRounds} rounds`;
     };
     const val = (r) => (view.board === 'money' ? `<span class="${mcls(r.v)} ws-val">${money(r.v)}</span>`
-      : `<span class="ws-val">${view.board === 'birdies' ? r.v : view.board.startsWith('avg') ? avgPar(r.v) : toPar(r.v)}</span>`);
+      : `<span class="ws-val">${view.board === 'birdies' || view.board === 'eagles' ? r.v : view.board.startsWith('avg') ? avgPar(r.v) : toPar(r.v)}</span>`);
     const note = view.board === 'gross' || view.board === 'net' ? 'Best single 18 against par, any course. Stableford rounds.'
       : view.board.startsWith('avg') ? 'Average against par over full 18-hole Stableford rounds.'
-        : view.board === 'money' ? 'Won or lost in Stableford, Wolf and NASCAR Vegas.' : 'Birdies and eagles in Stableford rounds.';
+        : view.board === 'money' ? 'Won or lost in Stableford, Wolf and NASCAR Vegas.'
+          : view.board === 'eagles' ? 'Eagles or better (2 under on a hole) in Stableford rounds, holes in one included.' : 'Birdies (1 under on a hole) in Stableford rounds.';
     return `<div class="panel">
       <h2>📊 Leaderboard</h2>
       ${chips([...ys.map((y) => [y, y]), ['all', 'All time']], view.period, 'period')}
@@ -268,7 +273,9 @@
         ${t(one(s.avgNet), 'Avg net', s.avgNetToPar != null ? avgPar(s.avgNetToPar) : '')}
         ${t(s.bestGross ? s.bestGross.gross : '–', 'Best gross', s.bestGross ? `${toPar(s.bestGross.grossToPar)} · ${esc(s.bestGross.course)}` : '')}
         ${t(s.bestNet ? s.bestNet.net : '–', 'Best net', s.bestNet ? `${toPar(s.bestNet.netToPar)} · ${esc(s.bestNet.course)}` : '')}
-        ${t(s.birdies, 'Birdies', `${(s.birdies / Math.max(1, s.stableRounds)).toFixed(1)} per round`)}</div>`;
+        ${t(s.birdies, 'Birdies', `${(s.birdies / Math.max(1, s.stableRounds)).toFixed(1)} per round`)}
+        ${t(s.eagles, 'Eagles', s.aces ? `${s.aces} hole${s.aces === 1 ? '' : 's'} in one 🎯` : '')}</div>`;
+      if (s.eagleList.length) html += `<div class="hint">🦅 Eagle log</div>${s.eagleList.map((x) => `<div class="ws-line"><span><b>${x.ace ? 'Hole in one! 🎯' : x.gross - x.par <= -3 ? 'Albatross!' : 'Eagle'}</b> <span class="ws-sub">${esc(niceDate(x.date))} · ${esc(x.course)}</span></span><span>#${x.hole} · par ${x.par} · made ${x.gross}</span></div>`).join('')}`;
       const d = s.dist; const seg = (k, l) => (d[k] ? `<span class="ws-seg ${k}" style="flex:${d[k]}" title="${l}: ${d[k]}">${d[k] / s.scored >= 0.07 ? d[k] : ''}</span>` : '');
       html += `<div class="hint">Every hole played (${s.scored})</div><div class="ws-dist">${seg('eagle', 'Eagle+')}${seg('birdie', 'Birdie')}${seg('par', 'Par')}${seg('bogey', 'Bogey')}${seg('double', 'Double+')}</div>
         <div class="ws-key">${[['eagle', 'Eagle+'], ['birdie', 'Birdie'], ['par', 'Par'], ['bogey', 'Bogey'], ['double', 'Double+']].map(([k, l]) => `<span><i class="${k}"></i> ${l} ${d[k]}</span>`).join('')}</div>
