@@ -18,7 +18,8 @@ import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse } f
 
 const UA = 'MSG-Golf-App/1.0 (+https://msg-golf.com; info@msg-golf.com)';
 const ORIGINS = /^https:\/\/((www\.)?mvwns\.com|(www\.)?msg-golf\.com|msg-dev-74f88\.(web\.app|firebaseapp\.com))$|^http:\/\/localhost(:\d+)?$/;
-const RECHECK_DAYS = 7; // a "not found" / "no holes" answer is asked again after this
+const RECHECK_DAYS = { notFound: 1, noHoles: 7 }; // a negative answer is asked again after this many days
+const V = 2; // bump to forget older negative answers after the search improves
 
 initializeApp();
 const db = getFirestore();
@@ -142,19 +143,19 @@ functions.http('courseMap', async (req, res) => {
   try {
     const saved = (await ref.get()).data();
     if (saved?.mapJSON) return reply(res, 'ok', { name, lat: saved.lat, lng: saved.lng, mapJSON: saved.mapJSON, holes: saved.holes });
-    const fresh = saved?.checkedAt && Date.now() - saved.checkedAt.toMillis() < RECHECK_DAYS * 864e5;
+    const fresh = saved?.v === V && saved?.checkedAt && Date.now() - saved.checkedAt.toMillis() < (RECHECK_DAYS[saved.status] || 1) * 864e5;
     if (saved?.status && fresh && !pin) return reply(res, saved.status, { name, lat: saved.lat ?? null, lng: saved.lng ?? null, message: saved.message });
 
     const loc = pin ? { lat: pin[0], lng: pin[1], via: 'golfer' } : await locate(name);
     if (!loc) {
       const message = `Couldn't find ${baseName(name)} on the map by its name.`;
-      await ref.set({ name, status: 'notFound', message, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await ref.set({ name, v: V, status: 'notFound', message, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
       return reply(res, 'notFound', { name, message });
     }
     const map = mapHoles(await overpass(loc.lat, loc.lng), [loc.lat, loc.lng]);
     if (!map.count) {
       const message = `${baseName(name)} is on the map, but its holes haven't been drawn in OpenStreetMap yet.`;
-      await ref.set({ name, status: 'noHoles', message, lat: loc.lat, lng: loc.lng, via: loc.via, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await ref.set({ name, v: V, status: 'noHoles', message, lat: loc.lat, lng: loc.lng, via: loc.via, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
       return reply(res, 'noHoles', { name, lat: loc.lat, lng: loc.lng, message });
     }
     const mapJSON = JSON.stringify(compactHoles(map.holes));
