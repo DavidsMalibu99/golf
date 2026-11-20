@@ -125,7 +125,10 @@
     font-size:0.95rem;
     letter-spacing:0.5px;
   }
-  .btn.secondary.wg-del-btn{width:auto;margin:0;padding:8px 12px;border-color:var(--loss);color:var(--loss);font-size:.85rem}
+  [id$="HistoryDetailPanel"] > div:first-child{gap:8px}
+  [id$="HistoryDetailPanel"] > div:first-child .btn{width:auto;margin:0;padding:8px 12px;flex:none;white-space:nowrap;font-size:.85rem}
+  [id$="HistoryDetailPanel"] > div:first-child > span{flex:1;text-align:center}
+  .btn.secondary.wg-del-btn{border-color:var(--loss);color:var(--loss)}
   .btn.secondary{
     background:transparent;
     border:1px solid var(--gold);
