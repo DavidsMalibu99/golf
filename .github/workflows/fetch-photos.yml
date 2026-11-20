@@ -17,4 +17,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add yardage/photos
           git commit -m "Hole photos (USDA NAIP 2022, public domain)" || echo "no change"
-          git push origin HEAD:main
+          git pull --rebase -q origin main && git push origin HEAD:main
