@@ -19,7 +19,7 @@ import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse, ph
 const UA = 'MSG-Golf-App/1.0 (+https://msg-golf.com; info@msg-golf.com)';
 const ORIGINS = /^https:\/\/((www\.)?mvwns\.com|(www\.)?msg-golf\.com|msg-dev-74f88\.(web\.app|firebaseapp\.com))$|^http:\/\/localhost(:\d+)?$/;
 const RECHECK_DAYS = { notFound: 1, noHoles: 7 }; // a negative answer is asked again after this many days
-const V = 2; // bump to forget older negative answers after the search improves
+const V = 3; // bump to forget older negative answers after the search improves
 
 initializeApp();
 const db = getFirestore();
