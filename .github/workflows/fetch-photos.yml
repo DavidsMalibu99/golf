@@ -1,0 +1,20 @@
+name: Fetch hole photos
+# Downloads the NAIP aerial photo for every mapped hole (tools/photos/photos.json) into
+# yardage/photos/ and commits them, so the Photo view loads instantly. Run by hand when holes change.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/photos/fetch.py
+      - run: |
+          git config user.name "photo bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yardage/photos
+          git commit -m "Hole photos (USDA NAIP 2022, public domain)" || echo "no change"
+          git push origin HEAD:main
