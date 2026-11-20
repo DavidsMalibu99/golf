@@ -338,7 +338,7 @@
     state = { rounds, settings, entries: buildEntries(rounds, settings) };
   }
 
-  /** Delete a saved round: copy it to weekendHistoryDeleted first, then remove it from weekendHistory. */
+  /** Delete a saved round: copy it to weekendGames/deleted_<id> first (a backup), then remove it from weekendHistory. */
   async function deleteRound(id, btn) {
     const r = state.rounds.find((x) => x.id === id);
     if (!r) return;
@@ -347,7 +347,7 @@
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
       const { id: _id, ...data } = r;
-      await weekendDb.collection('weekendHistoryDeleted').doc(id).set(Object.assign({}, data, { deletedAt: firebase.firestore.FieldValue.serverTimestamp() }));
+      await weekendDb.collection('weekendGames').doc(`deleted_${id}`).set(Object.assign({}, data, { deletedAt: firebase.firestore.FieldValue.serverTimestamp() }));
       await weekendDb.collection('weekendHistory').doc(id).delete();
       state.rounds = state.rounds.filter((x) => x.id !== id);
       const ex = (state.settings.excludedRounds || []).filter((x) => x !== id);
