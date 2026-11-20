@@ -14,7 +14,7 @@
 import functions from '@google-cloud/functions-framework';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse } from './osm.js';
+import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse, photoBox, inTexas } from './osm.js';
 
 const UA = 'MSG-Golf-App/1.0 (+https://msg-golf.com; info@msg-golf.com)';
 const ORIGINS = /^https:\/\/((www\.)?mvwns\.com|(www\.)?msg-golf\.com|msg-dev-74f88\.(web\.app|firebaseapp\.com))$|^http:\/\/localhost(:\d+)?$/;
@@ -123,6 +123,44 @@ async function overpass(lat, lng) {
 
 const reply = (res, status, extra = {}) => res.json({ status, ...extra });
 
+// GET ?photo=1&course=<key>&hole=<n>  ->  the hole's aerial photo (JPEG), area = osm.js photoBox.
+// Fetched from the Texas server the first time, then kept in Firestore courseMaps/<key>/photos/<n>.
+// Only holes of a saved map, inside Texas, so the address can't be used to fetch anything else.
+const NAIP = 'https://imagery.geographic.texas.gov/server/rest/services/NAIP/NAIP22_NCCIR_60cm/ImageServer/exportImage';
+async function holePhoto(req, res) {
+  const key = mapKey(String(req.query.course || ''));
+  const n = String(parseInt(req.query.hole, 10) || '');
+  try {
+    const mapDoc = (await db.collection('courseMaps').doc(key).get()).data();
+    const h = mapDoc?.mapJSON ? JSON.parse(mapDoc.mapJSON)[n] : null;
+    if (!h || !inTexas(h.tee)) return res.status(404).send('No photo for this hole.');
+    const ref = db.collection('courseMaps').doc(key).collection('photos').doc(n);
+    let jpg = (await ref.get()).data()?.jpg;
+    if (!jpg) {
+      const b = photoBox(h);
+      const url = `${NAIP}?bbox=${b.W},${b.S},${b.E},${b.N}&bboxSR=4326&imageSR=4326&size=${b.pw},${b.ph}&format=jpg&bandIds=0,1,2&f=image`;
+      let buf = null;
+      for (let i = 0; i < 3 && !buf; i++) {
+        try {
+          const r = await get(url, {}, 40000);
+          const x = Buffer.from(await r.arrayBuffer());
+          if (r.ok && x[0] === 0xff && x[1] === 0xd8 && x.length > 15000) buf = x;
+        } catch { /* retry */ }
+        if (!buf) await wait(2000);
+      }
+      if (!buf) return res.status(503).send('Photo server busy.');
+      if (buf.length < 1000000) await ref.set({ jpg: buf, box: b, savedAt: FieldValue.serverTimestamp() });
+      jpg = buf;
+    }
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=2592000');
+    return res.send(Buffer.from(jpg));
+  } catch (e) {
+    console.error('photo', key, n, e);
+    return res.status(500).send('Photo failed.');
+  }
+}
+
 functions.http('courseMap', async (req, res) => {
   const origin = req.get('origin') || '';
   if (ORIGINS.test(origin)) {
@@ -130,6 +168,7 @@ functions.http('courseMap', async (req, res) => {
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS'); res.set('Access-Control-Allow-Headers', 'Content-Type');
   }
   if (req.method === 'OPTIONS') return res.status(204).send('');
+  if (req.method === 'GET' && req.query.photo) return holePhoto(req, res);
   if (req.method !== 'POST') return res.status(405).json({ status: 'error', message: 'Use POST.' });
   if (!ORIGINS.test(origin)) return res.status(403).json({ status: 'error', message: 'Not allowed from this site.' });
 

@@ -138,3 +138,22 @@ export function compactHoles(holes) {
   for (const [n, h] of Object.entries(holes)) out[n] = { n: h.n, par: h.par, tee: r(h.tee), line: h.line.map(r), green: h.green ? h.green.map(r) : null, center: r(h.center) };
   return out;
 }
+
+// ---------- Aerial photo (Texas) ----------
+// The free USDA NAIP 2022 aerial (public domain) comes from the Texas Geographic Information Office,
+// so photos exist only inside Texas. A rough box is enough: the server checks the photo too.
+export const TEXAS = { S: 25.8, N: 36.6, W: -106.7, E: -93.5 };
+export const inTexas = (p) => p[0] >= TEXAS.S && p[0] <= TEXAS.N && p[1] >= TEXAS.W && p[1] <= TEXAS.E;
+
+/** The area of a hole's photo: tee, line and green with ~130 m around, at most 1400 px a side. */
+export function photoBox(h) {
+  const pts = [...h.line, ...(h.green || []), h.center, h.tee];
+  const lat = pts.map((p) => p[0]); const lng = pts.map((p) => p[1]);
+  const pad = 0.0012;
+  const r6 = (x) => Math.round(x * 1e6) / 1e6;
+  const S = r6(Math.min(...lat) - pad); const N = r6(Math.max(...lat) + pad);
+  const W = r6(Math.min(...lng) - pad); const E = r6(Math.max(...lng) + pad);
+  const mW = (E - W) * 111320 * Math.cos(rad((N + S) / 2)); const mH = (N - S) * 111132.954;
+  const k = Math.min(1 / 0.6, 1400 / Math.max(mW, mH));
+  return { W, S, E, N, pw: Math.round(mW * k), ph: Math.round(mH * k) };
+}
