@@ -311,12 +311,13 @@
       ${[...names].filter(Boolean).sort().map((n) => `<label class="ws-check"><input type="checkbox" data-hide="${esc(n)}" ${hidden.has(n) ? 'checked' : ''}> ${esc(n)}</label>`).join('')}
     </div>
     <div class="panel"><h2>⚙️ Leave rounds out</h2>
-      <div class="hint">Tick test rounds or duplicates to leave them out of every stat.</div>
+      <div class="hint">Tick a round to leave it out of the stats (it stays in the game's History). Tap 🗑 Delete to remove a test round or duplicate everywhere, History too. Deleted rounds go to a backup, so a mistake can be undone.</div>
       ${[...counted].sort((a, b) => (b.endedAt?.toMillis?.() || 0) - (a.endedAt?.toMillis?.() || 0)).map((r) => {
         const ps = parse(r.playersJSON, []).map((p) => (typeof p === 'string' ? p : p && p.name));
         const course = typeof sbCourse === 'function' ? sbCourse(r.courseId).name : '';
-        return `<label class="ws-check"><input type="checkbox" data-exclude="${esc(r.id)}" ${excluded.has(r.id) ? 'checked' : ''}>
-          <span><b>${esc(niceDate(isoDate(r.endedAt)))}</b> · ${esc(GAME_LABEL[r.game])} · ${esc(course)} · ${ps.length} players<br><span class="ws-sub">${esc(ps.slice(0, 6).join(', '))}${ps.length > 6 ? '…' : ''}</span></span></label>`;
+        return `<div class="ws-round"><label class="ws-check"><input type="checkbox" data-exclude="${esc(r.id)}" ${excluded.has(r.id) ? 'checked' : ''}>
+          <span><b>${esc(niceDate(isoDate(r.endedAt)))}</b> · ${esc(GAME_LABEL[r.game])} · ${esc(course)} · ${ps.length} players<br><span class="ws-sub">${esc(ps.slice(0, 6).join(', '))}${ps.length > 6 ? '…' : ''}</span></span></label>
+          <button class="ws-del" data-del="${esc(r.id)}">🗑 Delete</button></div>`;
       }).join('')}
     </div>`;
   }
@@ -337,7 +338,32 @@
     state = { rounds, settings, entries: buildEntries(rounds, settings) };
   }
 
+  /** Delete a saved round: copy it to weekendHistoryDeleted first, then remove it from weekendHistory. */
+  async function deleteRound(id, btn) {
+    const r = state.rounds.find((x) => x.id === id);
+    if (!r) return;
+    const ps = parse(r.playersJSON, []).map((p) => (typeof p === 'string' ? p : p && p.name));
+    if (!confirm(`Delete the ${GAME_LABEL[r.game] || r.game} round from ${niceDate(isoDate(r.endedAt))} (${ps.length} players)?\n\nIt disappears from Stats and from the game's History. A backup copy is kept.`)) return;
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const { id: _id, ...data } = r;
+      await weekendDb.collection('weekendHistoryDeleted').doc(id).set(Object.assign({}, data, { deletedAt: firebase.firestore.FieldValue.serverTimestamp() }));
+      await weekendDb.collection('weekendHistory').doc(id).delete();
+      state.rounds = state.rounds.filter((x) => x.id !== id);
+      const ex = (state.settings.excludedRounds || []).filter((x) => x !== id);
+      if (ex.length !== (state.settings.excludedRounds || []).length) await saveSettings({ excludedRounds: ex });
+      else state.entries = buildEntries(state.rounds, state.settings);
+      render();
+    } catch (err) {
+      console.error('delete round', err);
+      alert('Could not delete that round. Check your connection.');
+      btn.disabled = false; btn.textContent = '🗑 Delete';
+    }
+  }
+
   function onClick(e) {
+    const del = e.target.closest('[data-del]');
+    if (del) return deleteRound(del.dataset.del, del);
     const t = e.target.closest('[data-act],[data-period],[data-board],[data-player]');
     if (!t) return;
     if (t.dataset.act === 'close') return close();
@@ -420,7 +446,10 @@
   .ws-key{display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;margin-bottom:8px}
   .ws-key i{display:inline-block;width:10px;height:10px;border-radius:3px}
   .ws-check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line-green,#2a5a3e)}
-  .ws-check input{width:20px;height:20px;flex:none;margin-top:2px}`;
+  .ws-check input{width:20px;height:20px;flex:none;margin-top:2px}
+  .ws-round{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line-green,#2a5a3e)}
+  .ws-round .ws-check{flex:1;border-top:0}
+  .ws-del{flex:none;background:transparent;border:1px solid var(--loss);color:var(--loss);border-radius:8px;padding:6px 10px;font-weight:700;font-size:.8rem}`;
   document.head.appendChild(css);
 
   window.WeekendStats = { open, close, _buildEntries: buildEntries, _summarize: summarize };
