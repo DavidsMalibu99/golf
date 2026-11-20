@@ -37,24 +37,30 @@ const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').tr
 export const baseName = (name) => String(name || '').split(/ — | – | - |\(/)[0].trim();
 
 /** Pick a golf course from Nominatim results: golf courses only, the best name match first. */
-export function pickPlace(list, name) {
+const kmBetween = (a, b) => { const r = Math.PI / 180; const x = (b[1] - a[1]) * r * Math.cos(((a[0] + b[0]) / 2) * r); const y = (b[0] - a[0]) * r; return Math.sqrt(x * x + y * y) * 6371; };
+export function pickPlace(list, name, near = null) {
   // Golf course areas only: a restaurant or shop named "... Golf Links" is not the course.
   const golf = (list || []).filter((p) => (p.category || p.class) === 'leisure' && p.type === 'golf_course');
   if (!golf.length) return null;
   const want = coreName(name);
   const score = (p) => { const n = coreName(p.name || p.display_name.split(',')[0]); return n === want ? 3 : (n && want && (n.includes(want) || want.includes(n))) ? 2 : 1; };
-  return golf.slice().sort((a, b) => score(b) - score(a) || (b.importance || 0) - (a.importance || 0))[0];
+  const dist = (p) => (near ? kmBetween(near, [Number(p.lat), Number(p.lon)]) : 0);
+  return golf.slice().sort((a, b) => score(b) - score(a) || dist(a) - dist(b) || (b.importance || 0) - (a.importance || 0))[0];
 }
 
-async function locate(name) {
+// Where to look first: near the golfer when the phone says where it is, otherwise Texas (our groups).
+const TX_CENTER = [30.4, -95.6];
+async function locate(name, near = null) {
   const q = baseName(name);
+  const c = near || TX_CENTER;
+  const box = `&viewbox=${c[1] - 3},${c[0] + 3},${c[1] + 3},${c[0] - 3}`; // a preference, not a limit
   // "Bentwater Yacht & Country Club" -> "Bentwater golf": drop the generic words that differ between listings.
   const core = q.replace(/&/g, ' ').replace(/\b(yacht|country|club|golf|links|course|resort|and|the|cc|gc)\b/gi, ' ').replace(/\s+/g, ' ').trim();
   for (const query of [...new Set([q, `${q} golf`, core && `${core} golf`].filter(Boolean))]) {
     try {
-      const r = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&countrycodes=us&q=${encodeURIComponent(query)}`, {}, 12000);
+      const r = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=20&countrycodes=us${box}&q=${encodeURIComponent(query)}`, {}, 12000);
       if (r.ok) {
-        const p = pickPlace(await r.json(), name);
+        const p = pickPlace(await r.json(), name, c);
         if (p) return { lat: Number(p.lat), lng: Number(p.lon), via: 'nominatim', label: p.display_name };
       }
     } catch { /* try the next way */ }
@@ -185,18 +191,21 @@ functions.http('courseMap', async (req, res) => {
   if (!name) return res.status(400).json({ status: 'error', message: 'Course name missing.' });
   const pin = Number.isFinite(Number(req.body?.lat)) && Number.isFinite(Number(req.body?.lng)) && req.body?.lat !== null
     ? [Number(req.body.lat), Number(req.body.lng)] : null;
+  const nearIn = Array.isArray(req.body?.near) && req.body.near.length === 2 && req.body.near.every((v) => Number.isFinite(Number(v))) ? req.body.near.map(Number) : null;
   const key = mapKey(name);
   const ref = db.collection('courseMaps').doc(key);
 
   try {
     const saved = (await ref.get()).data();
-    if (saved?.mapJSON && saved.mv === MAP_VERSION) return reply(res, 'ok', { name, lat: saved.lat, lng: saved.lng, mapJSON: saved.mapJSON, holes: saved.holes, mv: MAP_VERSION });
+    // A saved course far from where this golfer is (same name, another state) is looked up again near them.
+    const farAway = saved?.mapJSON && nearIn && Number.isFinite(saved.lat) && kmBetween(nearIn, [saved.lat, saved.lng]) > 300;
+    if (saved?.mapJSON && saved.mv === MAP_VERSION && !farAway) return reply(res, 'ok', { name, lat: saved.lat, lng: saved.lng, mapJSON: saved.mapJSON, holes: saved.holes, mv: MAP_VERSION });
     // A map saved under older hole-matching rules is rebuilt at its saved location.
     const oldLoc = saved?.mapJSON && saved.via === 'golfer' && Number.isFinite(saved.lat) ? { lat: saved.lat, lng: saved.lng, via: 'golfer' } : null;
     const fresh = saved?.v === V && saved?.checkedAt && Date.now() - saved.checkedAt.toMillis() < (RECHECK_DAYS[saved.status] || 1) * 864e5;
     if (saved?.status && fresh && !pin) return reply(res, saved.status, { name, lat: saved.lat ?? null, lng: saved.lng ?? null, message: saved.message });
 
-    const loc = pin ? { lat: pin[0], lng: pin[1], via: 'golfer' } : (oldLoc || await locate(name));
+    const loc = pin ? { lat: pin[0], lng: pin[1], via: 'golfer' } : (oldLoc && !farAway ? oldLoc : await locate(name, nearIn));
     if (!loc) {
       const message = `Couldn't find ${baseName(name)} on the map by its name.`;
       await ref.set({ name, v: V, status: 'notFound', message, checkedAt: FieldValue.serverTimestamp() }, { merge: true });

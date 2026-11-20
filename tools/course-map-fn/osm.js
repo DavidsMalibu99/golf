@@ -64,7 +64,7 @@ function inside(pt, poly) {
 const geomOf = (el) => (el.geometry || []).map((g) => [g.lat, g.lon]);
 
 /** Version of the hole-matching rules; saved maps with an older one are rebuilt. */
-export const MAP_VERSION = 3;
+export const MAP_VERSION = 4;
 
 const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 /** "Pebble Beach Golf Links" and "Pebble Beach Golf Course" -> "pebble beach": the words that differ between listings go. */
