@@ -26,7 +26,7 @@ export function yards(a, b) {
 /** Overpass query for golf holes and greens within `radius` metres of a point. */
 export function overpassQuery(lat, lng, radius = 2500) {
   const around = `(around:${radius},${lat},${lng})`;
-  return `[out:json][timeout:25];(way["golf"="hole"]${around};way["golf"="green"]${around};relation["golf"="green"]${around};);out geom;`;
+  return `[out:json][timeout:25];(way["golf"="hole"]${around};way["golf"="green"]${around};relation["golf"="green"]${around};way["leisure"="golf_course"]${around};relation["leisure"="golf_course"]${around};);out geom;`;
 }
 
 /** Local flat x/y in yards around an origin (fine for a golf hole). */
@@ -63,13 +63,45 @@ function inside(pt, poly) {
 
 const geomOf = (el) => (el.geometry || []).map((g) => [g.lat, g.lon]);
 
+/** Version of the hole-matching rules; saved maps with an older one are rebuilt. */
+export const MAP_VERSION = 2;
+
+const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * The golf course outline the holes should come from: the course area (leisure=golf_course) that
+ * contains `near` and/or whose name matches `name`. Several courses can sit side by side (Pebble Beach,
+ * Peter Hay, Spyglass), and each numbers its holes 1-18, so holes outside it are dropped.
+ */
+export function pickCourseArea(els, near, name) {
+  const areas = [];
+  for (const el of els) {
+    if (el.tags?.leisure !== 'golf_course') continue;
+    let rings = [];
+    if (el.type === 'way') { const g = geomOf(el); if (g.length >= 3) rings = [g]; }
+    if (el.type === 'relation') rings = (el.members || []).filter((m) => m.role === 'outer' && m.geometry?.length >= 3).map((m) => m.geometry.map((g) => [g.lat, g.lon]));
+    if (rings.length) areas.push({ rings, name: el.tags.name || '' });
+  }
+  if (!areas.length) return null;
+  const want = normName(String(name || '').split(/ — | – | - |\(/)[0]);
+  const scored = areas.map((a) => {
+    const n = normName(a.name);
+    const nameHit = want && n ? (n === want ? 3 : (n.includes(want) || want.includes(n)) ? 2 : 0) : 0;
+    const holds = near && a.rings.some((r) => inside(near, r)) ? 2 : 0;
+    return { a, score: nameHit + holds };
+  }).filter((x) => x.score > 0).sort((x, y) => y.score - x.score);
+  return scored.length ? scored[0].a : null;
+}
+const inArea = (p, area) => area.rings.some((r) => inside(p, r));
+
 /**
  * Overpass JSON → { holes: { 1: { par, tee, line, green, center } }, count }.
- * When a course has several loops with the same hole numbers (27/36 holes), the hole closest
- * to `near` wins for each number.
+ * Holes come from the course area chosen by pickCourseArea when there is one; otherwise, when
+ * several holes share a number, the one closest to `near` wins.
  */
-export function mapHoles(json, near = null) {
+export function mapHoles(json, near = null, name = '') {
   const els = json?.elements || [];
+  const area = pickCourseArea(els, near, name);
   const greens = [];
   for (const el of els) {
     if (el.tags?.golf !== 'green') continue;
@@ -83,6 +115,7 @@ export function mapHoles(json, near = null) {
     const line = geomOf(el);
     if (!(n >= 1 && n <= 18) || line.length < 2) continue;
     const end = line[line.length - 1];
+    if (area && !inArea(line[0], area) && !inArea(end, area) && !inArea(line[Math.floor(line.length / 2)], area)) continue;
     let green = greens.find((g) => inside(end, g)) || null;
     if (!green && greens.length) {
       green = greens.reduce((best, g) => { const d = yards(end, centroid(g)); return !best || d < best.d ? { g, d } : best; }, null);
@@ -92,7 +125,7 @@ export function mapHoles(json, near = null) {
     const prev = holes[n];
     if (!prev || (near && yards(near, hole.tee) < yards(near, prev.tee))) holes[n] = hole;
   }
-  return { holes, count: Object.keys(holes).length };
+  return { holes, count: Object.keys(holes).length, area: area ? area.name || 'course' : null };
 }
 
 /**
@@ -139,11 +172,14 @@ export function compactHoles(holes) {
   return out;
 }
 
-// ---------- Aerial photo (Texas) ----------
-// The free USDA NAIP 2022 aerial (public domain) comes from the Texas Geographic Information Office,
-// so photos exist only inside Texas. A rough box is enough: the server checks the photo too.
+// ---------- Aerial photo (lower 48 states) ----------
+// The free USDA NAIP aerial (public domain), served for the whole lower 48 by the USGS National Map
+// (USGSNAIPPlus, sharper local photos where they exist) and for Texas also by the Texas GIO.
+export const LOWER48 = { S: 24.4, N: 49.5, W: -125.0, E: -66.8 };
 export const TEXAS = { S: 25.8, N: 36.6, W: -106.7, E: -93.5 };
-export const inTexas = (p) => p[0] >= TEXAS.S && p[0] <= TEXAS.N && p[1] >= TEXAS.W && p[1] <= TEXAS.E;
+const inBox = (p, b) => p[0] >= b.S && p[0] <= b.N && p[1] >= b.W && p[1] <= b.E;
+export const inTexas = (p) => inBox(p, TEXAS);
+export const hasPhotos = (p) => inBox(p, LOWER48);
 
 /** The area of a hole's photo: tee, line and green with ~130 m around, at most 1400 px a side. */
 export function photoBox(h) {

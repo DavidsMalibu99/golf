@@ -14,7 +14,7 @@
 import functions from '@google-cloud/functions-framework';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse, photoBox, inTexas } from './osm.js';
+import { OVERPASS, overpassQuery, mapHoles, compactHoles, mapKey, pickCourse, photoBox, inTexas, hasPhotos, MAP_VERSION } from './osm.js';
 
 const UA = 'MSG-Golf-App/1.0 (+https://msg-golf.com; info@msg-golf.com)';
 const ORIGINS = /^https:\/\/((www\.)?mvwns\.com|(www\.)?msg-golf\.com|msg-dev-74f88\.(web\.app|firebaseapp\.com))$|^http:\/\/localhost(:\d+)?$/;
@@ -78,10 +78,10 @@ export function osmApiToOverpass(data) {
   const geom = (w) => (w.nodes || []).map((id) => nodes.get(id)).filter(Boolean);
   for (const w of ways.values()) {
     const g = w.tags?.golf;
-    if (g === 'hole' || g === 'green') out.push({ type: 'way', id: w.id, tags: w.tags, geometry: geom(w) });
+    if (g === 'hole' || g === 'green' || w.tags?.leisure === 'golf_course') out.push({ type: 'way', id: w.id, tags: w.tags, geometry: geom(w) });
   }
   for (const r of data.elements || []) {
-    if (r.type !== 'relation' || r.tags?.golf !== 'green') continue;
+    if (r.type !== 'relation' || (r.tags?.golf !== 'green' && r.tags?.leisure !== 'golf_course')) continue;
     out.push({ type: 'relation', id: r.id, tags: r.tags, members: (r.members || []).filter((m) => m.type === 'way' && ways.has(m.ref))
       .map((m) => ({ type: 'way', ref: m.ref, role: m.role, geometry: geom(ways.get(m.ref)) })) });
   }
@@ -124,36 +124,44 @@ async function overpass(lat, lng) {
 const reply = (res, status, extra = {}) => res.json({ status, ...extra });
 
 // GET ?photo=1&course=<key>&hole=<n>  ->  the hole's aerial photo (JPEG), area = osm.js photoBox.
-// Fetched from the Texas server the first time, then kept in Firestore courseMaps/<key>/photos/<n>.
-// Only holes of a saved map, inside Texas, so the address can't be used to fetch anything else.
-const NAIP = 'https://imagery.geographic.texas.gov/server/rest/services/NAIP/NAIP22_NCCIR_60cm/ImageServer/exportImage';
+// Free public-domain USDA NAIP photos: the USGS National Map for the lower 48 (sharper local photos
+// where they exist), the Texas GIO server as a backup in Texas. Fetched the first time, then kept in
+// Firestore courseMaps/<key>/photos/<n>. Only holes of a saved map, so the address can't fetch anything else.
+const USGS = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPPlus/ImageServer/exportImage';
+const NAIP_TX = 'https://imagery.geographic.texas.gov/server/rest/services/NAIP/NAIP22_NCCIR_60cm/ImageServer/exportImage';
+const sameBox = (a, b) => a && b && ['W', 'S', 'E', 'N', 'pw', 'ph'].every((k) => a[k] === b[k]);
+async function fetchPhoto(b, texas) {
+  const q = `bbox=${b.W},${b.S},${b.E},${b.N}&bboxSR=4326&imageSR=4326&size=${b.pw},${b.ph}&format=jpg&f=image`;
+  const urls = [`${USGS}?${q}`, ...(texas ? [`${NAIP_TX}?${q}&bandIds=0,1,2`] : []), `${USGS}?${q}`];
+  for (const url of urls) {
+    try {
+      const r = await get(url, {}, 40000);
+      const x = Buffer.from(await r.arrayBuffer());
+      if (r.ok && x[0] === 0xff && x[1] === 0xd8 && x.length > 15000) return x;
+    } catch { /* next */ }
+    await wait(1500);
+  }
+  return null;
+}
 async function holePhoto(req, res) {
   const key = mapKey(String(req.query.course || ''));
   const n = String(parseInt(req.query.hole, 10) || '');
   try {
     const mapDoc = (await db.collection('courseMaps').doc(key).get()).data();
     const h = mapDoc?.mapJSON ? JSON.parse(mapDoc.mapJSON)[n] : null;
-    if (!h || !inTexas(h.tee)) return res.status(404).send('No photo for this hole.');
+    if (!h || !hasPhotos(h.tee)) return res.status(404).send('No photo for this hole.');
+    const b = photoBox(h);
     const ref = db.collection('courseMaps').doc(key).collection('photos').doc(n);
-    let jpg = (await ref.get()).data()?.jpg;
+    const saved = (await ref.get()).data();
+    let jpg = saved?.jpg && sameBox(saved.box, b) ? saved.jpg : null;
     if (!jpg) {
-      const b = photoBox(h);
-      const url = `${NAIP}?bbox=${b.W},${b.S},${b.E},${b.N}&bboxSR=4326&imageSR=4326&size=${b.pw},${b.ph}&format=jpg&bandIds=0,1,2&f=image`;
-      let buf = null;
-      for (let i = 0; i < 3 && !buf; i++) {
-        try {
-          const r = await get(url, {}, 40000);
-          const x = Buffer.from(await r.arrayBuffer());
-          if (r.ok && x[0] === 0xff && x[1] === 0xd8 && x.length > 15000) buf = x;
-        } catch { /* retry */ }
-        if (!buf) await wait(2000);
-      }
+      const buf = await fetchPhoto(b, inTexas(h.tee));
       if (!buf) return res.status(503).send('Photo server busy.');
       if (buf.length < 1000000) await ref.set({ jpg: buf, box: b, savedAt: FieldValue.serverTimestamp() });
       jpg = buf;
     }
     res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=2592000');
+    res.set('Cache-Control', 'public, max-age=86400');
     return res.send(Buffer.from(jpg));
   } catch (e) {
     console.error('photo', key, n, e);
@@ -181,26 +189,28 @@ functions.http('courseMap', async (req, res) => {
 
   try {
     const saved = (await ref.get()).data();
-    if (saved?.mapJSON) return reply(res, 'ok', { name, lat: saved.lat, lng: saved.lng, mapJSON: saved.mapJSON, holes: saved.holes });
+    if (saved?.mapJSON && saved.mv === MAP_VERSION) return reply(res, 'ok', { name, lat: saved.lat, lng: saved.lng, mapJSON: saved.mapJSON, holes: saved.holes, mv: MAP_VERSION });
+    // A map saved under older hole-matching rules is rebuilt at its saved location.
+    const oldLoc = saved?.mapJSON && Number.isFinite(saved.lat) ? { lat: saved.lat, lng: saved.lng, via: saved.via || 'saved' } : null;
     const fresh = saved?.v === V && saved?.checkedAt && Date.now() - saved.checkedAt.toMillis() < (RECHECK_DAYS[saved.status] || 1) * 864e5;
     if (saved?.status && fresh && !pin) return reply(res, saved.status, { name, lat: saved.lat ?? null, lng: saved.lng ?? null, message: saved.message });
 
-    const loc = pin ? { lat: pin[0], lng: pin[1], via: 'golfer' } : await locate(name);
+    const loc = pin ? { lat: pin[0], lng: pin[1], via: 'golfer' } : (oldLoc || await locate(name));
     if (!loc) {
       const message = `Couldn't find ${baseName(name)} on the map by its name.`;
       await ref.set({ name, v: V, status: 'notFound', message, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
       return reply(res, 'notFound', { name, message });
     }
-    const map = mapHoles(await overpass(loc.lat, loc.lng), [loc.lat, loc.lng]);
+    const map = mapHoles(await overpass(loc.lat, loc.lng), [loc.lat, loc.lng], name);
     if (!map.count) {
       const message = `${baseName(name)} is on the map, but its holes haven't been drawn in OpenStreetMap yet.`;
       await ref.set({ name, v: V, status: 'noHoles', message, lat: loc.lat, lng: loc.lng, via: loc.via, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
       return reply(res, 'noHoles', { name, lat: loc.lat, lng: loc.lng, message });
     }
     const mapJSON = JSON.stringify(compactHoles(map.holes));
-    await ref.set({ name, status: 'ok', lat: loc.lat, lng: loc.lng, via: loc.via, mapJSON, holes: map.count,
+    await ref.set({ name, status: 'ok', mv: MAP_VERSION, area: map.area, lat: loc.lat, lng: loc.lng, via: loc.via, mapJSON, holes: map.count,
       source: 'openstreetmap', by: 'server', savedAt: FieldValue.serverTimestamp(), checkedAt: FieldValue.serverTimestamp() });
-    return reply(res, 'ok', { name, lat: loc.lat, lng: loc.lng, mapJSON, holes: map.count });
+    return reply(res, 'ok', { name, lat: loc.lat, lng: loc.lng, mapJSON, holes: map.count, mv: MAP_VERSION });
   } catch (e) {
     console.error(name, e);
     return reply(res, 'busy', { name, message: 'The free map servers are busy right now. Try again in a minute.' });
