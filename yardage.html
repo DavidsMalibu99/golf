@@ -47,6 +47,8 @@ body { margin: 0; font: 16px/1.35 var(--font); }
 .views { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; background: rgba(0,0,0,.25); border-radius: 10px; padding: 3px; max-width: 360px; margin-inline: auto; }
 .views button { height: 36px; border: 0; border-radius: 8px; background: transparent; color: #fff; font: 600 15px var(--font); white-space: nowrap; padding: 0 4px; cursor: pointer; }
 .views button[aria-pressed="true"] { background: #fff; color: var(--green); }
+.zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+.zoom button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.5); background: rgba(0,0,0,.45); color: #fff; font: 700 22px/1 system-ui, sans-serif; padding: 0; }
 .credit { position: absolute; left: 6px; top: 6px; font: 600 10px/1.2 system-ui, sans-serif; color: #fff; background: rgba(0,0,0,.45); padding: 2px 6px; border-radius: 6px; pointer-events: none; }
 .views button:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -104,6 +106,7 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
     </aside>
     <div class="mapbox" id="mapbox">
       <svg id="map" role="img" aria-label="Hole map"></svg>
+      <div class="zoom" id="zoomBtns"><button type="button" id="zIn" aria-label="Zoom in">+</button><button type="button" id="zOut" aria-label="Zoom out">−</button><button type="button" id="zReset" aria-label="Back to the whole hole" hidden>⤢</button></div>
       <div class="credit" id="photoCredit" hidden>Photo: USDA NAIP 2022, Texas Geographic Information Office</div>
       <div class="pill"><span class="dot" id="sDot"></span><span class="msg" id="sMsg">Starting…</span><button id="modeBtn">Practice</button></div>
     </div>
@@ -302,9 +305,12 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
 
   // ---- map interaction: drag the target ring; tap elsewhere to stand there (practice) or to aim (GPS) ----
   let drag = null, fr = null, scale = 1;
+  // Zoom: k = how far in (1 = whole hole), dx/dy = pan from the middle, in map units.
+  let zoom = { k: 1, dx: 0, dy: 0 }, zoomKey = "", baseVB = null, mapH = 560;
+  const ZMAX = 8;
   const svgPoint = ev => { const svg = $("map"), pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
   $("map").addEventListener("pointerdown", ev => {
-    if (!fr) return;
+    if (!fr || touches.size > 1) return;
     const s = svgPoint(ev);
     const teeHit = ev.target.closest && ev.target.closest("[data-tee]");
     if (teeHit) {
@@ -321,9 +327,79 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
   $("map").addEventListener("pointerup", endDrag); $("map").addEventListener("pointercancel", endDrag);
   window.addEventListener("resize", () => render());
 
+  // The visible part of the base view at the current zoom, kept inside the base view.
+  function zoomed() {
+    const b = baseVB, k = zoom.k, w = b.w / k, hh = b.h / k;
+    const maxDx = (b.w - w) / 2, maxDy = (b.h - hh) / 2;
+    zoom.dx = Math.max(-maxDx, Math.min(maxDx, zoom.dx)); zoom.dy = Math.max(-maxDy, Math.min(maxDy, zoom.dy));
+    return { x0: b.x0 + b.w / 2 + zoom.dx - w / 2, y0: b.y0 + b.h / 2 + zoom.dy - hh / 2, w, h: hh };
+  }
+  // Zoom by f around screen point (px, py) without a full redraw (used while pinching).
+  function zoomAt(f, px, py) {
+    if (!baseVB) return;
+    const svg = $("map"), box = svg.getBoundingClientRect(), before = zoomed();
+    const k = Math.max(1, Math.min(ZMAX, zoom.k * f));
+    const fx = (px - box.left) / box.width, fy = (py - box.top) / box.height;
+    const mx = before.x0 + fx * before.w, my = before.y0 + fy * before.h;   // map point under the fingers
+    zoom.k = k;
+    const w = baseVB.w / k, hh = baseVB.h / k;
+    zoom.dx = mx - fx * w + w / 2 - (baseVB.x0 + baseVB.w / 2);
+    zoom.dy = my - fy * hh + hh / 2 - (baseVB.y0 + baseVB.h / 2);
+    if (k <= 1.001) zoom = { k: 1, dx: 0, dy: 0 };
+    const v = zoomed();
+    svg.setAttribute("viewBox", [v.x0, v.y0, v.w, v.h].map(n => n.toFixed(1)).join(" "));
+  }
+  function panBy(ddx, ddy) {
+    if (!baseVB || zoom.k <= 1) return;
+    const svg = $("map"), box = svg.getBoundingClientRect(), v = zoomed();
+    zoom.dx -= ddx * v.w / box.width; zoom.dy -= ddy * v.h / box.height;
+    const n = zoomed();
+    svg.setAttribute("viewBox", [n.x0, n.y0, n.w, n.h].map(x => x.toFixed(1)).join(" "));
+  }
+  const mid = () => { const r = $("map").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+  $("zIn").addEventListener("click", () => { zoomAt(2, ...mid()); render(); });
+  $("zOut").addEventListener("click", () => { zoomAt(0.5, ...mid()); render(); });
+  $("zReset").addEventListener("click", () => { zoom = { k: 1, dx: 0, dy: 0 }; render(); });
+  let wheelT = null;
+  $("map").addEventListener("wheel", ev => { ev.preventDefault(); zoomAt(ev.deltaY < 0 ? 1.25 : 0.8, ev.clientX, ev.clientY); clearTimeout(wheelT); wheelT = setTimeout(render, 250); }, { passive: false });
+
+  // Two fingers: pinch to zoom and move to pan. A second finger cancels what the first one did
+  // (aiming or standing), so a pinch never moves your ring.
+  const touches = new Map(); let pinch = null, before = null;
+  $("map").addEventListener("pointerdown", ev => {
+    if (touches.size === 0) before = { t: target[idx], p: practice[idx], tee: teeName };
+    touches.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (touches.size === 2) {
+      drag = null;
+      if (before) { if (before.t === undefined) delete target[idx]; else target[idx] = before.t; if (before.p === undefined) delete practice[idx]; else practice[idx] = before.p; teeName = before.tee; }
+      const [a, b] = [...touches.values()];
+      pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
+      render();
+    }
+  }, true);
+  $("map").addEventListener("pointermove", ev => {
+    if (!touches.has(ev.pointerId)) return;
+    touches.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (pinch && touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      zoomAt(d / pinch.d, c[0], c[1]);
+      panBy(c[0] - pinch.c[0], c[1] - pinch.c[1]);
+      pinch = { d, c };
+      ev.stopImmediatePropagation();
+    }
+  }, true);
+  const lift = ev => {
+    touches.delete(ev.pointerId);
+    if (pinch && touches.size < 2) { pinch = null; render(); }   // redraw sharp at the new zoom
+  };
+  $("map").addEventListener("pointerup", lift, true); $("map").addEventListener("pointercancel", lift, true);
+
   // ---- render ----
   function render() {
     const h = HOLES[idx], o = origin(h);
+    const key = idx + "|" + view;
+    if (key !== zoomKey) { zoomKey = key; zoom = { k: 1, dx: 0, dy: 0 }; }
     if (!h.drawn && view !== "green") view = "green";
     $("vPhoto").disabled = !h.drawn;
     $("vPhoto").setAttribute("aria-pressed", String(view === "photo"));
@@ -367,10 +443,14 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
     // fit the content, keep the box's aspect so the drawing fills the space
     let w = x1 - x0, hgt = y1 - y0;
     if (w / hgt < W / H) { const nw = hgt * W / H; x0 -= (nw - w) / 2; w = nw; } else { const nh = w * H / W; y0 -= (nh - hgt) / 2; hgt = nh; }
-    svg.setAttribute("viewBox", [x0, y0, w, hgt].map(v => v.toFixed(1)).join(" "));
+    baseVB = { x0, y0, w, h: hgt }; mapH = H;
+    const v = zoomed();
+    svg.setAttribute("viewBox", [v.x0, v.y0, v.w, v.h].map(n => n.toFixed(1)).join(" "));
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    scale = hgt / H; // yards per screen pixel
-    return { x0, y0, w, h: hgt };
+    scale = v.h / H; // yards per screen pixel
+    $("zReset").hidden = zoom.k <= 1.01;
+    $("zOut").disabled = zoom.k <= 1.01; $("zIn").disabled = zoom.k >= ZMAX - 0.01;
+    return v;
   }
 
   // Woods beside the hole: pale rough with scattered trees and clumps, thicker away from the
@@ -487,19 +567,34 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
   // Photo view: the free USDA NAIP aerial (2022, 60 cm, public domain) from the Texas Geographic
   // Information Office, fetched for the area on screen and laid under the hole in the same frame.
   const NAIP = "https://imagery.geographic.texas.gov/server/rest/services/NAIP/NAIP22_NCCIR_60cm/ImageServer/exportImage";
-  function photo(svg, vb) {
+  // The same photos, stored with the site for every mapped hole (golf tools/photos, fetched once),
+  // so Photo view shows at once and doesn't depend on the Texas server: [W, S, E, N, width, height].
+  const PHOTO_COURSE = W ? "walden" : "margaritaville";
+  const STORED = {"margaritaville":{"1":[-95.636523,30.393943,-95.630105,30.398196,1027,788],"2":[-95.632896,30.394038,-95.62829,30.398266,737,783],"3":[-95.634664,30.395475,-95.628941,30.400798,916,986],"4":[-95.634992,30.395007,-95.629594,30.400463,864,1011],"5":[-95.634172,30.394162,-95.629676,30.398332,720,772],"6":[-95.635978,30.395622,-95.631415,30.401786,730,1142],"7":[-95.639557,30.398979,-95.633262,30.405191,1007,1151],"8":[-95.640089,30.400284,-95.636168,30.405046,627,882],"9":[-95.639668,30.395725,-95.634193,30.402652,876,1283],"10":[-95.640097,30.395895,-95.634586,30.402054,882,1141],"11":[-95.641041,30.399384,-95.637815,30.403633,516,787],"12":[-95.6457,30.399475,-95.639609,30.404329,975,899],"13":[-95.64416,30.39563,-95.638608,30.401125,888,1018],"14":[-95.644026,30.395789,-95.638505,30.401504,884,1059],"15":[-95.644245,30.398879,-95.640058,30.402574,670,684],"16":[-95.642629,30.396121,-95.637254,30.402176,860,1122],"17":[-95.64192,30.396701,-95.636847,30.402001,812,982],"18":[-95.640622,30.395784,-95.63544,30.401842,829,1122]},"walden":{"1":[-95.628269,30.395252,-95.624642,30.401707,580,1196],"2":[-95.632821,30.399701,-95.625249,30.403561,1212,715],"3":[-95.636604,30.400282,-95.630649,30.404628,953,805],"4":[-95.636497,30.4004,-95.631758,30.404181,758,700],"5":[-95.633595,30.397419,-95.629282,30.403094,690,1051],"6":[-95.632853,30.396992,-95.628579,30.400928,684,729],"7":[-95.630362,30.394401,-95.626486,30.400643,620,1156],"8":[-95.629477,30.390746,-95.624078,30.39614,864,999],"9":[-95.627376,30.390291,-95.622595,30.397257,765,1290],"10":[-95.626903,30.390631,-95.622171,30.397773,757,1323],"11":[-95.626106,30.384843,-95.622049,30.392254,649,1373],"12":[-95.625431,30.384178,-95.621179,30.387492,681,614],"13":[-95.624836,30.38502,-95.618535,30.389756,1008,877],"14":[-95.623327,30.387291,-95.618615,30.390407,754,577],"15":[-95.622582,30.387051,-95.616453,30.391678,981,857],"16":[-95.621146,30.386739,-95.615647,30.393394,880,1233],"17":[-95.623176,30.389836,-95.619542,30.394013,582,774],"18":[-95.626141,30.390609,-95.621488,30.39694,745,1173]}};
+  function photo(svg, vb, holeNo) {
     const corners = [[vb.x0, vb.y0], [vb.x0 + vb.w, vb.y0], [vb.x0, vb.y0 + vb.h], [vb.x0 + vb.w, vb.y0 + vb.h]].map(([x, y]) => fr.from({ x, y }));
     const pad = 0.0004;
-    const S = Math.min(...corners.map(c => c.lat)) - pad, N = Math.max(...corners.map(c => c.lat)) + pad;
-    const W = Math.min(...corners.map(c => c.lng)) - pad, E = Math.max(...corners.map(c => c.lng)) + pad;
-    const mW = (E - W) * 111320 * Math.cos(rad((N + S) / 2)), mH = (N - S) * 111132.954;
+    let S = Math.min(...corners.map(c => c.lat)) - pad, N = Math.max(...corners.map(c => c.lat)) + pad;
+    let Wl = Math.min(...corners.map(c => c.lng)) - pad, E = Math.max(...corners.map(c => c.lng)) + pad;
+    const mW = (E - Wl) * 111320 * Math.cos(rad((N + S) / 2)), mH = (N - S) * 111132.954;
     const k = Math.min(1 / 0.5, 2000 / Math.max(mW, mH));          // ~0.5 m per pixel, at most 2000 px
-    const pw = Math.round(mW * k), ph = Math.round(mH * k);
-    const url = `${NAIP}?bbox=${W},${S},${E},${N}&bboxSR=4326&imageSR=4326&size=${pw},${ph}&format=jpg&bandIds=0,1,2&f=image`;
+    let pw = Math.round(mW * k), ph = Math.round(mH * k);
+    const live = `${NAIP}?bbox=${Wl},${S},${E},${N}&bboxSR=4326&imageSR=4326&size=${pw},${ph}&format=jpg&bandIds=0,1,2&f=image`;
+    let url = live;
+    const st = (STORED[PHOTO_COURSE] || {})[String(holeNo)];
+    if (st && st[0] <= Wl + pad && st[1] <= S + pad && st[2] >= E - pad && st[3] >= N - pad) {
+      [Wl, S, E, N, pw, ph] = st;
+      url = `/yardage/photos/${PHOTO_COURSE}-${holeNo}.jpg`;
+    }
+    // "Loading photo…" until the picture arrives (it covers this).
+    const mid = { x: vb.x0 + vb.w / 2, y: vb.y0 + vb.h / 2 };
+    svg.appendChild(el("text", { x: mid.x, y: mid.y, "font-size": 18 * scale, "text-anchor": "middle", fill: "#cfd8c8", "font-family": "var(--font)" }, "Loading photo…"));
     // pixel (u, v) -> lat/lng is linear, and so is lat/lng -> the screen frame: one matrix places it.
-    const O = fr.to({ lat: N, lng: W }), X = fr.to({ lat: N, lng: W + (E - W) / pw }), Y = fr.to({ lat: N - (N - S) / ph, lng: W });
-    svg.appendChild(el("image", { href: url, x: 0, y: 0, width: pw, height: ph, preserveAspectRatio: "none",
-      transform: `matrix(${X.x - O.x} ${X.y - O.y} ${Y.x - O.x} ${Y.y - O.y} ${O.x} ${O.y})` }));
+    const O = fr.to({ lat: N, lng: Wl }), X = fr.to({ lat: N, lng: Wl + (E - Wl) / pw }), Y = fr.to({ lat: N - (N - S) / ph, lng: Wl });
+    const img = el("image", { href: url, x: 0, y: 0, width: pw, height: ph, preserveAspectRatio: "none",
+      transform: `matrix(${X.x - O.x} ${X.y - O.y} ${Y.x - O.x} ${Y.y - O.y} ${O.x} ${O.y})` });
+    if (url !== live) img.addEventListener("error", () => img.setAttribute("href", live), { once: true }); // not stored yet: fetch it
+    svg.appendChild(img);
   }
 
   function drawHole(h, o, asPhoto) {
@@ -509,7 +604,7 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
     const vb = setView(svg, outline.concat(D.tees.map(t => fr.to(t.p))), 8);  // keep every tee box in view
     defs(svg);
     if (asPhoto) {
-      photo(svg, vb);
+      photo(svg, vb, h.hole);
       svg.appendChild(el("path", { d: shape("green", green), fill: "none", stroke: "#fff", "stroke-width": 1.6 * scale, "stroke-dasharray": `${4 * scale} ${3 * scale}`, opacity: .85 }));
     } else {
     svg.appendChild(el("rect", { x: -5000, y: -5000, width: 10000, height: 10000, fill: "var(--native)" }));
