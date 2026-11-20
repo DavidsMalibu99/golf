@@ -125,6 +125,7 @@
     font-size:0.95rem;
     letter-spacing:0.5px;
   }
+  .btn.secondary.wg-del-btn{width:auto;margin:0;padding:8px 12px;border-color:var(--loss);color:var(--loss);font-size:.85rem}
   .btn.secondary{
     background:transparent;
     border:1px solid var(--gold);
@@ -534,7 +535,7 @@ function hcSave(dbRef) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <button class="btn secondary" onclick="backToWolfHistoryList()">← Back</button>
         <span id="wolfHistDetailDate" style="font-weight:700;color:var(--gold-soft);"></span>
-        <span style="width:60px"></span>
+        <button class="btn secondary wg-del-btn" onclick="wgDeleteOpenRound('wolf')">🗑 Delete</button>
       </div>
       <h3 style="margin:6px 0;">Final Money</h3>
       <div id="wolfHistMoneyWrap"></div>
@@ -693,7 +694,7 @@ function hcSave(dbRef) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <button class="btn secondary" onclick="backToSbHistoryList()">← Back</button>
         <span id="sbHistDetailDate" style="font-weight:700;color:var(--gold-soft);"></span>
-        <span style="width:60px"></span>
+        <button class="btn secondary wg-del-btn" onclick="wgDeleteOpenRound('sb')">🗑 Delete</button>
       </div>
       <div class="sb-tab-row">
         <button id="sbHistTabFront" class="sb-tab sel" onclick="setSbHistTab('front')">Front 9</button>
@@ -1315,6 +1316,32 @@ function endWolfRound(){
   showView('setup');
 }
 
+// History: which saved round is open in each game's detail screen, for the Delete button.
+const wgHistOpen = {wolf:null, sb:null, nv:null};
+// Delete the open round (organizer PIN). A backup copy goes to weekendGames/deleted_<id> first.
+async function wgDeleteOpenRound(key){
+  const id = wgHistOpen[key];
+  if(!id) return;
+  if(!wgAdminCheck()) return;
+  const when = (document.getElementById(key + 'HistDetailDate') || {}).textContent || 'this date';
+  if(!confirm(`Delete the round from ${when}?\n\nIt disappears from History and from Stats. A backup copy is kept.`)) return;
+  try{
+    const ref = weekendDb.collection('weekendHistory').doc(id);
+    const doc = await ref.get();
+    if(doc.exists){
+      await weekendDb.collection('weekendGames').doc('deleted_' + id).set(Object.assign({}, doc.data(), {deletedAt: firebase.firestore.FieldValue.serverTimestamp()}));
+      await ref.delete();
+    }
+    wgHistOpen[key] = null;
+    if(key === 'wolf'){ backToWolfHistoryList(); loadWolfHistoryList(); }
+    else if(key === 'sb'){ backToSbHistoryList(); loadSbHistoryList(); }
+    else { backToNvHistoryList(); loadNvHistoryList(); }
+  }catch(err){
+    console.error('delete round', err);
+    alert('Could not delete that round. Check your connection.');
+  }
+}
+
 function loadWolfHistoryList(){
   const wrap = document.getElementById('wolfHistoryList');
   wrap.innerHTML = '<div class="hint">Loading...</div>';
@@ -1344,6 +1371,7 @@ function loadWolfHistoryList(){
 }
 
 function openWolfHistoryDetail(id){
+  wgHistOpen.wolf = id;
   weekendDb.collection('weekendHistory').doc(id).get().then(doc=>{
     if(!doc.exists) return;
     const d = doc.data();
@@ -2358,6 +2386,7 @@ let sbHistTab = 'front';
 let sbCurrentHistoryRecord = null;
 
 function openSbHistoryDetail(id){
+  wgHistOpen.sb = id;
   weekendDb.collection('weekendHistory').doc(id).get().then(doc=>{
     if(!doc.exists) return;
     const d = doc.data();
@@ -3629,7 +3658,7 @@ function renderSbBoard(){
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button class="btn secondary" onclick="backToNvHistoryList()">← Back</button>
         <span id="nvHistDetailDate" style="font-weight:700;color:var(--gold-soft);"></span>
-        <span style="width:60px"></span>
+        <button class="btn secondary wg-del-btn" onclick="wgDeleteOpenRound('nv')">🗑 Delete</button>
       </div>
       <div id="nvHistDetailWrap"></div>
     </div>
@@ -4146,6 +4175,7 @@ function loadNvHistoryList(){
 }
 
 function openNvHistoryDetail(id){
+  wgHistOpen.nv = id;
   weekendDb.collection('weekendHistory').doc(id).get().then(doc=>{
     if(!doc.exists) return;
     const d = doc.data();
