@@ -1689,5 +1689,16 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
 <script src="/ghin-check.js?v=20261119c"></script>
 <script>(function(){var ok=false;function pin(){if(ok)return true;var v=prompt('Admin PIN to check GHIN:');if(v&&v.trim()==='1990'){ok=true;return true}if(v!==null)alert('Wrong PIN.');return false}
 try{document.querySelectorAll('.ghin-check-slot').forEach(function(el){GhinCheck.mount(el,{db:firebase.firestore(),target:location.pathname.startsWith('/dev/')?'dev':'live',guard:pin})})}catch(e){console.warn(e)}})();</script>
+<!-- 💬 Feedback button (shared with the MSG App; words only; owners read it in MSG App Admin → Feedback) -->
+<script src="https://msg-golf.com/feedback-widget.js" defer></script>
+<script>
+window.addEventListener('load', function () {
+  if (!window.MSGFeedback) return;
+  MSGFeedback.init({ app: 'More Games (test copy)', bottom: 16, context: function () {
+    var sub = document.getElementById('headerSub');
+    return { where: [document.title, sub && sub.textContent, location.hash].filter(Boolean).join(' · ') };
+  } });
+});
+</script>
 </body>
 </html>

@@ -613,5 +613,16 @@ function newSeason(){
 render();
 if(view==='season') loadHistory();
 </script>
+<!-- 💬 Feedback button (shared with the MSG App; words only; owners read it in MSG App Admin → Feedback) -->
+<script src="https://msg-golf.com/feedback-widget.js" defer></script>
+<script>
+window.addEventListener('load', function () {
+  if (!window.MSGFeedback) return;
+  MSGFeedback.init({ app: 'Maritime', bottom: 78, context: function () {
+    var sub = document.getElementById('headerSub');
+    return { where: [document.title, sub && sub.textContent, location.hash].filter(Boolean).join(' · ') };
+  } });
+});
+</script>
 </body>
 </html>

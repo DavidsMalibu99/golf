@@ -6525,5 +6525,16 @@ function ydsSet(id, courseId) { const b = document.getElementById(id); if (b) b.
 <script src="/ghin-check.js?v=20261119c"></script>
 <script src="/weekend-stats.js?v=20261120d"></script>
 <script>try{document.querySelectorAll('#ghin-check-box,.ghin-check-slot').forEach(function(el){GhinCheck.mount(el,{db:firebase.firestore(),target:location.pathname.startsWith('/dev/')?'dev':'live',guard:wgAdminCheck})})}catch(e){console.warn(e)}</script>
+<!-- 💬 Feedback button (shared with the MSG App; words only; owners read it in MSG App Admin → Feedback) -->
+<script src="https://msg-golf.com/feedback-widget.js" defer></script>
+<script>
+window.addEventListener('load', function () {
+  if (!window.MSGFeedback) return;
+  MSGFeedback.init({ app: 'Weekend Games', bottom: 78, context: function () {
+    var sub = document.getElementById('headerSub');
+    return { where: [document.title, sub && sub.textContent, location.hash].filter(Boolean).join(' · ') };
+  } });
+});
+</script>
 </body>
 </html>

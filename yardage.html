@@ -723,5 +723,16 @@ button:focus-visible { outline: 3px solid #f5c542; outline-offset: 2px; }
   setInterval(() => { if (mode === "gps" && gps && Date.now() - gps.t > 15000) render(); }, 5000);
 })();
 </script>
+<!-- 💬 Feedback button (shared with the MSG App; words only; owners read it in MSG App Admin → Feedback) -->
+<script src="https://msg-golf.com/feedback-widget.js" defer></script>
+<script>
+window.addEventListener('load', function () {
+  if (!window.MSGFeedback) return;
+  MSGFeedback.init({ app: 'Yardages', bottom: 16, context: function () {
+    var sub = document.getElementById('headerSub');
+    return { where: [document.title, sub && sub.textContent, location.hash].filter(Boolean).join(' · ') };
+  } });
+});
+</script>
 </body>
 </html>
