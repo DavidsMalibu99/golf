@@ -185,6 +185,8 @@
   .board-card:last-child{border-bottom:none;}
   .hist-item{display:flex; flex-direction:column; gap:2px; padding:12px 4px; border-bottom:1px solid var(--line-green); cursor:pointer;}
   .hist-item:last-child{border-bottom:none;}
+  .hist-item{position:relative; padding-right:48px;}
+  .hist-del{position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:1px solid var(--loss); color:var(--loss); border-radius:8px; padding:6px 9px; font-size:1rem; line-height:1;}
   .hist-item-date{font-weight:700; color:var(--gold-soft); font-size:0.95rem;}
   .hist-item-sub{font-size:0.8rem; color:var(--text-dim);}
   .board-rank{color:var(--text-dim); width:22px;}
@@ -1320,12 +1322,16 @@ function endWolfRound(){
 
 // History: which saved round is open in each game's detail screen, for the Delete button.
 const wgHistOpen = {wolf:null, sb:null, nv:null};
-// Delete the open round (organizer PIN). A backup copy goes to weekendGames/deleted_<id> first.
-async function wgDeleteOpenRound(key){
+// Delete a saved round (organizer PIN). A backup copy goes to weekendGames/deleted_<id> first.
+function wgDeleteOpenRound(key){
   const id = wgHistOpen[key];
   if(!id) return;
+  return wgDeleteRoundById(key, id, (document.getElementById(key + 'HistDetailDate') || {}).textContent);
+}
+async function wgDeleteRoundById(key, id, whenText){
+  if(!id) return;
   if(!wgAdminCheck()) return;
-  const when = (document.getElementById(key + 'HistDetailDate') || {}).textContent || 'this date';
+  const when = whenText || 'this date';
   if(!confirm(`Delete the round from ${when}?\n\nIt disappears from History and from Stats. A backup copy is kept.`)) return;
   try{
     const ref = weekendDb.collection('weekendHistory').doc(id);
@@ -1362,6 +1368,7 @@ function loadWolfHistoryList(){
       let playerCount = 0;
       try{ playerCount = JSON.parse(item.playersJSON || '[]').length; }catch(e){}
       return `<div class="hist-item" onclick="openWolfHistoryDetail('${item.id}')">
+        <button class="hist-del" title="Delete this round" onclick="event.stopPropagation(); wgDeleteRoundById('wolf','${item.id}', this.parentNode.querySelector('.hist-item-date').textContent)">🗑</button>
         <div class="hist-item-date">${dateStr}</div>
         <div class="hist-item-sub">${sbCourse(item.courseId).name} · ${playerCount} player${playerCount===1?'':'s'}</div>
       </div>`;
@@ -2374,6 +2381,7 @@ function loadSbHistoryList(){
       let playerCount = 0;
       try{ playerCount = JSON.parse(item.playersJSON || '[]').length; }catch(e){}
       return `<div class="hist-item" onclick="openSbHistoryDetail('${item.id}')">
+        <button class="hist-del" title="Delete this round" onclick="event.stopPropagation(); wgDeleteRoundById('sb','${item.id}', this.parentNode.querySelector('.hist-item-date').textContent)">🗑</button>
         <div class="hist-item-date">${dateStr}</div>
         <div class="hist-item-sub">${sbCourse(item.courseId).name} · ${playerCount} player${playerCount===1?'':'s'}</div>
       </div>`;
@@ -4166,6 +4174,7 @@ function loadNvHistoryList(){
       let playerCount = 0;
       try{ playerCount = JSON.parse(item.playersJSON || '[]').length; }catch(e){}
       return `<div class="hist-item" onclick="openNvHistoryDetail('${item.id}')">
+        <button class="hist-del" title="Delete this round" onclick="event.stopPropagation(); wgDeleteRoundById('nv','${item.id}', this.parentNode.querySelector('.hist-item-date').textContent)">🗑</button>
         <div class="hist-item-date">${dateStr}</div>
         <div class="hist-item-sub">${playerCount} player${playerCount===1?'':'s'}</div>
       </div>`;
