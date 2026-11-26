@@ -119,6 +119,142 @@ rep("${t.holesPlayed===9?'complete':'incomplete'}", "${t.holesPlayed===HOLE_PARS
 rep("if(n < 1 || n > 9) return 'This round is holes ' + (1 + HOLE_OFFSET) + '–' + (9 + HOLE_OFFSET) + '.';",
     "if(n < 1 || n > HOLE_PARS.length) return 'This round is holes ' + (1 + HOLE_OFFSET) + '–' + (HOLE_PARS.length + HOLE_OFFSET) + '.';")
 
+# ---- No Admin, three tabs, set-your-own buy-in (Nov 26) ----
+# Anyone with the link runs the round: no PIN. Admin panel, Leaderboard, Yearly Points,
+# Pairing History and Enter Results are hidden. A "Run the Round" card on the Roster tab
+# holds the controls (the real buttons are moved there, so app.html fixes still apply).
+# Payout tab = today's round only: places and money from the live scorecard.
+rep('Generated Teams — Week <span id="teams-wk-label">?</span>', 'Generated Teams<span id="teams-wk-label" style="display:none">?</span>')
+rep('🕳️ Hole Assignments — Week <span id="holes-wk-label">?</span> ·', '🕳️ Hole Assignments<span id="holes-wk-label" style="display:none">?</span> ·')
+rep('🏌️ Live Leaderboard — Week <span id="sc-wk-label">?</span> ·', '🏌️ Live Leaderboard<span id="sc-wk-label" style="display:none">?</span> ·')
+rep("Start the Live Scorecard for Week ${wk} on ", "Start the Live Scorecard on ")
+rep("All previous scores for this week will be cleared.", "Any scores from the last round will be cleared.")
+rep("Holes have not been assigned for Week ${wk}.", "Holes have not been assigned yet.")
+rep("Tap Cancel, then ⛳ Assign Holes on the Roster tab.", "Tap Cancel, then ⛳ Assign Holes under the teams on the Roster tab.")
+rep("'Tap your name if you are playing. Admin generates the 2-man teams.'", "'Tap your name if you are playing, then use Run the Round below.'")
+rep('<div class="card-title">📋 Weekly Results</div>', '<div class="card-title">💰 Today\'s Payout</div><div id="tm-payout"></div><div style="display:none">')
+rep('        <tbody id="wp-body"></tbody>\n      </table>\n    </div>\n  </div>\n</div>',
+    '        <tbody id="wp-body"></tbody>\n      </table>\n    </div>\n  </div></div>\n</div>')
+rep('</body>', r"""<style>
+#admin-section, #show-admin-btn, #save-pairings-btn, #teams-note { display: none !important; }
+nav button[onclick*="'leaderboard'"], nav button[onclick*="'yearly'"], nav button[onclick*="'history'"], nav button[onclick*="'results'"] { display: none !important; }
+.tm-run .tm-step { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+.tm-run .tm-step:last-child { border-bottom: 0; }
+.tm-run .tm-n { width: 22px; height: 22px; border-radius: 50%; background: #1b4332; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex: none; }
+.tm-run select, .tm-run input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+.tm-run input { width: 70px; }
+.tm-pay-row { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.tm-pay-row .amt { font-weight: 700; color: #1b4332; white-space: nowrap; }
+</style>
+<script>
+// ---- 2-Man Scramble: no Admin, Run the Round card, today's payout ----
+_adminUnlocked = true;                       // everyone can run it (tee pickers, voice commands)
+editHcp = function (evt) { if (evt && evt.stopPropagation) evt.stopPropagation(); }; // hcps come from GHIN / Wednesday list
+let tmBuyIn = 10;
+(function buildRunCard() {
+  const players = document.getElementById('player-grid').closest('.card');
+  const card = document.createElement('div');
+  card.className = 'card tm-run';
+  card.innerHTML = `<div class="card-title">⛳ Run the Round</div>
+    <div class="tm-step"><span class="tm-n">1</span> Tap everyone who's playing above. Not on the list? <button class="btn" onclick="showAddPlayer()">+ Add Player</button></div>
+    <div class="tm-step"><span class="tm-n">2</span> Holes: <span id="tm-nine"></span> &nbsp; Buy-in $ <input type="number" id="tm-buyin" min="0" step="1" inputmode="decimal" onchange="tmSetBuyIn(this.value)"> per player</div>
+    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> then ⛳ Assign Holes under the teams</div>
+    <div class="tm-step" id="tm-round"><span class="tm-n">4</span> </div>
+    <div class="tm-step"><span class="tm-n">5</span> When everyone's done: End Round. The Payout tab shows who gets paid.</div>
+    <div class="tm-step"><button class="btn gray" onclick="tmNewDay()" style="font-size:12px">🧹 Uncheck everyone</button></div>`;
+  players.after(card);
+  document.getElementById('tm-nine').appendChild(document.getElementById('nine-select'));
+  const r = document.getElementById('tm-round');
+  r.appendChild(document.getElementById('start-round-btn'));
+  const end = document.getElementById('end-round-btn');
+  end.textContent = '🏁 End Round'; end.setAttribute('onclick', 'tmEndRound()');
+  r.appendChild(end);
+  const clr = [...document.querySelectorAll('#admin-section button')].find(b => (b.getAttribute('onclick') || '').startsWith('clearRound'));
+  if (clr) { clr.classList.add('gray'); r.appendChild(clr); }
+  r.appendChild(document.getElementById('round-status-msg'));
+  document.getElementById('tm-buyin').value = tmBuyIn;
+})();
+function tmSetBuyIn(v) {
+  const n = Math.max(0, Number(v));
+  if (!isFinite(n)) return;
+  tmBuyIn = n;
+  SD('state').set({ buyIn: n }, { merge: true }).catch(e => console.log('buy-in save failed', e));
+  tmRenderPayout();
+}
+SD('state').onSnapshot(doc => {
+  const d = doc.exists ? doc.data() : {};
+  if (d.buyIn !== undefined && d.buyIn !== null) { tmBuyIn = Number(d.buyIn); const el = document.getElementById('tm-buyin'); if (el && document.activeElement !== el) el.value = tmBuyIn; tmRenderPayout(); }
+});
+function tmReroll() {
+  const el = document.getElementById('reroll-num');
+  el.value = (parseInt(el.value) || 1) + 1; saveAdmin(); generateTeams();
+}
+function tmNewDay() {
+  if (!confirm('Uncheck everyone so the next round starts with an empty list?')) return;
+  state.playing = {}; saveState(); renderPlayers();
+}
+async function tmEndRound() {
+  if (!roundState.active) return;
+  const ranked = getRankedTeams();
+  if (!ranked.length) { alert('No scores entered yet.'); return; }
+  const short = ranked.filter(t => t.holesPlayed < HOLE_PARS.length).length;
+  if (!confirm('End the round?' + (short ? `\n\n${short} team${short === 1 ? ' has' : 's have'} not posted every hole.` : '') + '\n\nScores lock and the Payout tab shows who gets paid.')) return;
+  roundState.active = false; _tmFinal = null;
+  tmRenderPayout(); // freeze the final payout so it shows the same on every phone, even after reloads
+  try { await SD('payout').set({ at: Date.now(), html: document.getElementById('tm-payout').innerHTML }); } catch (e) { console.log('payout save', e); }
+  await saveRoundMeta();
+  updateRoundAdminUI(); showRoundUI();
+  const b = document.querySelector('nav button[onclick*="\'payout\'"]'); if (b) showPage('payout', b);
+}
+// Start Round: clear the last round's final payout
+const _tmStartRound = startRound;
+startRound = async function () { await _tmStartRound(); if (roundState.active) { SD('payout').delete().catch(() => {}); _tmFinal = null; } };
+let _tmFinal = null;
+SD('payout').onSnapshot(doc => { _tmFinal = doc.exists ? doc.data() : null; tmRenderPayout(); });
+
+function tmNames(label) {
+  const clean = label.replace(/^⛳\s*/, '').replace(/\s*\(solo\)\s*$/i, '');
+  const n = teamLabelToNames(clean);
+  return (n && n.length) ? n : clean.split(/\s*\+\s*/);
+}
+function tmMoney(x) { return '$' + (Math.round(x * 100) % 100 ? x.toFixed(2) : String(Math.round(x))); }
+// Same split as the Wednesday scramble, by number of players:
+// 10 or fewer: 1st team takes the pot. 11–16: 2nd team gets its buy-ins back, 1st the rest.
+// 17+: 2nd team gets 2 buy-ins each, 3rd its buy-ins back, 1st the rest. Split evenly in a team.
+function tmRenderPayout() {
+  const box = document.getElementById('tm-payout');
+  if (!box) return;
+  if (_tmFinal && !roundState.active) { box.innerHTML = _tmFinal.html; return; }
+  const labels = Object.keys(roundState.scores || {});
+  if (!labels.length) { box.innerHTML = '<p style="color:#888;font-size:13px">No round yet. Start one on the Roster tab.</p>'; return; }
+  const B = tmBuyIn, n = labels.reduce((s, l) => s + tmNames(l).length, 0), pool = n * B;
+  const ranked = getRankedTeams();
+  const size = i => ranked[i] ? tmNames(ranked[i].label).length : 0;
+  const share = [0, 0, 0];
+  if (n <= 10) share[0] = pool;
+  else if (n <= 16) { share[1] = size(1) * B; share[0] = pool - share[1]; }
+  else { share[1] = size(1) * 2 * B; share[2] = size(2) * B; share[0] = pool - share[1] - share[2]; }
+  const medals = ['🥇', '🥈', '🥉'];
+  const live = roundState.active;
+  let html = `<p style="font-size:12px;color:#666;margin-bottom:6px">${n} players × ${tmMoney(B)} = <b>${tmMoney(pool)}</b> pot · ${NINE_LABEL(roundState.nine)}${live ? ' · <b style="color:#b26a00">round still going, money can change</b>' : ' · final'}</p>`;
+  if (!ranked.length) html += '<p style="color:#888;font-size:13px">No scores posted yet.</p>';
+  ranked.forEach((t, i) => {
+    const names = tmNames(t.label), amt = i < 3 ? share[i] : 0;
+    const d = t.diff, toPar = d === 0 ? 'E' : d > 0 ? '+' + d : String(d);
+    const thru = t.holesPlayed === HOLE_PARS.length ? '' : ` · thru ${t.holesPlayed}`;
+    html += `<div class="tm-pay-row"><div>${medals[i] || (i + 1) + '.'} <b>${names.join(' + ')}</b><div style="font-size:12px;color:#888">${toPar} (${t.totalScore})${thru}</div></div>` +
+      `<div class="amt">${amt ? tmMoney(amt / names.length) + ' each' : ''}</div></div>`;
+  });
+  box.innerHTML = html;
+}
+renderPayout = tmRenderPayout;
+const _tmShowPage = showPage;
+showPage = function (id, btn) { _tmShowPage(id, btn); if (id === 'payout') tmRenderPayout(); };
+const _tmRefresh = refreshLiveBoard;
+refreshLiveBoard = function () { _tmRefresh(); tmRenderPayout(); };
+</script>
+</body>""")
+
 # This phone's settings kept apart from the Wednesday app
 rep("'wns-nine'", "'wns2m-nine'", count=2)
 rep("'wns-sc-group-w'", "'wns2m-sc-group-w'")
