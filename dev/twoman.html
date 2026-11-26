@@ -1674,7 +1674,7 @@ async function saveEditedPairings() {
 
   APP_DATA.pairingHistory[wk] = pairs;
 
-  if (wk >= 15) {
+  if (wk >= 1) { // 2027: every week is saved (2026 had weeks 1-14 built into the page)
     try {
       await SD('pairings').set(
         { ['w' + wk]: JSON.stringify(pairs) },
@@ -1711,7 +1711,7 @@ function collectPairsFromTeamList() {
 // Writes one week's pairings to memory and Firestore. Returns true on success.
 async function writePairingHistory(wk, pairs) {
   APP_DATA.pairingHistory[wk] = pairs;
-  if (wk < 15) return true;
+  if (wk < 1) return true; // 2027: every week is saved
   try {
     await SD('pairings').set(
       { ['w' + wk]: JSON.stringify(pairs) },
@@ -1744,7 +1744,7 @@ async function loadPairings() {
       const data = doc.data();
       Object.keys(data).forEach(k => {
         const wk = parseInt(k.replace(/^w/, ''));
-        if (!isNaN(wk) && wk >= 15) {
+        if (!isNaN(wk) && wk >= 1) {
           // Stored as JSON string to avoid Firestore nested-array limitation
           try {
             APP_DATA.pairingHistory[wk] = typeof data[k] === 'string'
@@ -1780,7 +1780,7 @@ async function loadHoleHistory() {
           } catch(e) { console.log('loadHoleHistory holes parse error', k, e); }
         } else {
           const wk = parseInt(k.replace(/^w/, ''));
-          if (!isNaN(wk) && wk >= 15) {
+          if (!isNaN(wk) && wk >= 1) {
             try {
               APP_HOLE_HISTORY[wk] = typeof data[k] === 'string' ? JSON.parse(data[k]) : data[k];
             } catch(e) { console.log('loadHoleHistory parse error week', wk, e); }
@@ -3822,7 +3822,7 @@ let tmBuyIn = 10;
   card.innerHTML = `<div class="card-title">⛳ Run the Round</div>
     <div class="tm-step"><span class="tm-n">1</span> Tap everyone who's playing above. Not on the list? <button class="btn" onclick="showAddPlayer()">+ Add Player</button></div>
     <div class="tm-step"><span class="tm-n">2</span> Holes: <span id="tm-nine"></span> &nbsp; Buy-in $ <input type="number" id="tm-buyin" min="0" step="1" inputmode="decimal" onchange="tmSetBuyIn(this.value)"> per player</div>
-    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> Makes the 2-man teams and puts two teams in each group. Everyone starts on hole 1.</div>
+    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> then pick each team's group in 👥 Groups below the teams. Everyone starts on hole 1.</div>
     <div class="tm-step" id="tm-round"><span class="tm-n">4</span> </div>
     <div class="tm-step"><span class="tm-n">5</span> When everyone's done: End Round. The Payout tab shows who gets paid.</div>
     <div class="tm-step"><button class="btn gray" onclick="tmNewDay()" style="font-size:12px">🧹 Uncheck everyone</button></div>`;
@@ -3917,18 +3917,94 @@ showPage = function (id, btn) { _tmShowPage(id, btn); if (id === 'payout') tmRen
 const _tmRefresh = refreshLiveBoard;
 refreshLiveBoard = function () { _tmRefresh(); tmRenderPayout(); };
 </script>
+<style>
+#holes-card, #assign-holes-btn { display: none !important; }
+.tm-grp-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #eee; }
+.tm-grp-row .nm { flex: 1; font-size: 14px; font-weight: 600; }
+.tm-grp-row.open .nm { color: #b26a00; }
+.tm-grp-row .b { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.tm-grp-row .b button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #ccc; background: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+.tm-grp-row .b button.sel { background: #1b4332; border-color: #1b4332; color: #fff; }
+.tm-cnt { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; font-size: 14px; }
+.tm-cnt button { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #1b4332; background: #fff; font-size: 18px; font-weight: 700; color: #1b4332; }
+.tm-sum { font-size: 13px; margin-top: 8px; }
+.tm-sum div { padding: 4px 0; }
+.tm-sum .warn { border: 1px dashed #b26a00; border-radius: 6px; padding: 6px 8px; color: #b26a00; margin-top: 4px; }
+</style>
 <script>
 // 2-Man: every group plays from the round's first hole, in order (no shotgun).
 _grpPlayOrder = function () { return Array.from({ length: HOLE_PARS.length }, (_, i) => i + 1); };
 getStartingHole = function () { return 1; };
-// Generate Teams makes the groups too, and Start Round makes them if nobody has.
-const _tmGenerate = generateTeams;
-generateTeams = function () { _tmGenerate(); if (document.querySelector('#team-list .team-row')) assignHoles(); };
+
+// ---- Groups picked by hand, team by team (like Stableford's group buttons) ----
+// Tap a number on each team; the teams on the same number play together. Saved as the round's
+// group list (wns2/twoman_holes, same shape as the Wednesday hole list), so every phone sees it.
+let tmGroupOf = {};   // team label -> group number
+let tmGroupCount = 2;
+const tmWk = () => parseInt(document.getElementById('week-num').value) || state.weekNum || 1;
+const tmTeams = () => getGeneratedTeamLabels();
+(function buildGroupsCard() {
+  const card = document.createElement('div');
+  card.className = 'card'; card.id = 'tm-groups-card'; card.style.display = 'none';
+  card.innerHTML = '<div class="card-title">👥 Groups</div><div style="font-size:12px;color:#666">Tap a number on each team. Teams on the same number play together. Everyone starts on hole 1.</div><div id="tm-groups"></div>';
+  document.getElementById('teams-card').after(card);
+})();
+function tmSaveGroups() {
+  const teams = tmTeams();
+  const asgn = Array.from({ length: tmGroupCount }, (_, i) => teams.filter((l) => tmGroupOf[l] === i + 1));
+  APP_HOLE_HISTORY[tmWk()] = asgn;
+  SD('holes').set({ ['w' + tmWk()]: JSON.stringify(asgn) }, { merge: true }).catch((e) => console.log('groups save', e));
+  SD('state').set({ groupCount: tmGroupCount, groupOf: tmGroupOf }, { merge: true }).catch(() => {});
+}
+function tmPick(label, g) { tmGroupOf[label] = tmGroupOf[label] === g ? undefined : g; if (!tmGroupOf[label]) delete tmGroupOf[label]; tmSaveGroups(); tmRenderGroups(); }
+function tmCount(d) {
+  const teams = tmTeams();
+  tmGroupCount = Math.max(1, Math.min(Math.max(1, teams.length), tmGroupCount + d));
+  Object.keys(tmGroupOf).forEach((l) => { if (tmGroupOf[l] > tmGroupCount) delete tmGroupOf[l]; });
+  tmSaveGroups(); tmRenderGroups();
+}
+function tmRenderGroups() {
+  const card = document.getElementById('tm-groups-card');
+  const teams = tmTeams();
+  if (!teams.length || roundState.active) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  Object.keys(tmGroupOf).forEach((l) => { if (!teams.includes(l)) delete tmGroupOf[l]; }); // teams changed
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const name = (l) => teams.length && !l.includes('+') ? expandTeamLabel(l) + ' (solo)' : expandTeamLabel(l);
+  let html = `<div class="tm-cnt">Number of groups: <button onclick="tmCount(-1)">−</button> <b>${tmGroupCount}</b> <button onclick="tmCount(1)">+</button></div>`;
+  html += teams.map((l) => `<div class="tm-grp-row${tmGroupOf[l] ? '' : ' open'}"><div class="nm">${name(l)}</div><div class="b">` +
+    Array.from({ length: tmGroupCount }, (_, i) => `<button class="${tmGroupOf[l] === i + 1 ? 'sel' : ''}" onclick="tmPick('${esc(l)}', ${i + 1})">${i + 1}</button>`).join('') + '</div></div>').join('');
+  html += '<div class="tm-sum">' + Array.from({ length: tmGroupCount }, (_, i) => {
+    const m = teams.filter((l) => tmGroupOf[l] === i + 1);
+    return `<div><b>Group ${i + 1}</b> · ${m.length} team${m.length === 1 ? '' : 's'}${m.length ? ': ' + m.map(name).join(' vs ') : ''}</div>`;
+  }).join('');
+  const open = teams.filter((l) => !tmGroupOf[l]);
+  if (open.length) html += `<div class="warn">Not in a group yet: ${open.map(name).join(', ')}</div>`;
+  document.getElementById('tm-groups').innerHTML = html + '</div>';
+}
+// New or changed teams: redraw the picker (a new set of teams starts with no groups).
+new MutationObserver(() => {
+  const teams = tmTeams();
+  if (teams.length && !Object.keys(tmGroupOf).some((l) => teams.includes(l))) tmGroupCount = Math.max(1, Math.ceil(teams.length / 2));
+  tmRenderGroups();
+}).observe(document.getElementById('team-list'), { childList: true, subtree: true });
+SD('state').get().then((doc) => {
+  const d = doc.exists ? doc.data() : {};
+  if (d.groupOf) tmGroupOf = d.groupOf;
+  if (d.groupCount) tmGroupCount = d.groupCount;
+  tmRenderGroups();
+}).catch(() => {});
+// Start Round: every team needs a group, and every group a team.
 const _tmStart2 = startRound;
 startRound = async function () {
-  const wk = parseInt(document.getElementById('week-num').value) || state.weekNum;
-  if (!Array.isArray(APP_HOLE_HISTORY[wk]) && document.querySelector('#team-list .team-row')) assignHoles();
-  return _tmStart2();
+  const teams = tmTeams();
+  const open = teams.filter((l) => !tmGroupOf[l]);
+  if (open.length) { alert('Put every team in a group first (👥 Groups, under the teams).\n\nNot in a group yet: ' + open.map(expandTeamLabel).join(', ')); return; }
+  const empty = Array.from({ length: tmGroupCount }, (_, i) => i + 1).filter((g) => !teams.some((l) => tmGroupOf[l] === g));
+  if (empty.length) { alert(`Group ${empty.join(', ')} has no teams. Tap − to use fewer groups, or move a team there.`); return; }
+  tmSaveGroups();
+  await _tmStart2();
+  tmRenderGroups();
 };
 </script>
 </body>

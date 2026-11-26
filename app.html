@@ -1668,7 +1668,7 @@ async function saveEditedPairings() {
 
   APP_DATA.pairingHistory[wk] = pairs;
 
-  if (wk >= 15) {
+  if (wk >= 1) { // 2027: every week is saved (2026 had weeks 1-14 built into the page)
     try {
       await SD('pairings').set(
         { ['w' + wk]: JSON.stringify(pairs) },
@@ -1705,7 +1705,7 @@ function collectPairsFromTeamList() {
 // Writes one week's pairings to memory and Firestore. Returns true on success.
 async function writePairingHistory(wk, pairs) {
   APP_DATA.pairingHistory[wk] = pairs;
-  if (wk < 15) return true;
+  if (wk < 1) return true; // 2027: every week is saved
   try {
     await SD('pairings').set(
       { ['w' + wk]: JSON.stringify(pairs) },
@@ -1738,7 +1738,7 @@ async function loadPairings() {
       const data = doc.data();
       Object.keys(data).forEach(k => {
         const wk = parseInt(k.replace(/^w/, ''));
-        if (!isNaN(wk) && wk >= 15) {
+        if (!isNaN(wk) && wk >= 1) {
           // Stored as JSON string to avoid Firestore nested-array limitation
           try {
             APP_DATA.pairingHistory[wk] = typeof data[k] === 'string'
@@ -1774,7 +1774,7 @@ async function loadHoleHistory() {
           } catch(e) { console.log('loadHoleHistory holes parse error', k, e); }
         } else {
           const wk = parseInt(k.replace(/^w/, ''));
-          if (!isNaN(wk) && wk >= 15) {
+          if (!isNaN(wk) && wk >= 1) {
             try {
               APP_HOLE_HISTORY[wk] = typeof data[k] === 'string' ? JSON.parse(data[k]) : data[k];
             } catch(e) { console.log('loadHoleHistory parse error week', wk, e); }
