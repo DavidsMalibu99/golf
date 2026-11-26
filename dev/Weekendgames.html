@@ -230,6 +230,8 @@
   .sbg-row:last-child{border-bottom:none;}
   .sbg-name{flex:1; font-size:0.88rem; color:var(--cream); min-width:0;}
   .sbg-row.unassigned .sbg-name{color:var(--gold-soft);}
+  .sbg-tee{flex:none; width:auto; background:var(--dark-green); color:var(--cream); border:1px solid var(--gold); border-radius:12px; padding:5px 8px; font-size:0.8rem; font-weight:bold; cursor:pointer;}
+  @media (max-width:520px){ .sbg-row{flex-wrap:wrap;} .sbg-row .sbg-name{flex:1 1 calc(100% - 80px);} .sbg-row .sbg-tee{margin-left:52px;} .sbg-row .sbg-btns{margin-left:auto;} }
   .sbg-btns{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;}
   .sbg-btns button{width:34px; height:34px; border-radius:50%; border:1px solid var(--line-green); background:var(--dark-green); color:var(--text-dim); font-weight:bold; font-size:0.85rem; padding:0;}
   .sbg-btns button.sel{background:var(--gold); border-color:var(--gold); color:var(--dark-green);}
@@ -2151,7 +2153,10 @@ function populateSbRosterChecklist(){
 }
 
 // Tee picked for a player on the setup screen: saved as the tee he's playing on weekends
+const sbGuestTee = {};  // guests (not on the roster): tee picked for this setup only
 function sbPickTee(name, teeId){
+  const onRoster = !!document.querySelector('#sbRosterChecks input[type=checkbox][value="'+name.replace(/"/g,'\\"')+'"]');
+  if(!onRoster){ sbGuestTee[name] = teeId; return; }
   hcSetTee(weekendDb, name, 'wkd', teeId).catch(e=>console.error('tee save failed', e));
   const h = document.getElementById('sbchk_'+name.replace(/[^a-zA-Z0-9]/g,'')+'_h');
   if(h) h.textContent = getHcp(name);
@@ -2238,15 +2243,20 @@ function sbRenderGroupSetup(){
     return h;
   };
   const isRoster = n => !!document.querySelector('#sbRosterChecks input[type=checkbox][value="'+n.replace(/"/g,'\\"')+'"]');
+  // Tee picker for every player, in its own spot in the row (Nov 26). Roster players: saved as his
+  // weekend tee (sets his course hcp when he has an index). Guests: kept for this setup only.
   const teeHtml = n => {
-    if(!isRoster(n) || typeof hcTeeSelect !== 'function') return '';
+    if(typeof hcData === 'undefined' || typeof hcTeeOf !== 'function') return '';
     const safe = n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return hcTeeSelect(n, 'wkd', `sbPickTee('${safe}', this.value)`);
+    const cur = isRoster(n) ? hcTeeOf(n, 'wkd') : (sbGuestTee[n] || hcTeeOf(n, 'wkd'));
+    return `<select class="sbg-tee" onchange="sbPickTee('${safe}', this.value)" aria-label="Tee for ${n.replace(/"/g,'&quot;')}">` +
+      Object.keys(hcData.tees).map(id => `<option value="${id}"${id === cur ? ' selected' : ''}>${hcData.tees[id].name}</option>`).join('') + '</select>';
   };
   const list = '<div class="sbg-list">' + names.map((name,i)=>`
     <div class="sbg-row${sbGroupAssign[name] ? '' : ' unassigned'}">
       <button type="button" onclick="sbUnpick(${i})" aria-label="Remove ${name}" style="width:auto;background:none;border:0;color:var(--rust);font-size:1.1rem;padding:0 6px 0 0;cursor:pointer;">✕</button>
-      ${_av(name, 28)}<span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')} ${teeHtml(name)}</span></span>
+      ${_av(name, 28)}<span class="sbg-name">${name}<span style="display:block;font-size:0.7rem;color:var(--text-dim);font-weight:400;">hcp ${typeof getHcp==='function' && isRoster(name) ? getHcp(name) : ((sbExtras.find(p=>p.name===name)||{}).hcp ?? '')}</span></span>
+      ${teeHtml(name)}
       <button type="button" class="money-pill${sbNoMoney[name] ? ' off' : ''}" onclick="sbToggleMoney(${i})" title="Tap to switch between the money game and scores only">${sbNoMoney[name] ? 'Scores only' : '💲 In'}</button>
       ${skinsOnNow && !sbNoMoney[name] ? `<button type="button" class="money-pill${sbSkinsOut[name] ? ' off' : ''}" onclick="sbToggleSkins(${i})" title="Tap if he is not playing Skins">${sbSkinsOut[name] ? 'No Skins' : 'Skins ✓'}</button>` : ''}
       <div class="sbg-btns">${btns(i)}</div>
