@@ -130,7 +130,7 @@ rep('🏌️ Live Leaderboard — Week <span id="sc-wk-label">?</span> ·', '�
 rep("Start the Live Scorecard for Week ${wk} on ", "Start the Live Scorecard on ")
 rep("All previous scores for this week will be cleared.", "Any scores from the last round will be cleared.")
 rep("Holes have not been assigned for Week ${wk}.", "Holes have not been assigned yet.")
-rep("Tap Cancel, then ⛳ Assign Holes on the Roster tab.", "Tap Cancel, then ⛳ Assign Holes under the teams on the Roster tab.")
+rep("Tap Cancel, then ⛳ Assign Holes on the Roster tab.", "Tap Cancel, then tap Generate Teams on the Roster tab.")
 rep("'Tap your name if you are playing. Admin generates the 2-man teams.'", "'Tap your name if you are playing, then use Run the Round below.'")
 rep('<div class="card-title">📋 Weekly Results</div>', '<div class="card-title">💰 Today\'s Payout</div><div id="tm-payout"></div><div style="display:none">')
 rep('        <tbody id="wp-body"></tbody>\n      </table>\n    </div>\n  </div>\n</div>',
@@ -158,7 +158,7 @@ let tmBuyIn = 10;
   card.innerHTML = `<div class="card-title">⛳ Run the Round</div>
     <div class="tm-step"><span class="tm-n">1</span> Tap everyone who's playing above. Not on the list? <button class="btn" onclick="showAddPlayer()">+ Add Player</button></div>
     <div class="tm-step"><span class="tm-n">2</span> Holes: <span id="tm-nine"></span> &nbsp; Buy-in $ <input type="number" id="tm-buyin" min="0" step="1" inputmode="decimal" onchange="tmSetBuyIn(this.value)"> per player</div>
-    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> then ⛳ Assign Holes under the teams</div>
+    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> Makes the 2-man teams and puts two teams in each group. Everyone starts on hole 1.</div>
     <div class="tm-step" id="tm-round"><span class="tm-n">4</span> </div>
     <div class="tm-step"><span class="tm-n">5</span> When everyone's done: End Round. The Payout tab shows who gets paid.</div>
     <div class="tm-step"><button class="btn gray" onclick="tmNewDay()" style="font-size:12px">🧹 Uncheck everyone</button></div>`;
@@ -252,6 +252,38 @@ const _tmShowPage = showPage;
 showPage = function (id, btn) { _tmShowPage(id, btn); if (id === 'payout') tmRenderPayout(); };
 const _tmRefresh = refreshLiveBoard;
 refreshLiveBoard = function () { _tmRefresh(); tmRenderPayout(); };
+</script>
+</body>""")
+
+# ---- Everyone starts on hole 1 (Nov 26): no shotgun ----
+# Generate Teams also makes the groups (two teams each). The Wednesday "hole assignment" is kept
+# under the hood as the group list, but every group plays from the first hole of the round.
+# Odd number of teams: the extra team plays as a twosome (the solo, if any, joins the smallest group).
+rep("  const isOdd = n % 2 === 1;\n", "  const isOdd = false; // 2-Man: never three teams in one group\n")
+rep("const holesNeeded = Math.max(1, isOdd ? (n - 1) / 2 : n / 2);", "const holesNeeded = Math.max(1, Math.ceil(n / 2));")
+rep("  if (soloLabel) assignment[0].push(soloLabel);", "  if (soloLabel) assignment.reduce((a, b) => (b.length < a.length ? b : a)).push(soloLabel);")
+rep('<div class="hole-num">${hIdx+1+HOLE_OFFSET}</div>', '<div class="hole-num" title="Group ${hIdx+1}">G${hIdx+1}</div>')
+rep('🕳️ Hole Assignments<span id="holes-wk-label"', '👥 Groups (everyone starts on hole 1)<span id="holes-wk-label"')
+rep('💾 Save Hole Assignments', '💾 Save Groups')
+rep('✅ No repeat hole pairings — all fresh!', '✅ Groups made.')
+rep("Drag a team name onto a different hole row to swap assignments manually.", "Drag a team name onto a different group to move it.")
+rep('style="background:#1a6b8a">⛳ Assign Holes</button>', 'style="background:#1a6b8a">👥 Remake Groups</button>')
+rep("${gr.startHole ? `<span class=\"gp-hole\">Starts Hole ${gr.startHole + HOLE_OFFSET}</span>` : ''}", "")
+rep("${g.startHole ? 'Started on Hole ' + (g.startHole + HOLE_OFFSET) : 'No starting hole'}", "${'Starts on hole ' + (1 + HOLE_OFFSET)}")
+rep("n === g.startHole ? 'start' : ''", "n === 1 ? 'start' : ''")
+rep('</body>', r"""<script>
+// 2-Man: every group plays from the round's first hole, in order (no shotgun).
+_grpPlayOrder = function () { return Array.from({ length: HOLE_PARS.length }, (_, i) => i + 1); };
+getStartingHole = function () { return 1; };
+// Generate Teams makes the groups too, and Start Round makes them if nobody has.
+const _tmGenerate = generateTeams;
+generateTeams = function () { _tmGenerate(); if (document.querySelector('#team-list .team-row')) assignHoles(); };
+const _tmStart2 = startRound;
+startRound = async function () {
+  const wk = parseInt(document.getElementById('week-num').value) || state.weekNum;
+  if (!Array.isArray(APP_HOLE_HISTORY[wk]) && document.querySelector('#team-list .team-row')) assignHoles();
+  return _tmStart2();
+};
 </script>
 </body>""")
 

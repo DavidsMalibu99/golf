@@ -304,18 +304,18 @@ body.yardage-open{overflow:hidden}
     <div id="team-list"></div>
     <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="btn" onclick="savePairings()" id="save-pairings-btn" style="background:#2d6a4f">💾 Save Pairings to History</button>
-      <button class="btn" onclick="assignHoles()" id="assign-holes-btn" style="background:#1a6b8a">⛳ Assign Holes</button>
+      <button class="btn" onclick="assignHoles()" id="assign-holes-btn" style="background:#1a6b8a">👥 Remake Groups</button>
       <button class="btn gray" onclick="clearTeams()" id="clear-teams-btn">↺ Clear Teams</button>
       <span id="save-pairings-msg" style="font-size:12px;color:#1b4332;font-weight:600"></span>
     </div>
   </div>
 
   <div class="card" id="holes-card" style="display:none">
-    <div class="card-title">🕳️ Hole Assignments<span id="holes-wk-label" style="display:none">?</span> · <span class="nine-label">Front 9 (holes 1–9)</span></div>
+    <div class="card-title">👥 Groups (everyone starts on hole 1)<span id="holes-wk-label" style="display:none">?</span> · <span class="nine-label">Front 9 (holes 1–9)</span></div>
     <div id="hole-list" style="display:grid;gap:6px;margin-bottom:12px"></div>
-    <div style="font-size:11px;color:#888;margin-bottom:10px">Drag a team name onto a different hole row to swap assignments manually.</div>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">Drag a team name onto a different group to move it.</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn" onclick="saveHoles()" style="background:#1a6b8a">💾 Save Hole Assignments</button>
+      <button class="btn" onclick="saveHoles()" style="background:#1a6b8a">💾 Save Groups</button>
       <span id="save-holes-msg" style="font-size:12px;color:#1a6b8a;font-weight:600"></span>
     </div>
   </div>
@@ -1843,11 +1843,11 @@ function assignHoles() {
   const n = teamLabels.length;
   if (n === 0) { alert('No teams found. Generate teams first.'); return; }
 
-  const isOdd = n % 2 === 1;
+  const isOdd = false; // 2-Man: never three teams in one group
   // Odd team counts put 3 teams on one hole and 2 on every other hole, so the
   // correct count is (n-1)/2. Math.ceil(n/2) built one phantom hole too many,
   // which filled with undefined and crashed the render.
-  const holesNeeded = Math.max(1, isOdd ? (n - 1) / 2 : n / 2);
+  const holesNeeded = Math.max(1, Math.ceil(n / 2));
 
   // Build same-hole constraints using last names
   const ln = name => name.split(' ').pop();
@@ -1856,7 +1856,7 @@ function assignHoles() {
   }));
 
   const assignment = autoAssignHoles(teamLabels, holesNeeded, isOdd, wk, activeSameHole);
-  if (soloLabel) assignment[0].push(soloLabel);
+  if (soloLabel) assignment.reduce((a, b) => (b.length < a.length ? b : a)).push(soloLabel);
 
   renderHoleAssignment(assignment, wk);
   document.getElementById('holes-card').style.display = '';
@@ -1923,7 +1923,7 @@ function renderHoleAssignment(assignment, wk) {
   });
   const totalRepeats = repeatStatus.filter(Boolean).length;
   const statusMsg = totalRepeats === 0
-    ? '<div style="color:#1b4332;font-size:12px;font-weight:600;margin-bottom:8px">✅ No repeat hole pairings — all fresh!</div>'
+    ? '<div style="color:#1b4332;font-size:12px;font-weight:600;margin-bottom:8px">✅ Groups made.</div>'
     : `<div style="color:#856404;font-size:12px;font-weight:600;margin-bottom:8px">⚠️ ${totalRepeats} hole${totalRepeats>1?'s have':'has'} a repeat pairing from the last 4 weeks.</div>`;
   document.getElementById('hole-list').innerHTML = statusMsg + assignment.map((teams, hIdx) => {
     const badges = teams.map((t, tIdx) => {
@@ -1931,7 +1931,7 @@ function renderHoleAssignment(assignment, wk) {
       return `<div class="hole-team-badge${isOvf?' overflow':''}" data-team="${t}" draggable="true" ondragstart="holeDragStart(event)" ondragend="holeDragEnd(event)">${expandTeamLabel(t)}</div>`;
     }).join('');
     const rpBadge = repeatStatus[hIdx] ? '<span style="font-size:10px;background:#fff3cd;color:#856404;border-radius:4px;padding:2px 5px;margin-left:4px">⚠ repeat</span>' : '';
-    return `<div class="hole-row" ondragover="holeDragOver(event)" ondragleave="holeDragLeave(event)" ondrop="holeDrop(event,${hIdx})"><div class="hole-num">${hIdx+1+HOLE_OFFSET}</div><div class="hole-teams">${badges}</div>${rpBadge}</div>`;
+    return `<div class="hole-row" ondragover="holeDragOver(event)" ondragleave="holeDragLeave(event)" ondrop="holeDrop(event,${hIdx})"><div class="hole-num" title="Group ${hIdx+1}">G${hIdx+1}</div><div class="hole-teams">${badges}</div>${rpBadge}</div>`;
   }).join('');
 }
 
@@ -2024,7 +2024,7 @@ async function startRound() {
   const holesWk = parseInt(document.getElementById('holes-wk-label').textContent);
   if (holesWk === wk && document.querySelector('#hole-list .hole-row')) await saveHoles();
   if (!Array.isArray(APP_HOLE_HISTORY[wk])) {
-    if (!confirm(`Holes have not been assigned yet.\n\nWithout them, phones show one long team list instead of Group 1, 2, 3, and there is no Yardages button.\n\nTap Cancel, then ⛳ Assign Holes under the teams on the Roster tab. Or tap OK to start anyway.`)) return;
+    if (!confirm(`Holes have not been assigned yet.\n\nWithout them, phones show one long team list instead of Group 1, 2, 3, and there is no Yardages button.\n\nTap Cancel, then tap Generate Teams on the Roster tab. Or tap OK to start anyway.`)) return;
   }
 
   roundState = {
@@ -2644,7 +2644,7 @@ function renderGroupEntry() {
         const done = _grpPlayOrder(gr.startHole).filter(h => _grpHoleState(gr, h) === 'done').length;
         return `<button class="grp-pick" onclick="pickScoreGroup('${gr.startHole}')">
           <div class="gp-top"><span class="gp-name">Group ${gr.num}</span>
-          ${gr.startHole ? `<span class="gp-hole">Starts Hole ${gr.startHole + HOLE_OFFSET}</span>` : ''}</div>
+          </div>
           <div class="gp-teams">${gr.teams.map(_grpNames).join('<br>')}</div>
           <div class="gp-prog">${done}/${HOLE_PARS.length} holes posted</div>
         </button>`;
@@ -2663,7 +2663,7 @@ function renderGroupEntry() {
 
   const strip = Array.from({ length: HOLE_PARS.length }, (_, i) => i + 1).map(n => {
     const st = _grpHoleState(g, n);
-    const cls = [st === 'done' ? 'done' : st === 'part' ? 'part' : '', n === h ? 'cur' : '', n === g.startHole ? 'start' : ''].join(' ');
+    const cls = [st === 'done' ? 'done' : st === 'part' ? 'part' : '', n === h ? 'cur' : '', n === 1 ? 'start' : ''].join(' ');
     return `<button class="${cls}" onclick="gotoGroupHole(${n})">${n + HOLE_OFFSET}</button>`;
   }).join('');
 
@@ -2685,7 +2685,7 @@ function renderGroupEntry() {
   const postLabel = _grp.busy ? 'Saving…' : allPosted && !dirty ? `✓ Hole ${H} Posted` : allPosted ? `Update Hole ${H}` : `Post Hole ${H}`;
   box.innerHTML = `
     <div class="grp-bar">
-      <div><div class="gb-name">Group ${g.num}</div><div class="gb-sub">${g.startHole ? 'Started on Hole ' + (g.startHole + HOLE_OFFSET) : 'No starting hole'}</div></div>
+      <div><div class="gb-name">Group ${g.num}</div><div class="gb-sub">${'Starts on hole ' + (1 + HOLE_OFFSET)}</div></div>
       <button class="grp-link" onclick="changeScoreGroup()">Change group</button>
     </div>
     <div class="grp-beta">📍 New: GPS yardages (beta). Tap Yardages on any hole. If a number looks off, tell David.</div>
@@ -3820,7 +3820,7 @@ let tmBuyIn = 10;
   card.innerHTML = `<div class="card-title">⛳ Run the Round</div>
     <div class="tm-step"><span class="tm-n">1</span> Tap everyone who's playing above. Not on the list? <button class="btn" onclick="showAddPlayer()">+ Add Player</button></div>
     <div class="tm-step"><span class="tm-n">2</span> Holes: <span id="tm-nine"></span> &nbsp; Buy-in $ <input type="number" id="tm-buyin" min="0" step="1" inputmode="decimal" onchange="tmSetBuyIn(this.value)"> per player</div>
-    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> then ⛳ Assign Holes under the teams</div>
+    <div class="tm-step"><span class="tm-n">3</span> <button class="btn" onclick="generateTeams()">🎲 Generate Teams</button> <button class="btn gray" onclick="tmReroll()">↻ New Teams</button> Makes the 2-man teams and puts two teams in each group. Everyone starts on hole 1.</div>
     <div class="tm-step" id="tm-round"><span class="tm-n">4</span> </div>
     <div class="tm-step"><span class="tm-n">5</span> When everyone's done: End Round. The Payout tab shows who gets paid.</div>
     <div class="tm-step"><button class="btn gray" onclick="tmNewDay()" style="font-size:12px">🧹 Uncheck everyone</button></div>`;
@@ -3914,6 +3914,20 @@ const _tmShowPage = showPage;
 showPage = function (id, btn) { _tmShowPage(id, btn); if (id === 'payout') tmRenderPayout(); };
 const _tmRefresh = refreshLiveBoard;
 refreshLiveBoard = function () { _tmRefresh(); tmRenderPayout(); };
+</script>
+<script>
+// 2-Man: every group plays from the round's first hole, in order (no shotgun).
+_grpPlayOrder = function () { return Array.from({ length: HOLE_PARS.length }, (_, i) => i + 1); };
+getStartingHole = function () { return 1; };
+// Generate Teams makes the groups too, and Start Round makes them if nobody has.
+const _tmGenerate = generateTeams;
+generateTeams = function () { _tmGenerate(); if (document.querySelector('#team-list .team-row')) assignHoles(); };
+const _tmStart2 = startRound;
+startRound = async function () {
+  const wk = parseInt(document.getElementById('week-num').value) || state.weekNum;
+  if (!Array.isArray(APP_HOLE_HISTORY[wk]) && document.querySelector('#team-list .team-row')) assignHoles();
+  return _tmStart2();
+};
 </script>
 </body>
 </html>
