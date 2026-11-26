@@ -2988,7 +2988,7 @@ async function saveResultsData() {
 
 function calcPayout(n, place) {
   const pool = n * 10;
-  if (n <= 10) return place === 1 ? pool : 0;
+  if (n <= 10) return place === 1 ? Math.floor(pool / 2) : 0; // per player: the 1st-place team splits the pot (was the whole pot to each)
   if (n <= 16) { if (place===1) return Math.floor((pool-20)/2); if (place===2) return 10; return 0; }
   if (place===1) return Math.floor((pool-60)/2);
   if (place===2) return 20;
