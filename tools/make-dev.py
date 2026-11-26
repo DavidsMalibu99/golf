@@ -61,7 +61,7 @@ shutil.copy(root / 'tools' / 'dev-apple-touch-icon.png', root / 'dev' / 'apple-t
 
 # Weekend Games and More Games: same dev database and a red banner (no copy button;
 # start a test round in dev instead).
-for name in ('Weekendgames.html', 'Moregames.html'):
+for name in ('Weekendgames.html', 'Moregames.html', 'twoman.html'):  # twoman.html: run tools/make-twoman.py first
     w = (root / name).read_text()
     cfg = re.search(r'const firebaseConfig = \{.*?\};', w, re.S).group(0)
     assert 'wns-scramble"' in cfg
