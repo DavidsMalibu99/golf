@@ -254,6 +254,7 @@ body.yardage-open{overflow:hidden}
       <select id="nine-select" onchange="onNineSelect()" style="padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px">
         <option value="front">Front 9 (1–9)</option>
         <option value="back">Back 9 (10–18)</option>
+        <option value="all">18 holes (1–18)</option>
       </select>
       <button class="btn" id="start-round-btn" onclick="startRound()" style="background:#1a6b8a">🏌️ Start Round</button>
       <button class="btn" id="end-round-btn" onclick="endRound()" style="background:#856404;display:none">🏁 End Round & Post Results</button>
@@ -1982,13 +1983,17 @@ const NINES = {
   front: { pars: [4,3,4,4,3,4,5,3,5], hdcps: [3,17,7,5,15,1,9,13,11],  tb: [5,0,3,2,6,8,7,4,1], offset: 0 }, // holes 1-9 (men's card, corrected 7/30)
   back:  { pars: [5,3,4,4,4,3,4,4,5], hdcps: [10,18,14,2,4,16,8,6,12], tb: [3,4,7,6,0,8,2,5,1], offset: 9 }  // holes 10-18
 };
+// 2-Man Scramble: all 18 (tiebreak = hardest hole first by the card's handicap)
+NINES.all = { pars: NINES.front.pars.concat(NINES.back.pars), hdcps: NINES.front.hdcps.concat(NINES.back.hdcps), offset: 0 };
+NINES.all.tb = NINES.all.hdcps.map((h, i) => [h, i]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+const NINE_LABEL = n => n === 'all' ? '18 holes (1–18)' : n === 'back' ? 'Back 9 (holes 10–18)' : 'Front 9 (holes 1–9)';
 let HOLE_PARS = NINES.front.pars, HOLE_HDCPS = NINES.front.hdcps, TIEBREAK_ORDER = NINES.front.tb, HOLE_OFFSET = 0; // tiebreak = hardest hole first
 function applyNine(nine) {
   const n = NINES[nine] ? nine : 'front';
   roundState.nine = n;
   HOLE_PARS = NINES[n].pars; HOLE_HDCPS = NINES[n].hdcps; TIEBREAK_ORDER = NINES[n].tb; HOLE_OFFSET = NINES[n].offset;
   const sel = document.getElementById('nine-select'); if (sel && roundState.active) sel.value = n;
-  document.querySelectorAll('.nine-label').forEach(el => el.textContent = n === 'back' ? 'Back 9 (holes 10–18)' : 'Front 9 (holes 1–9)');
+  document.querySelectorAll('.nine-label').forEach(el => el.textContent = NINE_LABEL(n));
 }
 function onNineSelect() {
   if (roundState.active) { applyNine(roundState.nine); alert('A round is in progress. The nine is set when the round starts.'); return; }
@@ -2007,8 +2012,8 @@ let _scUnsubscribe = null;   // Firestore onSnapshot unsub handle
 
 async function startRound() {
   const wk = parseInt(document.getElementById('week-num').value) || state.weekNum;
-  const nine = (document.getElementById('nine-select') || {}).value === 'back' ? 'back' : 'front';
-  if (!confirm(`Start the Live Scorecard for Week ${wk} on the ${nine === 'back' ? 'BACK nine (holes 10-18)' : 'FRONT nine (holes 1-9)'}? All previous scores for this week will be cleared.`)) return;
+  const nine = NINES[(document.getElementById('nine-select') || {}).value] ? document.getElementById('nine-select').value : 'front';
+  if (!confirm(`Start the Live Scorecard for Week ${wk} on ${nine === 'all' ? 'ALL 18 HOLES' : nine === 'back' ? 'the BACK nine (holes 10-18)' : 'the FRONT nine (holes 1-9)'}? All previous scores for this week will be cleared.`)) return;
 
   // Build team list from generated pairings this week
   const teamLabels = getGeneratedTeamLabels();
@@ -2029,7 +2034,7 @@ async function startRound() {
     scores: {}
   };
   applyNine(nine);
-  teamLabels.forEach(label => { roundState.scores[label] = Array(9).fill(null); });
+  teamLabels.forEach(label => { roundState.scores[label] = Array(HOLE_PARS.length).fill(null); });
   window._pendingScores = {}; // clear all pending scores for new round
   window._justWroteLabel = {};
 
@@ -2045,7 +2050,7 @@ async function startRound() {
     teamLabels.forEach(label => {
       newBatch.set(teamScoresCol().doc(slugifyLabel(label)), {
         label,
-        scores: JSON.stringify(Array(9).fill(null))
+        scores: JSON.stringify(Array(HOLE_PARS.length).fill(null))
       });
     });
     await newBatch.commit();
@@ -2285,7 +2290,7 @@ async function loadRoundState() {
     roundState.scores = {};
     snap.forEach(teamDoc => {
       const d = teamDoc.data();
-      if (d.label) roundState.scores[d.label] = d.scores ? JSON.parse(d.scores) : Array(9).fill(null);
+      if (d.label) roundState.scores[d.label] = d.scores ? JSON.parse(d.scores) : Array(HOLE_PARS.length).fill(null);
     });
   } catch(e) { console.log('loadRoundState error:', e); }
 }
@@ -2310,7 +2315,7 @@ function subscribeRound() {
     snapshot.docChanges().forEach(change => {
       const d = change.doc.data();
       if (!d.label) return;
-      const incoming = d.scores ? JSON.parse(d.scores) : Array(9).fill(null);
+      const incoming = d.scores ? JSON.parse(d.scores) : Array(HOLE_PARS.length).fill(null);
       // Skip if this is just the echo of our own just-sent write (same value)
       const justWrote = window._justWroteLabel && window._justWroteLabel[d.label];
       if (justWrote === JSON.stringify(incoming)) return;
@@ -2400,7 +2405,7 @@ function loadTeamScorecard() {
   }
 
   grid.style.display = '';
-  const scores = roundState.scores[label] || Array(9).fill(null);
+  const scores = roundState.scores[label] || Array(HOLE_PARS.length).fill(null);
   // Reset pending scores from current posted state so switching teams doesn't confuse state
   if (!window._pendingScores) window._pendingScores = {};
   window._pendingScores[label] = scores.map((s, i) => s !== null ? s : HOLE_PARS[i]);
@@ -2452,7 +2457,7 @@ function renderHoleEntries(label, scores, startingHole) {
 function adjustScore(label, holeIdx, delta) {
   if (!roundState.scores[label]) return;
   if (!window._pendingScores) window._pendingScores = {};
-  if (!window._pendingScores[label]) window._pendingScores[label] = Array(9).fill(null).map((_,i) => HOLE_PARS[i]);
+  if (!window._pendingScores[label]) window._pendingScores[label] = Array(HOLE_PARS.length).fill(null).map((_,i) => HOLE_PARS[i]);
 
   const par = HOLE_PARS[holeIdx];
   const current = window._pendingScores[label][holeIdx];
@@ -2596,7 +2601,7 @@ function getGroupForStart(h) {
 
 function _grpPlayOrder(start) {
   const s = start || 1;
-  return Array.from({ length: 9 }, (_, i) => ((s - 1 + i) % 9) + 1);
+  return Array.from({ length: HOLE_PARS.length }, (_, i) => ((s - 1 + i) % HOLE_PARS.length) + 1);
 }
 function _grpPosted(label, hole) { const a = roundState.scores[label]; return a ? a[hole - 1] : null; }
 function _grpValue(label, hole) {
@@ -2641,7 +2646,7 @@ function renderGroupEntry() {
           <div class="gp-top"><span class="gp-name">Group ${gr.num}</span>
           ${gr.startHole ? `<span class="gp-hole">Starts Hole ${gr.startHole + HOLE_OFFSET}</span>` : ''}</div>
           <div class="gp-teams">${gr.teams.map(_grpNames).join('<br>')}</div>
-          <div class="gp-prog">${done}/9 holes posted</div>
+          <div class="gp-prog">${done}/${HOLE_PARS.length} holes posted</div>
         </button>`;
       }).join('');
     return;
@@ -2656,7 +2661,7 @@ function renderGroupEntry() {
   const dirty = g.teams.some(l => _grp.pending[l] && _grp.pending[l][h] !== undefined && _grp.pending[l][h] !== _grpPosted(l, h));
   const pos = order.indexOf(h);
 
-  const strip = Array.from({ length: 9 }, (_, i) => i + 1).map(n => {
+  const strip = Array.from({ length: HOLE_PARS.length }, (_, i) => i + 1).map(n => {
     const st = _grpHoleState(g, n);
     const cls = [st === 'done' ? 'done' : st === 'part' ? 'part' : '', n === h ? 'cur' : '', n === g.startHole ? 'start' : ''].join(' ');
     return `<button class="${cls}" onclick="gotoGroupHole(${n})">${n + HOLE_OFFSET}</button>`;
@@ -2689,8 +2694,8 @@ function renderGroupEntry() {
     <div class="grp-hole-body">${rows}</div>
     <button class="grp-post ${allPosted && !dirty ? 'saved' : ''}" onclick="postGroupHole()" ${_grp.busy ? 'disabled' : ''}>${postLabel}</button>
     <div class="grp-nav">
-      <button onclick="stepGroupHole(-1)">◀ Hole ${order[(pos + 8) % 9] + HOLE_OFFSET}</button>
-      <button onclick="stepGroupHole(1)">Hole ${order[(pos + 1) % 9] + HOLE_OFFSET} ▶</button>
+      <button onclick="stepGroupHole(-1)">◀ Hole ${order[(pos + HOLE_PARS.length - 1) % HOLE_PARS.length] + HOLE_OFFSET}</button>
+      <button onclick="stepGroupHole(1)">Hole ${order[(pos + 1) % HOLE_PARS.length] + HOLE_OFFSET} ▶</button>
     </div>
     <div class="grp-msg" id="grp-msg"></div>`;
 }
@@ -2724,7 +2729,7 @@ function gotoGroupHole(n) { _grp.curHole = n; renderGroupEntry(); }
 function stepGroupHole(dir) {
   const g = getGroupForStart(_grp.groupHole); if (!g) return;
   const order = _grpPlayOrder(g.startHole);
-  _grp.curHole = order[(order.indexOf(_grp.curHole) + dir + 9) % 9];
+  _grp.curHole = order[(order.indexOf(_grp.curHole) + dir + HOLE_PARS.length) % HOLE_PARS.length];
   renderGroupEntry();
 }
 function adjGroupScore(i, delta) {
@@ -2742,7 +2747,7 @@ async function _grpSaveHole(label, holeIdx, value) {
   let merged = null;
   await db.runTransaction(async tx => {
     const snap = await tx.get(ref);
-    const cur = snap.exists && snap.data().scores ? JSON.parse(snap.data().scores) : Array(9).fill(null);
+    const cur = snap.exists && snap.data().scores ? JSON.parse(snap.data().scores) : Array(HOLE_PARS.length).fill(null);
     cur[holeIdx] = value;
     merged = cur;
     window._justWroteLabel = window._justWroteLabel || {};
@@ -2799,7 +2804,7 @@ function updateTotalDisplay(scores) {
   const holesPosted = scores.filter(s => s !== null).length;
   const diffStr = holesPosted === 0 ? 'E' : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`;
   document.getElementById('sc-total-display').textContent =
-    `${diffStr}  (${totalScore || 0})  •  ${holesPosted}/9 posted`;
+    `${diffStr}  (${totalScore || 0})  •  ${holesPosted}/${HOLE_PARS.length} posted`;
 }
 
 async function submitTeamScore() {
@@ -2807,8 +2812,8 @@ async function submitTeamScore() {
   if (!label) return;
   const scores = roundState.scores[label];
   const holesIn = scores.filter(s => s !== null).length;
-  if (holesIn < 9) {
-    if (!confirm(`Only ${holesIn}/9 holes entered. Submit anyway?`)) return;
+  if (holesIn < HOLE_PARS.length) {
+    if (!confirm(`Only ${holesIn}/${HOLE_PARS.length} holes entered. Submit anyway?`)) return;
   }
   clearTimeout(window._scSaveTimers?.[label]);
   await saveTeamScore(label);
@@ -2847,7 +2852,7 @@ function refreshLiveBoard() {
   const container = document.getElementById('sc-live-table');
   if (!container) return;
   const ranked = getRankedTeams();
-  const allComplete = ranked.length > 0 && ranked.every(t => t.holesPlayed === 9);
+  const allComplete = ranked.length > 0 && ranked.every(t => t.holesPlayed === HOLE_PARS.length);
   const totalTeams = Object.keys(roundState.scores).length;
 
   document.getElementById('sc-live-status').textContent =
@@ -2862,9 +2867,9 @@ function refreshLiveBoard() {
   container.innerHTML = ranked.map((t, i) => {
     const diffStr = t.diff === 0 ? 'E' : t.diff > 0 ? `+${t.diff}` : `${t.diff}`;
     const chipCls = t.diff < 0 ? 'under' : t.diff > 0 ? 'over' : 'even';
-    const holesStr = t.holesPlayed === 9 ? '✓ F' : `${t.holesPlayed}/9`;
+    const holesStr = t.holesPlayed === HOLE_PARS.length ? '✓ F' : `${t.holesPlayed}/${HOLE_PARS.length}`;
     const place = i < 3 ? placeLabel[i] : `${LOSER_EMOJI} ${i+1}.`;
-    return (i===3?'<div class="play-better-live">😩 Start Playing Better 😩</div>':'') + `<div class="sc-live-row ${i===0?'leader':''} ${t.holesPlayed===9?'complete':'incomplete'}">
+    return (i===3?'<div class="play-better-live">😩 Start Playing Better 😩</div>':'') + `<div class="sc-live-row ${i===0?'leader':''} ${t.holesPlayed===HOLE_PARS.length?'complete':'incomplete'}">
       <span style="font-weight:600">${place} ${expandTeamLabel(t.label)}</span>
       <span style="font-size:11px;color:#888">${holesStr}</span>
       <span class="sc-score-chip ${chipCls}">${diffStr}</span>
@@ -3761,7 +3766,7 @@ init().then(() => {
     { label:'Hole', example:'Hole 5', re:/\b(?:hole|whole|holes) (\d{1,2})\b/, run: m=>{
         if(!scGroup()) return 'Open the Live Scorecard and pick your group first: say “group 1”.';
         let n = +m[1]; if(HOLE_OFFSET && n > 9) n -= HOLE_OFFSET;
-        if(n < 1 || n > 9) return 'This round is holes ' + (1 + HOLE_OFFSET) + '–' + (9 + HOLE_OFFSET) + '.';
+        if(n < 1 || n > HOLE_PARS.length) return 'This round is holes ' + (1 + HOLE_OFFSET) + '–' + (HOLE_PARS.length + HOLE_OFFSET) + '.';
         gotoGroupHole(n); } },
     { label:'Next hole', say:['next hole','next','forward'], run: ()=>{ if(!scGroup()) return 'Pick your group first: say “group 1”.'; stepGroupHole(1); } },
     { label:'Previous hole', say:['previous hole','last hole','go back','previous'], run: ()=>{ if(!scGroup()) return 'Pick your group first: say “group 1”.'; stepGroupHole(-1); } },
